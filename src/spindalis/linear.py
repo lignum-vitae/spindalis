@@ -71,6 +71,22 @@ class PCA():
             return [[round(self.covariance(x, y), digits) for y in dimension_data] for x in dimension_data]
         return [[self.covariance(x, y) for y in dimension_data] for x in dimension_data]
 
+    def transpose(self, dimension_data: list[list[int]] | list[list[float]]) -> list[list[int]] | list[list[float]]:
+        """
+        :param dimension_data: list[list[int]] | list[list[float]] 2D data matrix
+        :return: list[list[int]] | list[list[float]] 2D data matrix
+
+        Takes a 2D array as an input and reflects it on the diagonal axis.
+        Intended to be used so that all rows contain data of the same type 
+        (ex. first row is water temperature data).
+        """
+        rows, cols = len(matrix), len(matrix[0])
+        transposed = [[0 for _ in range(rows)] for _ in range(cols)]
+        
+        for i in range(rows):
+            for j in range(cols):
+                transposed[j][i] = matrix[i][j]
+
 pca = PCA()
 if __name__ == "__main__":
     main()
