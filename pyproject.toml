@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "spindalis"
-version = "0.0.2"
+version = "0.0.4"
 authors = [
 	{ name ="Andrew Hennis", email="andrew.mr.hennis@gmail.com" },
 ]
 description = "Multilingual implementation of several dimensionality reduction algorithms such as PCA and Manifold learning"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"License :: OSI Approved :: GPL v3.0",
