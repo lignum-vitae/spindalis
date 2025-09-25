@@ -1,6 +1,9 @@
+pub mod approximators;
 pub mod reduction;
 pub mod regressors;
 
+pub use approximators::bisection::bisection;
+pub use approximators::nrm::newton_raphson_method;
 pub use reduction::linear::pca;
 pub use regressors::linear::linear_regression;
 
