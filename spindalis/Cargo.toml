@@ -3,4 +3,12 @@ name = "spindalis"
 version = "0.0.2"
 edition = "2024"
 
+[lib]
+name = "spindalis"
+path = "src/lib.rs"
+
+[[bin]]
+name = "spindalis-bin"
+path = "src/main.rs"
+
 [dependencies]

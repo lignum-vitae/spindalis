@@ -1,9 +1,15 @@
-pub fn bisection(xl: f64, xu: f64, es: f64, imax: usize, xr: f64) -> f64 {
+use crate::{derivative, eval_polynomial, parse_polynomial};
+
+pub fn bisection(poly: &str, xl: f64, xu: f64, es: f64, imax: usize, xr: f64) -> f64 {
     let mut iter = 0;
     let mut ea = 100.0;
     let mut xu = xu;
     let mut xl = xl;
     let mut xr = xr;
+    let first_dx = {
+        let parsed = parse_polynomial(poly);
+        derivative(&parsed)
+    };
     loop {
         let xr_old = xr;
         xr = (xl + xu) / 2 as f64;
@@ -13,7 +19,7 @@ pub fn bisection(xl: f64, xu: f64, es: f64, imax: usize, xr: f64) -> f64 {
                 (absv.abs() / xr) * 100 as f64
             };
         }
-        let test = first_dx(xl) * first_dx(xr);
+        let test = eval_polynomial(xl, &first_dx) * eval_polynomial(xr, &first_dx);
         if test < 0 as f64 {
             xu = xr;
         } else if test > 0 as f64 {

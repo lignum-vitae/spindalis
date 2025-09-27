@@ -1,11 +1,16 @@
 pub mod approximators;
+pub mod derivatives;
+pub mod polynomials;
 pub mod reduction;
 pub mod regressors;
 
-pub use approximators::bisection::bisection;
-pub use approximators::nrm::newton_raphson_method;
-pub use reduction::linear::pca;
+pub use derivatives::derivative::derivative;
+pub use polynomials::polynomial::eval_polynomial;
+pub use polynomials::polynomial::parse_polynomial;
+
+/*
 pub use regressors::linear::linear_regression;
+*/
 
 /*
 pub fn add(left: u64, right: u64) -> u64 {
