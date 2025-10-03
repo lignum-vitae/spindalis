@@ -86,45 +86,60 @@ let parsed = parse_polynomial(&polynomial);
 
 let res = bisection(polynomial, 0.0, 1.0, 5.0, 1000, 0.6, SolveMode::Extrema);
 
-println!(
-    "Approximate maximum coords: ({res}, {:.5})",
-    eval_polynomial(res, &parsed)
-);
+match res {
+    Some(x) => {
+        println!(
+            "Approximate maximum coords: ({res}, {:.5})",
+            eval_polynomial(res, &parsed)
+        );
 
-println!(
-    "True maximum coords: (0.90449, {:.5})",
-    eval_polynomial(0.90449, &parsed)
-);
+        println!(
+            "True maximum coords: (0.90449, {:.5})",
+            eval_polynomial(0.90449, &parsed)
+        );
+    },
+    None => println!("No extrema was found within the given iterations"),
+}
 
 // Approximate maximum coords: (0.90625, 9.68783)
 // True maximum coords: (0.90449, 9.68792)
 
 let res = bisection(polynomial, -0.2, 0.0, 0.0001, 1000, -0.05, SolveMode::Root);
 
-println!(
-    "Approximate root coords: ({res}, {:.5})",
-    eval_polynomial(res, &parsed)
-);
+match res {
+    Some(x) => {
+        println!(
+            "Approximate root coords: ({res}, {:.5})",
+            eval_polynomial(res, &parsed)
+        );
 
-println!(
-    "True root coords: (-0.08333, {:.5})",
-    eval_polynomial(-0.08333, &parsed)
-);
+        println!(
+            "True root coords: (-0.08333, {:.5})",
+            eval_polynomial(-0.08333, &parsed)
+        );
+    },
+    None => println!("No extrema was found within the given iterations"),
+}
 
 // Approximate root coords: (-0.1, -0.20016)
 // True root coords: (-0.08333, 0.00026)
 
 let res = bisection(polynomial, 0.0, 2.0, 5.0, 1000, 0.6, SolveMode::Root);
 
-println!(
-    "Approximate root coords: ({res}, {:.5})",
-    eval_polynomial(res, &parsed)
-);
+match res {
+    Some(x) => {
+        println!(
+            "Approximate root coords: ({res}, {:.5})",
+            eval_polynomial(res, &parsed)
+        );
 
-println!(
-    "True root coords: (1.34612, {:.5})",
-    eval_polynomial(1.34612, &parsed)
-);
+        println!(
+            "True root coords: (1.34612, {:.5})",
+            eval_polynomial(1.34612, &parsed)
+        );
+    },
+    None => println!("No extrema was found within the given iterations"),
+}
 
 // Approximate root coords: (1.3125, 1.77781)
 // True root coords: (1.34612, 0.00026)
