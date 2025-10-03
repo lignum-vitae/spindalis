@@ -1,4 +1,4 @@
-use spindalis::approximators::{bisection, newton_raphson_method};
+use spindalis::solvers::{bisection, newton_raphson_method};
 use spindalis::{derivative, eval_polynomial, parse_polynomial};
 
 fn main() {
