@@ -21,7 +21,8 @@ pub fn newton_raphson_method(
     let poly_vec_dx = derivative(&poly_vec);
     loop {
         let xr_old = x_curr;
-        x_curr = xr_old - (eval_polynomial(x_curr, &poly_vec) / eval_polynomial(x_curr, &poly_vec_dx));
+        x_curr =
+            xr_old - (eval_polynomial(x_curr, &poly_vec) / eval_polynomial(x_curr, &poly_vec_dx));
         let poss_x_curr = eval_polynomial(x_curr, &poly_vec);
         iter += 1;
         if x_curr != 0 as f64 {
