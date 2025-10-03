@@ -78,7 +78,7 @@ println!("Derivative coefficients: {:?}", dx);
 Find a root or extremum of a polynomial using the bisection method:
 
 ```rust
-use spindalis::approximators::bisection;
+use spindalis::solvers::bisection;
 use spindalis::{eval_polynomial, parse_polynomial};
 
 let polynomial = "-2x^6 - 1.6x^4 + 12x + 1";
@@ -104,7 +104,7 @@ println!(
 Find roots of a polynomial starting from initial guesses:
 
 ```rust
-use spindalis::approximators::newton_raphson_method;
+use spindalis::solvers::newton_raphson_method;
 use spindalis::{eval_polynomial, parse_polynomial};
 
 let polynomial = "0.5x^3 - 3.9x^2 + 6x - 1.5";
