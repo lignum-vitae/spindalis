@@ -1,4 +1,4 @@
-use std::{ops::Index};
+use std::ops::Index;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Arr2D<T> {
@@ -35,7 +35,7 @@ impl<T> Arr2D<T> {
 
     /// Element-wise map operatiorn.
     pub fn map<F, U>(&self, f: F) -> Arr2D<U>
-    where 
+    where
         F: Fn(&T) -> U,
     {
         let inner: Vec<_> = self.inner.iter().map(f).collect();
@@ -256,14 +256,23 @@ mod tests {
     #[test]
     fn test_reshape_invalid_height_errors() {
         let mut data = Arr2D::from(&[[1, 2], [3, 4]]);
-        let err = data.reshape(3).expect_err("reshape should fail when new height mismatches size");
+        let err = data
+            .reshape(3)
+            .expect_err("reshape should fail when new height mismatches size");
 
-        assert!(matches!(err, Arr2DError::InvalidReshape { size: 4, new_height: 3 }));
+        assert!(matches!(
+            err,
+            Arr2DError::InvalidReshape {
+                size: 4,
+                new_height: 3
+            }
+        ));
     }
 
     #[test]
     fn test_try_from_inconsistent_rows_returns_error() {
-        let err = Arr2D::try_from(vec![vec![1, 2, 3], vec![4, 5]]).expect_err("rows with different widths should error");
+        let err = Arr2D::try_from(vec![vec![1, 2, 3], vec![4, 5]])
+            .expect_err("rows with different widths should error");
 
         assert!(matches!(err, Arr2DError::InconsistentRowLengths));
     }
