@@ -89,15 +89,15 @@ let res = bisection(polynomial, 0.0, 1.0, 5.0, 1000, 0.6, SolveMode::Extrema);
 match res {
     Some(x) => {
         println!(
-            "Approximate maximum coords: ({res}, {:.5})",
-            eval_polynomial(res, &parsed)
+            "Approximate maximum coords: ({x}, {:.5})",
+            eval_polynomial(x, &parsed)
         );
 
         println!(
             "True maximum coords: (0.90449, {:.5})",
             eval_polynomial(0.90449, &parsed)
         );
-    },
+    }
     None => println!("No extrema was found within the given iterations"),
 }
 
@@ -109,8 +109,8 @@ let res = bisection(polynomial, -0.2, 0.0, 0.0001, 1000, -0.05, SolveMode::Root)
 match res {
     Some(x) => {
         println!(
-            "Approximate root coords: ({res}, {:.5})",
-            eval_polynomial(res, &parsed)
+            "Approximate root coords: ({x}, {:.5})",
+            eval_polynomial(x, &parsed)
         );
 
         println!(
@@ -129,8 +129,8 @@ let res = bisection(polynomial, 0.0, 2.0, 5.0, 1000, 0.6, SolveMode::Root);
 match res {
     Some(x) => {
         println!(
-            "Approximate root coords: ({res}, {:.5})",
-            eval_polynomial(res, &parsed)
+            "Approximate root coords: ({x}, {:.5})",
+            eval_polynomial(x, &parsed)
         );
 
         println!(
