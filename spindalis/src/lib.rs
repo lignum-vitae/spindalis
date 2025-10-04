@@ -3,6 +3,7 @@ pub mod polynomials;
 pub mod reduction;
 pub mod regressors;
 pub mod solvers;
+pub mod utils;
 
 pub use derivatives::derivative::derivative;
 pub use polynomials::polynomial::eval_polynomial;
