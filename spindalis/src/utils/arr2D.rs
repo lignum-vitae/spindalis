@@ -304,6 +304,18 @@ mod tests {
     }
 
     #[test]
+    fn test_iterating_through_items() {
+        let data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        let mut expected = [1, 2, 3, 6, 5, 4].iter();
+
+        for row in data.rows() {
+            for item in row {
+                assert_eq!(item, expected.next().unwrap());
+            }
+        }
+    }
+
+    #[test]
     fn test_rows_mut_iterator_allows_mutation() {
         let mut data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
