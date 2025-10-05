@@ -14,6 +14,16 @@ pub enum Arr2DError {
 }
 
 impl<T> Arr2D<T> {
+    /// Return a tuple of (height, width).
+    pub fn shape(&self) -> (usize, usize) {
+        (self.height, self.width)
+    }
+
+    /// Return the total number of items (i.e. height * width).
+    pub fn size(&self) -> usize {
+        self.inner.len()
+    }
+    
     /// Change the height and width.
     ///
     /// # Errors
@@ -218,6 +228,36 @@ impl<T> Index<usize> for Arr2D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_getting_shape() {
+        let data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        assert_eq!(data.shape(), (2, 3));
+
+        let data: Arr2D<i32> = Arr2D::from(&[[1, 2]; 0]);
+        assert_eq!(data.shape(), (0, 2));
+
+        let data: Arr2D<i32> = Arr2D::from(&[[]; 0]);
+        assert_eq!(data.shape(), (0, 0));
+
+        let data: Arr2D<i32> = Arr2D::from(&[[], []]);
+        assert_eq!(data.shape(), (2, 0));
+    }
+
+    #[test]
+    fn test_getting_size() {
+        let data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        assert_eq!(data.size(), 6);
+
+        let data: Arr2D<i32> = Arr2D::from(&[[1, 2]; 0]);
+        assert_eq!(data.size(), 0);
+
+        let data: Arr2D<i32> = Arr2D::from(&[[]; 0]);
+        assert_eq!(data.size(), 0);
+
+        let data: Arr2D<i32> = Arr2D::from(&[[], []]);
+        assert_eq!(data.size(), 0);
+    }
 
     #[test]
     fn test_indexing_item() {
