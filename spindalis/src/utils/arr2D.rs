@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Arr2D<T> {
@@ -23,7 +23,7 @@ impl<T> Arr2D<T> {
     pub fn size(&self) -> usize {
         self.inner.len()
     }
-    
+
     /// Change the height and width.
     ///
     /// # Errors
@@ -209,6 +209,18 @@ impl<T> Index<(usize, usize)> for Arr2D<T> {
         &self.inner[row * self.width + col]
     }
 }
+impl<T> IndexMut<(usize, usize)> for Arr2D<T> {
+    fn index_mut(&mut self, idx: (usize, usize)) -> &mut Self::Output {
+        let (row, col) = idx;
+        if row >= self.height || col >= self.width {
+            panic!(
+                "Out of bound index ({row},{col}) into Arr2D of shape ({},{})",
+                self.height, self.width
+            )
+        }
+        &mut self.inner[row * self.width + col]
+    }
+}
 
 // Allow indexing Arr2D rows like `arr[1]`.
 impl<T> Index<usize> for Arr2D<T> {
@@ -224,10 +236,23 @@ impl<T> Index<usize> for Arr2D<T> {
         &self.inner[row * self.width..(row + 1) * self.width]
     }
 }
+impl<T> IndexMut<usize> for Arr2D<T> {
+    fn index_mut(&mut self, row: usize) -> &mut Self::Output {
+        if row >= self.height {
+            panic!(
+                "Out of bound row index {row} into Arr2D of shape ({},{})",
+                self.height, self.width
+            )
+        }
+        &mut self.inner[row * self.width..(row + 1) * self.width]
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- basic getters ---
 
     #[test]
     fn test_getting_shape() {
@@ -259,6 +284,8 @@ mod tests {
         assert_eq!(data.size(), 0);
     }
 
+    // --- indexing ---
+
     #[test]
     fn test_indexing_item() {
         let data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
@@ -269,12 +296,17 @@ mod tests {
         assert_eq!(data[(1, 1)], 5);
         assert_eq!(data[(1, 2)], 4);
     }
-
     #[test]
-    fn test_arr_from_vec() {
-        let data = Arr2D::try_from(vec![vec![1, 2, 3], vec![6, 5, 4]]).unwrap();
-        let expected = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
-        assert_eq!(data, expected);
+    fn test_mut_indexing_item() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        data[(1, 2)] = 10;
+        data[(0, 0)] = 11;
+        assert_eq!(data[(0, 0)], 11);
+        assert_eq!(data[(0, 1)], 2);
+        assert_eq!(data[(0, 2)], 3);
+        assert_eq!(data[(1, 0)], 6);
+        assert_eq!(data[(1, 1)], 5);
+        assert_eq!(data[(1, 2)], 10);
     }
 
     #[test]
@@ -283,56 +315,46 @@ mod tests {
         assert_eq!(data[0], [1, 2, 3]);
         assert_eq!(data[1], [6, 5, 4]);
     }
-
     #[test]
-    fn test_reshape() {
+    fn test_mut_indexing_row() {
         let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
-        data.reshape(3).unwrap();
-        let expected = Arr2D::from(&[[1, 2], [3, 6], [5, 4]]);
-
-        assert_eq!(data, expected);
+        data[0][2] = 9;
+        data[1][0] = 10;
+        assert_eq!(data[0], [1, 2, 9]);
+        assert_eq!(data[1], [10, 5, 4]);
     }
 
     #[test]
-    fn test_reshape_invalid_height_errors() {
-        let mut data = Arr2D::from(&[[1, 2], [3, 4]]);
-        let err = data
-            .reshape(3)
-            .expect_err("reshape should fail when new height mismatches size");
+    #[should_panic]
+    fn test_index_out_of_bounds_panics() {
+        let data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
-        assert!(matches!(
-            err,
-            Arr2DError::InvalidReshape {
-                size: 4,
-                new_height: 3
-            }
-        ));
+        let _ = data[(2, 0)];
+    }
+    #[test]
+    #[should_panic]
+    fn test_mut_index_out_of_bounds_panics() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+
+        let _ = &mut data[(2, 0)];
     }
 
     #[test]
-    fn test_try_from_inconsistent_rows_returns_error() {
-        let err = Arr2D::try_from(vec![vec![1, 2, 3], vec![4, 5]])
-            .expect_err("rows with different widths should error");
+    #[should_panic]
+    fn test_row_index_out_of_bounds_panics() {
+        let data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
-        assert!(matches!(err, Arr2DError::InconsistentRowLengths));
+        let _ = &data[2];
     }
-
     #[test]
-    fn test_try_from_empty_vec_creates_empty_arr() {
-        let data = Arr2D::try_from(Vec::<Vec<i32>>::new()).unwrap();
+    #[should_panic]
+    fn test_row_mut_index_out_of_bounds_panics() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
-        assert_eq!(data.rows().count(), 0);
+        let _ = &mut data[2];
     }
 
-    #[test]
-    fn test_map_transforms_elements() {
-        let data = Arr2D::from(&[[1, 2], [3, 4]]);
-        let mapped = data.map(|value| value * 2);
-        let expected = Arr2D::from(&[[2, 4], [6, 8]]);
-
-        assert_eq!(mapped, expected);
-    }
-
+    // --- iterating ---
     #[test]
     fn test_rows_iterator_returns_slices() {
         let data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
@@ -367,19 +389,61 @@ mod tests {
         assert_eq!(data, expected);
     }
 
-    #[test]
-    #[should_panic]
-    fn test_indexing_out_of_bounds_panics() {
-        let data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+    // --- transformation ---
 
-        let _ = data[(2, 0)];
+    #[test]
+    fn test_reshape() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        data.reshape(3).unwrap();
+        let expected = Arr2D::from(&[[1, 2], [3, 6], [5, 4]]);
+
+        assert_eq!(data, expected);
     }
 
     #[test]
-    #[should_panic]
-    fn test_row_index_out_of_bounds_panics() {
-        let data = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+    fn test_reshape_invalid_height_errors() {
+        let mut data = Arr2D::from(&[[1, 2], [3, 4]]);
+        let err = data
+            .reshape(3)
+            .expect_err("reshape should fail when new height mismatches size");
 
-        let _ = &data[2];
+        assert!(matches!(
+            err,
+            Arr2DError::InvalidReshape {
+                size: 4,
+                new_height: 3
+            }
+        ));
+    }
+
+    #[test]
+    fn test_arr_from_vec() {
+        let data = Arr2D::try_from(vec![vec![1, 2, 3], vec![6, 5, 4]]).unwrap();
+        let expected = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        assert_eq!(data, expected);
+    }
+
+    #[test]
+    fn test_try_from_inconsistent_rows_returns_error() {
+        let err = Arr2D::try_from(vec![vec![1, 2, 3], vec![4, 5]])
+            .expect_err("rows with different widths should error");
+
+        assert!(matches!(err, Arr2DError::InconsistentRowLengths));
+    }
+
+    #[test]
+    fn test_try_from_empty_vec_creates_empty_arr() {
+        let data = Arr2D::try_from(Vec::<Vec<i32>>::new()).unwrap();
+
+        assert_eq!(data.rows().count(), 0);
+    }
+
+    #[test]
+    fn test_map_transforms_elements() {
+        let data = Arr2D::from(&[[1, 2], [3, 4]]);
+        let mapped = data.map(|value| value * 2);
+        let expected = Arr2D::from(&[[2, 4], [6, 8]]);
+
+        assert_eq!(mapped, expected);
     }
 }
