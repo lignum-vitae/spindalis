@@ -2,6 +2,7 @@ pub mod derivatives;
 pub mod polynomials;
 pub mod reduction;
 pub mod regressors;
+pub mod utils;
 pub mod solvers;
 
 pub use derivatives::derivative::derivative;

@@ -1,17 +1,22 @@
+use crate::utils::arr2D::Arr2D;
+
 pub fn pca() {}
 
-fn _center_data(data: &Vec<Vec<f64>>) -> Option<Vec<Vec<f64>>> {
-    let new_data: Vec<Vec<f64>> = data
-        .iter()
-        .map(|dimension| {
-            let mean = dimension.iter().sum::<f64>() / dimension.len() as f64;
-            dimension.iter().map(|&x| x - mean).collect()
-        })
-        .collect();
-    Some(new_data)
+fn _center_data(data: &Arr2D<f64>) -> Arr2D<f64> {
+    let mut result = data.clone();
+    for row in result.rows_mut() {
+        let len = row.len();
+        if len > 0 {
+            let mean = row.iter().sum::<f64>() / len as f64;
+            for item in row {
+                *item -= mean;
+            }
+        }
+    }
+    result
 }
 
-fn _variance(data: &Vec<f64>) -> Result<f64, String> {
+fn _variance(data: &[f64]) -> Result<f64, String> {
     let length = data.len();
     if length <= 0 {
         return Err("Input vector cannot be empty".to_string());
@@ -22,7 +27,7 @@ fn _variance(data: &Vec<f64>) -> Result<f64, String> {
     Ok(var_sum / (length - 1.0))
 }
 
-fn _covariance(x_data: &Vec<f64>, y_data: &Vec<f64>) -> Result<f64, String> {
+fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, String> {
     let x_length = x_data.len();
     let y_length = y_data.len();
     if x_length <= 0 || y_length <= 0 {
@@ -48,16 +53,12 @@ mod tests {
 
     #[test]
     fn test_center_data() {
-        let data = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+        let data = Arr2D::from(&[[1., 2., 3.], [4., 5., 6.]]);
 
-        let centered = _center_data(&data).unwrap();
-        let expected = vec![vec![-1.0, 0.0, 1.0], vec![-1.0, 0.0, 1.0]];
+        let centered = _center_data(&data);
+        let expected = Arr2D::from(&[[-1., 0., 1.], [-1., 0., 1.]]);
 
-        for (row_c, row_e) in centered.iter().zip(expected.iter()) {
-            for (c, e) in row_c.iter().zip(row_e.iter()) {
-                assert!((c - e).abs() < 1e-8);
-            }
-        }
+        assert_eq!(centered, expected);
     }
 
     #[test]
