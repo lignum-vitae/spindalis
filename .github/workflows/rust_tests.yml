@@ -17,6 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build
+      working-directory: ./spindalis
       run: cargo build --verbose
     - name: Run tests
+      working-directory: ./spindalis
       run: cargo test --verbose
