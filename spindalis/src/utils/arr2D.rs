@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt::{self, Display},
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Arr2D<T> {
@@ -262,6 +265,43 @@ impl<T> IndexMut<usize> for Arr2D<T> {
     }
 }
 
+impl<T: Display> Display for Arr2D<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.height == 0 || self.width == 0 {
+            writeln!(f, "[]")?;
+            return Ok(());
+        }
+
+        // Get max width per column
+        let mut col_widths = vec![0; self.width];
+        for c in 0..self.width {
+            col_widths[c] = (0..self.height)
+                .map(|r| format!("{}", self[(r, c)]).len())
+                .max()
+                .unwrap_or(0);
+        }
+
+        // Print
+        for r in 0..self.height {
+            if r == 0 { write!(f, "[[ ")?; } else { write!(f, " [ ")?; }
+            for c in 0..self.width {
+                let item = &self[(r, c)];
+                write!(f, "{:>width$}", *item, width = col_widths[c])?;
+                if c + 1 != self.width {
+                    write!(f, ", ")?;
+                }
+            }
+            if r + 1 == self.height {
+                write!(f, " ]]")?;
+            } else {
+                writeln!(f, " ]")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,5 +507,15 @@ mod tests {
         let expected = Arr2D::from(&[[2, 4], [6, 8]]);
 
         assert_eq!(mapped, expected);
+    }
+
+    #[test]
+    fn test_display() {
+        let data = Arr2D::from(&[[1.2, 34.5678], [789.02, 0.123]]);
+        let out = format!("{}", data);
+        let expected = r#"
+[[    1.2, 34.5678 ]
+ [ 789.02,   0.123 ]]"#;
+        assert_eq!(&out, &expected[1..]);
     }
 }
