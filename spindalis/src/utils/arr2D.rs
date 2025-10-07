@@ -76,6 +76,20 @@ impl<T> Arr2D<T> {
     }
 }
 
+impl<T: Copy> Arr2D<T> {
+    pub fn transpose(&mut self) {
+        let mut new_inner = Vec::with_capacity(self.inner.len());
+        for col in 0..self.width {
+            for row in 0..self.height {
+                new_inner.push(self[(row, col)]);
+            }
+        }
+
+        self.inner = new_inner;
+        std::mem::swap(&mut self.width, &mut self.height);
+    }
+}
+
 /// Iterator for Arr2D
 pub struct Arr2DRows<'a, T> {
     data: &'a [T],
@@ -414,6 +428,14 @@ mod tests {
                 new_height: 3
             }
         ));
+    }
+
+    #[test]
+    fn test_transpose() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        data.transpose();
+        let expected = Arr2D::from(&[[1, 6], [2, 5], [3, 4]]);
+        assert_eq!(data, expected);
     }
 
     #[test]
