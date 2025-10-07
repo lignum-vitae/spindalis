@@ -91,6 +91,15 @@ impl<T: Copy> Arr2D<T> {
         self.inner = new_inner;
         std::mem::swap(&mut self.width, &mut self.height);
     }
+
+    /// Create Arr2D with all elements being the specified value
+    pub fn full(val: T, height: usize, width: usize) -> Self {
+        Arr2D {
+            inner: vec![val; height * width],
+            height,
+            width,
+        }
+    }
 }
 
 /// Iterator for Arr2D
@@ -508,6 +517,18 @@ mod tests {
 
         assert_eq!(mapped, expected);
     }
+
+    #[test]
+    fn test_full() {
+        let data = Arr2D::full(10, 3, 4);
+        for row in data.rows() {
+            for item in row {
+                assert_eq!(*item, 10);
+            }
+        }
+    }
+
+    // --- misc ---
 
     #[test]
     fn test_display() {
