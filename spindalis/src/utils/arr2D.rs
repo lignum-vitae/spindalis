@@ -13,7 +13,14 @@ pub struct Arr2D<T> {
 #[derive(Debug)]
 pub enum Arr2DError {
     InconsistentRowLengths,
-    InvalidReshape { size: usize, new_height: usize },
+    InvalidReshape {
+        size: usize,
+        new_height: usize,
+    },
+    InvalidShape {
+        input_size: usize,
+        output_size: usize,
+    },
 }
 
 impl<T> Arr2D<T> {
@@ -76,6 +83,44 @@ impl<T> Arr2D<T> {
             width: self.width,
             remaining: self.height,
         }
+    }
+
+    //  Create 2D Array from flat vector
+    pub fn from_flat<D>(
+        inner: D,
+        height: usize,
+        width: usize,
+        default_val: T,
+    ) -> Result<Self, Arr2DError>
+    where
+        D: AsRef<[T]>,
+        T: Clone,
+    {
+        let vec_len = inner.as_ref().len();
+        let Arr2D_size = height * width;
+        if vec_len > Arr2D_size || Arr2D_size <= 0 {
+            return Err(Arr2DError::InvalidShape {
+                input_size: (vec_len),
+                output_size: (Arr2D_size),
+            });
+        }
+
+        let inner = inner.as_ref().to_vec();
+        if vec_len < Arr2D_size {
+            let mut new_inner = inner.clone();
+            new_inner.resize(Arr2D_size, default_val);
+            return Ok(Self {
+                inner: new_inner,
+                height,
+                width,
+            });
+        }
+
+        Ok(Self {
+            inner,
+            height,
+            width,
+        })
     }
 }
 
@@ -187,14 +232,14 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
 
             Ok(Self {
                 inner,
-                width,
                 height,
+                width,
             })
         } else {
             Ok(Self {
                 inner: vec![],
-                width: 0,
                 height: 0,
+                width: 0,
             })
         }
     }
@@ -292,7 +337,11 @@ impl<T: Display> Display for Arr2D<T> {
 
         // Print
         for r in 0..self.height {
-            if r == 0 { write!(f, "[[ ")?; } else { write!(f, " [ ")?; }
+            if r == 0 {
+                write!(f, "[[ ")?;
+            } else {
+                write!(f, " [ ")?;
+            }
             for c in 0..self.width {
                 let item = &self[(r, c)];
                 write!(f, "{:>width$}", *item, width = col_widths[c])?;
@@ -359,6 +408,18 @@ mod tests {
         assert_eq!(data[(1, 1)], 5);
         assert_eq!(data[(1, 2)], 4);
     }
+
+    #[test]
+    fn test_2D_indexing_item() {
+        let data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        assert_eq!(data[0][0], 1);
+        assert_eq!(data[0][1], 2);
+        assert_eq!(data[0][2], 3);
+        assert_eq!(data[1][0], 6);
+        assert_eq!(data[1][1], 5);
+        assert_eq!(data[1][2], 4);
+    }
+
     #[test]
     fn test_mut_indexing_item() {
         let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
@@ -370,6 +431,19 @@ mod tests {
         assert_eq!(data[(1, 0)], 6);
         assert_eq!(data[(1, 1)], 5);
         assert_eq!(data[(1, 2)], 10);
+    }
+
+    #[test]
+    fn test_2D_mut_indexing_item() {
+        let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
+        data[(1, 2)] = 10;
+        data[(0, 0)] = 11;
+        assert_eq!(data[0][0], 11);
+        assert_eq!(data[0][1], 2);
+        assert_eq!(data[0][2], 3);
+        assert_eq!(data[1][0], 6);
+        assert_eq!(data[1][1], 5);
+        assert_eq!(data[1][2], 10);
     }
 
     #[test]
@@ -526,6 +600,64 @@ mod tests {
                 assert_eq!(*item, 10);
             }
         }
+    }
+
+    // --- from flat vector to Arr2D ---
+
+    #[test]
+    fn test_from_flat() {
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_ref() {
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_slice() {
+        let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_with_default() {
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_with_default_ref() {
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_full_zeros() {
+        let data = Arr2D::from_flat(&vec![], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_slice_full_zeros() {
+        let data = Arr2D::from_flat(&[], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
+
+        assert_eq!(data, out);
     }
 
     // --- misc ---
