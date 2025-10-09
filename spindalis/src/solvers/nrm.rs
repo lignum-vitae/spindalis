@@ -10,9 +10,9 @@ pub fn newton_raphson_method(
 ) -> Option<f64> {
     let mut iter = 0;
     let mut x_curr = x_init;
-    let mut approx_err = 100 as f64;
+    let mut approx_err = 100_f64;
     let poly_vec = {
-        let parsed = parse_polynomial(&poly);
+        let parsed = parse_polynomial(poly);
         match mode {
             SolveMode::Root => parsed,
             SolveMode::Extrema => derivative(&parsed),
