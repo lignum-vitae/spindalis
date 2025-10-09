@@ -1,4 +1,4 @@
-name: Clippy check
+name: Clippy check - lint
 
 on:
   push:

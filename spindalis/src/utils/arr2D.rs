@@ -41,7 +41,7 @@ impl<T> Arr2D<T> {
     /// This function will return an error if the size isn't divislbe by the new height.
     pub fn reshape(&mut self, height: usize) -> Result<(), Arr2DError> {
         let size = self.height * self.width;
-        if size % height != 0 {
+        if !size.is_multiple_of(height) {
             return Err(Arr2DError::InvalidReshape {
                 size,
                 new_height: height,
@@ -98,7 +98,7 @@ impl<T> Arr2D<T> {
     {
         let vec_len = inner.as_ref().len();
         let Arr2D_size = height * width;
-        if vec_len > Arr2D_size || Arr2D_size <= 0 {
+        if vec_len > Arr2D_size || Arr2D_size == 0 {
             return Err(Arr2DError::InvalidShape {
                 input_size: (vec_len),
                 output_size: (Arr2D_size),
@@ -613,6 +613,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_ref() {
         let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
@@ -621,6 +622,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice() {
         let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
@@ -637,6 +639,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_with_default_ref() {
         let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 2, 3, 0).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
@@ -645,6 +648,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_full_zeros() {
         let data = Arr2D::from_flat(&vec![], 2, 3, 0).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
@@ -653,8 +657,17 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice_full_zeros() {
         let data = Arr2D::from_flat(&[], 2, 3, 0).unwrap();
+        let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
+
+        assert_eq!(data, out);
+    }
+
+    #[test]
+    fn test_from_flat_slice_full_zeros_no_ref() {
+        let data = Arr2D::from_flat([], 2, 3, 0).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
