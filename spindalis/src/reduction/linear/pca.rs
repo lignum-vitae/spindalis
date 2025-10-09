@@ -18,7 +18,7 @@ fn _center_data(data: &Arr2D<f64>) -> Arr2D<f64> {
 
 fn _variance(data: &[f64]) -> Result<f64, String> {
     let length = data.len();
-    if length <= 0 {
+    if length == 0 {
         return Err("Input vector cannot be empty".to_string());
     }
     let length = length as f64;
@@ -30,7 +30,7 @@ fn _variance(data: &[f64]) -> Result<f64, String> {
 fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, String> {
     let x_length = x_data.len();
     let y_length = y_data.len();
-    if x_length <= 0 || y_length <= 0 {
+    if x_length == 0 || y_length == 0 {
         return Err("Input vector cannot be empty".to_string());
     }
     if x_length != y_length {

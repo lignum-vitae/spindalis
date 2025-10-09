@@ -24,11 +24,11 @@ pub fn bisection(
     };
     loop {
         let old_x_curr = x_curr;
-        x_curr = (lower_bound + upper_bound) / 2 as f64;
+        x_curr = (lower_bound + upper_bound) / 2_f64;
         if x_curr != 0 as f64 {
             approx_err = {
                 let absv = x_curr - old_x_curr;
-                (absv.abs() / x_curr) * 100 as f64
+                (absv.abs() / x_curr) * 100_f64
             };
         }
         let test = eval_polynomial(lower_bound, &poly_vec) * eval_polynomial(x_curr, &poly_vec);
