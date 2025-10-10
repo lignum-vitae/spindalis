@@ -1,3 +1,6 @@
+use spindalis::derivatives::partial::partial_derivative;
+use spindalis::polynomials::ascii_letters;
+use spindalis::polynomials::parse_multivar;
 use spindalis::solvers::{SolveMode, bisection, newton_raphson_method};
 use spindalis::{derivative, eval_polynomial, parse_polynomial};
 
@@ -57,4 +60,12 @@ fn main() {
             }
         }
     }
+
+    let letters = ascii_letters();
+    let polynomial = parse_multivar("3x^2y + 3x - 4y + 3", &letters).unwrap();
+    println!("{polynomial:?}");
+    let derived_x = partial_derivative(&polynomial, "x");
+    let derived_y = partial_derivative(&polynomial, "y");
+    println!("{derived_x:?}");
+    println!("{derived_y:?}");
 }
