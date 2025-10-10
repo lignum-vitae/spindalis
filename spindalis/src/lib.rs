@@ -1,13 +1,16 @@
-pub mod derivatives;
 pub mod polynomials;
 pub mod reduction;
 pub mod regressors;
 pub mod solvers;
 pub mod utils;
 
-pub use derivatives::derivative::derivative;
-pub use polynomials::polynomial::eval_polynomial;
-pub use polynomials::polynomial::parse_polynomial;
+pub use polynomials::core::polynomial::eval_polynomial;
+pub use polynomials::core::polynomial::parse_polynomial;
+pub use polynomials::derivatives::derivative::derivative;
+
+pub mod derivatives {
+    pub use crate::polynomials::derivatives::partial;
+}
 
 /*
 pub use regressors::linear::linear_regression;
