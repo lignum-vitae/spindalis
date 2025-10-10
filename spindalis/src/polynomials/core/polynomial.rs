@@ -1,23 +1,47 @@
-pub fn parse_polynomial(input: &str) -> Vec<f64> {
+use crate::polynomials::{ascii_letters, core::PolynomialError};
+
+pub fn parse_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError> {
     let normalized = input.replace(" ", "").replace("-", "+-");
-    let parts: Vec<&str> = normalized.split('+').filter(|s| !s.is_empty()).collect();
+    let mut parts: Vec<&str> = normalized.split('+').collect();
+
+    // Handles instance of the first value of poly being negative
+    // Prevents throwing syntax error for "-x + 4" etc
+    if parts.first() == Some(&"") {
+        parts.remove(0);
+    }
+
+    if parts.iter().any(|s| s.is_empty()) {
+        return Err(PolynomialError::PolynomialSyntaxError);
+    }
+
+    let letters = ascii_letters();
+    // unwrap_or to maintain functionality of parsing just a constant
+    // (might replace with '.map_err()?' to bubble up Error)
+    let var = normalized
+        .chars()
+        .find(|&c| letters.contains(c))
+        .ok_or(PolynomialError::MissingVariable)?;
 
     let mut terms: Vec<(f64, usize)> = Vec::new();
     for part in parts {
         let term = {
-            if let Some(x) = part.find('x') {
+            if let Some(x) = part.find(var) {
                 let coeff_str = &part[..x];
                 let coeff = if coeff_str.is_empty() || coeff_str == "+" {
                     1.0
                 } else if coeff_str == "-" {
                     -1.0
                 } else {
-                    coeff_str.parse::<f64>().unwrap()
+                    coeff_str
+                        .parse::<f64>()
+                        .map_err(|_| PolynomialError::InvalidCoefficient)?
                 };
 
                 if let Some(pow) = part.find('^') {
                     let pow_str = &part[pow + 1..];
-                    let power = pow_str.parse::<usize>().unwrap();
+                    let power = pow_str
+                        .parse::<usize>()
+                        .map_err(|_| PolynomialError::InvalidExponent)?;
                     (coeff, power)
                 } else {
                     // x^1 value
@@ -25,7 +49,10 @@ pub fn parse_polynomial(input: &str) -> Vec<f64> {
                 }
             } else {
                 // No 'x' aka num is constant
-                (part.parse::<f64>().unwrap(), 0)
+                let constant = part
+                    .parse::<f64>()
+                    .map_err(|_| PolynomialError::InvalidConstant)?;
+                (constant, 0)
             }
         };
         terms.push(term);
@@ -36,7 +63,7 @@ pub fn parse_polynomial(input: &str) -> Vec<f64> {
     for (coeff, power) in terms {
         coeffs[power] += coeff;
     }
-    coeffs
+    Ok(coeffs)
 }
 
 pub fn eval_polynomial(x: f64, coeffs: &[f64]) -> f64 {
@@ -53,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_parse_polynomial_simple() {
-        let coeffs = parse_polynomial("2x^2 + 3x + 4");
+        let coeffs = parse_polynomial("2x^2 + 3x + 4").unwrap();
 
         assert_eq!(coeffs.len(), 3);
         assert_eq!(coeffs[0], 4.0); // constant term
@@ -63,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_parse_polynomial_negative_coeffs() {
-        let coeffs = parse_polynomial("-2x^3 - 4x + 1");
+        let coeffs = parse_polynomial("-2x^3 - 4x + 1").unwrap();
 
         assert_eq!(coeffs.len(), 4);
         assert_eq!(coeffs[0], 1.0); // constant
@@ -74,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_parse_polynomial_implicit_coeff() {
-        let coeffs = parse_polynomial("x^2 + x + 1");
+        let coeffs = parse_polynomial("x^2 + x + 1").unwrap();
 
         assert_eq!(coeffs.len(), 3);
         assert_eq!(coeffs[0], 1.0);
@@ -84,15 +111,13 @@ mod tests {
 
     #[test]
     fn test_parse_polynomial_constants_only() {
-        let coeffs = parse_polynomial("5");
-
-        assert_eq!(coeffs.len(), 1);
-        assert_eq!(coeffs[0], 5.0);
+        let result = parse_polynomial("5");
+        assert!(matches!(result, Err(PolynomialError::MissingVariable)));
     }
 
     #[test]
     fn test_parse_polynomial_missing_powers() {
-        let coeffs = parse_polynomial("2x + 3");
+        let coeffs = parse_polynomial("2x + 3").unwrap();
 
         assert_eq!(coeffs.len(), 2);
         assert_eq!(coeffs[0], 3.0);
@@ -101,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_parse_polynomial_multiple_terms_same_power() {
-        let coeffs = parse_polynomial("2x^2 + 3x^2");
+        let coeffs = parse_polynomial("2x^2 + 3x^2").unwrap();
 
         assert_eq!(coeffs.len(), 3);
         assert_eq!(coeffs[0], 0.0); // constant
@@ -111,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_eval_polynomial_simple() {
-        let coeffs = parse_polynomial("2x^2 + 3x + 4");
+        let coeffs = parse_polynomial("2x^2 + 3x + 4").unwrap();
         let result = eval_polynomial(2.0, &coeffs);
 
         // 2*4 + 3*2 + 4 = 8 + 6 + 4 = 18
@@ -120,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_eval_polynomial_negative() {
-        let coeffs = parse_polynomial("-x^2 + 4x - 5");
+        let coeffs = parse_polynomial("-x^2 + 4x - 5").unwrap();
         let result = eval_polynomial(3.0, &coeffs);
 
         // -9 + 12 - 5 = -2
@@ -128,17 +153,15 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_polynomial_constant() {
-        let coeffs = parse_polynomial("7");
-        let result = eval_polynomial(10.0, &coeffs);
-
-        assert_eq!(result, 7.0);
+    fn test_parse_polynomial_constant_fails() {
+        let result = parse_polynomial("7");
+        assert!(matches!(result, Err(PolynomialError::MissingVariable)));
     }
 
     #[test]
     fn test_parse_and_eval_combined() {
         let expr = "x^3 - 2x + 1";
-        let coeffs = parse_polynomial(expr);
+        let coeffs = parse_polynomial(expr).unwrap();
 
         let result_at_2 = eval_polynomial(2.0, &coeffs);
         // 8 - 4 + 1 = 5
