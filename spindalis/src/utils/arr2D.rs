@@ -1,3 +1,4 @@
+use crate::utils::Arr2DError;
 use std::{
     fmt::{self, Display},
     ops::{Index, IndexMut},
@@ -6,21 +7,8 @@ use std::{
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Arr2D<T> {
     inner: Vec<T>,
-    height: usize,
-    width: usize,
-}
-
-#[derive(Debug)]
-pub enum Arr2DError {
-    InconsistentRowLengths,
-    InvalidReshape {
-        size: usize,
-        new_height: usize,
-    },
-    InvalidShape {
-        input_size: usize,
-        output_size: usize,
-    },
+    pub height: usize,
+    pub width: usize,
 }
 
 impl<T> Arr2D<T> {
@@ -68,7 +56,7 @@ impl<T> Arr2D<T> {
     }
 
     /// Create an iterator of refs to rows.
-    pub fn rows(&self) -> impl Iterator<Item = &[T]> {
+    pub fn rows(&self) -> Arr2DRows<'_, T> {
         Arr2DRows {
             data: &self.inner,
             width: self.width,
@@ -77,7 +65,7 @@ impl<T> Arr2D<T> {
     }
 
     /// Create an iterator of mut refs to rows.
-    pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [T]> {
+    pub fn rows_mut(&mut self) -> Arr2DRowsMut<'_, T> {
         Arr2DRowsMut {
             data: self.inner.as_mut_slice(),
             width: self.width,
@@ -242,6 +230,24 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
                 width: 0,
             })
         }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Arr2D<T> {
+    type Item = &'a [T];
+    type IntoIter = Arr2DRows<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Arr2D<T> {
+    type Item = &'a mut [T];
+    type IntoIter = Arr2DRowsMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows_mut()
     }
 }
 
