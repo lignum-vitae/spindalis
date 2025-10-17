@@ -1,26 +1,14 @@
+use crate::utils::Arr2DError;
 use std::{
     fmt::{self, Display},
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Mul},
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
 pub struct Arr2D<T> {
     inner: Vec<T>,
-    height: usize,
-    width: usize,
-}
-
-#[derive(Debug)]
-pub enum Arr2DError {
-    InconsistentRowLengths,
-    InvalidReshape {
-        size: usize,
-        new_height: usize,
-    },
-    InvalidShape {
-        input_size: usize,
-        output_size: usize,
-    },
+    pub height: usize,
+    pub width: usize,
 }
 
 impl<T> Arr2D<T> {
@@ -68,7 +56,7 @@ impl<T> Arr2D<T> {
     }
 
     /// Create an iterator of refs to rows.
-    pub fn rows(&self) -> impl Iterator<Item = &[T]> {
+    pub fn rows(&self) -> Arr2DRows<'_, T> {
         Arr2DRows {
             data: &self.inner,
             width: self.width,
@@ -77,7 +65,7 @@ impl<T> Arr2D<T> {
     }
 
     /// Create an iterator of mut refs to rows.
-    pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [T]> {
+    pub fn rows_mut(&mut self) -> Arr2DRowsMut<'_, T> {
         Arr2DRowsMut {
             data: self.inner.as_mut_slice(),
             width: self.width,
@@ -88,9 +76,9 @@ impl<T> Arr2D<T> {
     //  Create 2D Array from flat vector
     pub fn from_flat<D>(
         inner: D,
+        default_val: T,
         height: usize,
         width: usize,
-        default_val: T,
     ) -> Result<Self, Arr2DError>
     where
         D: AsRef<[T]>,
@@ -121,6 +109,70 @@ impl<T> Arr2D<T> {
             height,
             width,
         })
+    }
+
+    // dot product
+    pub fn dot(&self, rhs: &Self) -> Result<Self, Arr2DError>
+    where
+        T: Copy + std::default::Default + std::ops::AddAssign + std::ops::Mul<Output = T>,
+    {
+        if self.height == 1 && self.width == 1 {
+            let scalar = self[0][0];
+            let mut result = Arr2D::full(T::default(), rhs.height, rhs.width);
+            for i in 0..rhs.height {
+                for j in 0..rhs.width {
+                    result[i][j] = scalar * rhs[i][j];
+                }
+            }
+            return Ok(result);
+        }
+        if self.width != rhs.height {
+            return Err(Arr2DError::InvalidDotShape {
+                lhs: self.width,
+                rhs: rhs.height,
+            });
+        }
+        let mut result = Arr2D::full(T::default(), self.height, rhs.width);
+        for i in 0..self.height {
+            for j in 0..rhs.width {
+                let mut sum = T::default();
+                for k in 0..self.width {
+                    sum += self[i][k] * rhs[k][j]
+                }
+                result[i][j] = sum;
+            }
+        }
+        Ok(result)
+    }
+}
+
+// Generic Mul implementation for Arr2D * Arr2D (matrix * matrix)
+impl<T> Mul<Arr2D<T>> for Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: Arr2D<T>) -> Self {
+        self.dot(&rhs).unwrap_or_default()
+    }
+}
+
+// Generic Mul implementation for Arr2D * scalar (matrix * scalar)
+impl<T> Mul<T> for Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: T) -> Self {
+        let mut result = Arr2D::full(T::default(), self.height, self.width);
+        for i in 0..self.height {
+            for j in 0..self.width {
+                result[i][j] = self[i][j] * rhs;
+            }
+        }
+        result
     }
 }
 
@@ -242,6 +294,24 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
                 width: 0,
             })
         }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Arr2D<T> {
+    type Item = &'a [T];
+    type IntoIter = Arr2DRows<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Arr2D<T> {
+    type Item = &'a mut [T];
+    type IntoIter = Arr2DRowsMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows_mut()
     }
 }
 
@@ -606,7 +676,7 @@ mod tests {
 
     #[test]
     fn test_from_flat() {
-        let data = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -615,7 +685,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_ref() {
-        let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -624,7 +694,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice() {
-        let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -632,7 +702,7 @@ mod tests {
 
     #[test]
     fn test_from_flat_with_default() {
-        let data = Arr2D::from_flat(vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
 
         assert_eq!(data, out);
@@ -641,7 +711,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_with_default_ref() {
-        let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
 
         assert_eq!(data, out);
@@ -650,16 +720,16 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_full_zeros() {
-        let data = Arr2D::from_flat(&vec![], 2, 3, 0).unwrap();
-        let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
+        let flat_data = Arr2D::from_flat(&vec![], 0, 2, 3).unwrap();
+        let full_data = Arr2D::full(0, 2, 3);
 
-        assert_eq!(data, out);
+        assert_eq!(flat_data, full_data);
     }
 
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice_full_zeros() {
-        let data = Arr2D::from_flat(&[], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&[], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
@@ -667,10 +737,78 @@ mod tests {
 
     #[test]
     fn test_from_flat_slice_full_zeros_no_ref() {
-        let data = Arr2D::from_flat([], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat([], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
+    }
+
+    // --- dot product ---
+
+    #[test]
+    fn test_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = arr1.dot(&arr2).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_vec_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![3, 4, 2], 0, 1, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![13, 9, 7, 15, 8, 7, 4, 6, 6, 4, 0, 3], 0, 3, 4).unwrap();
+
+        let expected = Arr2D::from_flat(vec![83, 63, 37, 75], 0, 1, 4).unwrap();
+
+        let res = arr1.dot(&arr2).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_scalar_mul_mat() {
+        let scal = Arr2D::from_flat(vec![2], 0, 1, 1).unwrap();
+        let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
+
+        let res = scal.dot(&mat).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_Mul_trait_scalar() {
+        let scal = 2;
+        let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
+
+        let res = mat * scal;
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn test_Mul_trait_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = arr1 * arr2;
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_Mul_trait_vec_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![3, 4, 2], 0, 1, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![13, 9, 7, 15, 8, 7, 4, 6, 6, 4, 0, 3], 0, 3, 4).unwrap();
+
+        let expected = Arr2D::from_flat(vec![83, 63, 37, 75], 0, 1, 4).unwrap();
+
+        let res = arr1 * arr2;
+        assert_eq!(res, expected);
     }
 
     // --- misc ---

@@ -1,25 +1,51 @@
-use crate::utils::arr2D::Arr2D;
+use crate::reduction::{DimensionError, ReductionError};
+use crate::utils::{StdDevType, arr2D::Arr2D, variation::arith_mean, variation::std_dev};
+
+// ┌─────────────┬────────┬────────┬────────┬────────┬──────────┐
+// │             │  USA   │ France │ Belgium│   UK   │ Czechia  │
+// ├─────────────┼────────┼────────┼────────┼────────┼──────────┤
+// │ Variable1   │   .    │   .    │   .    │   .    │   .      │
+// │ Variable2   │   .    │   .    │   .    │   .    │   .      │
+// │ Variable3   │   .    │   .    │   .    │   .    │   .      │
+// │ Variable4   │   .    │   .    │   .    │   .    │   .      │
+// └─────────────┴────────┴────────┴────────┴────────┴──────────┘
+
+// Rows/data.height → variables
+// Columns/data.width → features
 
 pub fn pca() {}
 
-fn _center_data(data: &Arr2D<f64>) -> Arr2D<f64> {
+fn _center_data(
+    data: &Arr2D<f64>,
+    std_type: Option<StdDevType>,
+) -> Result<Arr2D<f64>, ReductionError> {
     let mut result = data.clone();
-    for row in result.rows_mut() {
+    let mut std = 1_f64;
+    for row in &mut result {
         let len = row.len();
-        if len > 0 {
-            let mean = row.iter().sum::<f64>() / len as f64;
-            for item in row {
-                *item -= mean;
-            }
+        if len == 0 {
+            return Err(ReductionError::ShapeError(DimensionError::EmptyVector));
+        }
+        if let Some(std_kind) = std_type {
+            std = std_dev(row, std_kind);
+        }
+
+        if std.is_nan() {
+            return Err(ReductionError::ZeroMean);
+        }
+
+        let mean = arith_mean(row);
+        for item in row {
+            *item = (*item - mean) / std;
         }
     }
-    result
+    Ok(result)
 }
 
-fn _variance(data: &[f64]) -> Result<f64, String> {
+fn _variance(data: &[f64]) -> Result<f64, DimensionError> {
     let length = data.len();
     if length == 0 {
-        return Err("Input vector cannot be empty".to_string());
+        return Err(DimensionError::EmptyVector);
     }
     let length = length as f64;
     let mean: f64 = data.iter().sum::<f64>() / length;
@@ -27,14 +53,17 @@ fn _variance(data: &[f64]) -> Result<f64, String> {
     Ok(var_sum / (length - 1.0))
 }
 
-fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, String> {
+fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, DimensionError> {
     let x_length = x_data.len();
     let y_length = y_data.len();
     if x_length == 0 || y_length == 0 {
-        return Err("Input vector cannot be empty".to_string());
+        return Err(DimensionError::EmptyVector);
     }
     if x_length != y_length {
-        return Err("Length of input vectors must be the same".to_string());
+        return Err(DimensionError::DimensionMismatch {
+            len_x: x_length,
+            len_y: y_length,
+        });
     }
     let n = x_length as f64;
     let x_mean: f64 = x_data.iter().sum::<f64>() / n;
@@ -47,6 +76,23 @@ fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, String> {
     Ok(cov_sum / (n - 1.0))
 }
 
+fn _cov_mat(data: &Arr2D<f64>) -> Result<Arr2D<f64>, ReductionError> {
+    let height = data.height;
+
+    let mut covariance_matrix = Arr2D::full(0.0, height, height);
+
+    for (i, x) in data.into_iter().enumerate() {
+        for (j, y) in data.into_iter().enumerate() {
+            if i == j {
+                covariance_matrix[i][j] = _variance(x).map_err(ReductionError::ShapeError)?;
+            } else {
+                covariance_matrix[i][j] = _covariance(x, y).map_err(ReductionError::ShapeError)?;
+            }
+        }
+    }
+    Ok(covariance_matrix)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,7 +101,7 @@ mod tests {
     fn test_center_data() {
         let data = Arr2D::from(&[[1., 2., 3.], [4., 5., 6.]]);
 
-        let centered = _center_data(&data);
+        let centered = _center_data(&data, None).unwrap();
         let expected = Arr2D::from(&[[-1., 0., 1.], [-1., 0., 1.]]);
 
         assert_eq!(centered, expected);

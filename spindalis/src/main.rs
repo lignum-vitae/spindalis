@@ -1,6 +1,7 @@
 use spindalis::derivatives::partial::partial_derivative;
 use spindalis::polynomials::{ascii_letters, parse_multivar};
 use spindalis::solvers::{SolveMode, bisection, newton_raphson_method};
+use spindalis::utils::arr2D::Arr2D;
 use spindalis::{derivative, eval_polynomial, parse_polynomial};
 
 fn main() {
@@ -83,4 +84,12 @@ fn main() {
         Ok(x) => println!("{x}"),
         Err(e) => println!("Error: {e:?}"),
     }
+
+    let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+    let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+    println!("{arr1}");
+    println!("{arr2}");
+
+    let res = arr1.dot(&arr2).unwrap();
+    println!("{res}");
 }
