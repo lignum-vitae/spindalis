@@ -1,10 +1,10 @@
 use crate::utils::Arr2DError;
 use std::{
     fmt::{self, Display},
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Mul},
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
 pub struct Arr2D<T> {
     inner: Vec<T>,
     pub height: usize,
@@ -143,6 +143,36 @@ impl<T> Arr2D<T> {
             }
         }
         Ok(result)
+    }
+}
+
+// Generic Mul implementation for Arr2D * Arr2D (matrix * matrix)
+impl<T> Mul<Arr2D<T>> for Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: Arr2D<T>) -> Self {
+        self.dot(&rhs).unwrap_or_default()
+    }
+}
+
+// Generic Mul implementation for Arr2D * scalar (matrix * scalar)
+impl<T> Mul<T> for Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: T) -> Self {
+        let mut result = Arr2D::full(T::default(), self.height, self.width);
+        for i in 0..self.height {
+            for j in 0..self.width {
+                result[i][j] = self[i][j] * rhs;
+            }
+        }
+        result
     }
 }
 
@@ -745,6 +775,39 @@ mod tests {
         let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
 
         let res = scal.dot(&mat).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_Mul_trait_scalar() {
+        let scal = 2;
+        let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
+
+        let res = mat * scal;
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn test_Mul_trait_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = arr1 * arr2;
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_Mul_trait_vec_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![3, 4, 2], 0, 1, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![13, 9, 7, 15, 8, 7, 4, 6, 6, 4, 0, 3], 0, 3, 4).unwrap();
+
+        let expected = Arr2D::from_flat(vec![83, 63, 37, 75], 0, 1, 4).unwrap();
+
+        let res = arr1 * arr2;
         assert_eq!(res, expected);
     }
 
