@@ -79,8 +79,7 @@ fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, DimensionError> {
 fn _cov_mat(data: &Arr2D<f64>) -> Result<Arr2D<f64>, ReductionError> {
     let height = data.height;
 
-    let mut covariance_matrix = Arr2D::from_flat(Vec::<f64>::new(), height, height, 0.0)
-        .map_err(ReductionError::InvalidFlatVector)?;
+    let mut covariance_matrix = Arr2D::full(0.0, height, height);
 
     for (i, x) in data.into_iter().enumerate() {
         for (j, y) in data.into_iter().enumerate() {

@@ -76,9 +76,9 @@ impl<T> Arr2D<T> {
     //  Create 2D Array from flat vector
     pub fn from_flat<D>(
         inner: D,
+        default_val: T,
         height: usize,
         width: usize,
-        default_val: T,
     ) -> Result<Self, Arr2DError>
     where
         D: AsRef<[T]>,
@@ -612,7 +612,7 @@ mod tests {
 
     #[test]
     fn test_from_flat() {
-        let data = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -621,7 +621,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_ref() {
-        let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -630,7 +630,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice() {
-        let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
 
         assert_eq!(data, out);
@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_from_flat_with_default() {
-        let data = Arr2D::from_flat(vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(vec![1, 2, 3, 4], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
 
         assert_eq!(data, out);
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_with_default_ref() {
-        let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
 
         assert_eq!(data, out);
@@ -656,16 +656,16 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_full_zeros() {
-        let data = Arr2D::from_flat(&vec![], 2, 3, 0).unwrap();
-        let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
+        let flat_data = Arr2D::from_flat(&vec![], 0, 2, 3).unwrap();
+        let full_data = Arr2D::full(0, 2, 3);
 
-        assert_eq!(data, out);
+        assert_eq!(flat_data, full_data);
     }
 
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice_full_zeros() {
-        let data = Arr2D::from_flat(&[], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat(&[], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
@@ -673,7 +673,7 @@ mod tests {
 
     #[test]
     fn test_from_flat_slice_full_zeros_no_ref() {
-        let data = Arr2D::from_flat([], 2, 3, 0).unwrap();
+        let data = Arr2D::from_flat([], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
