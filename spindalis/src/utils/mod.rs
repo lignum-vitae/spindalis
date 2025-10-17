@@ -14,6 +14,10 @@ pub enum Arr2DError {
         input_size: usize,
         output_size: usize,
     },
+    InvalidDotShape {
+        lhs: usize,
+        rhs: usize,
+    },
 }
 
 #[derive(Copy, Clone)]

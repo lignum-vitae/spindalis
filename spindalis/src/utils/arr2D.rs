@@ -110,6 +110,40 @@ impl<T> Arr2D<T> {
             width,
         })
     }
+
+    // dot product
+    pub fn dot(&self, rhs: &Self) -> Result<Self, Arr2DError>
+    where
+        T: Copy + std::default::Default + std::ops::AddAssign + std::ops::Mul<Output = T>,
+    {
+        if self.height == 1 && self.width == 1 {
+            let scalar = self[0][0];
+            let mut result = Arr2D::full(T::default(), rhs.height, rhs.width);
+            for i in 0..rhs.height {
+                for j in 0..rhs.width {
+                    result[i][j] = scalar * rhs[i][j];
+                }
+            }
+            return Ok(result);
+        }
+        if self.width != rhs.height {
+            return Err(Arr2DError::InvalidDotShape {
+                lhs: self.width,
+                rhs: rhs.height,
+            });
+        }
+        let mut result = Arr2D::full(T::default(), self.height, rhs.width);
+        for i in 0..self.height {
+            for j in 0..rhs.width {
+                let mut sum = T::default();
+                for k in 0..self.width {
+                    sum += self[i][k] * rhs[k][j]
+                }
+                result[i][j] = sum;
+            }
+        }
+        Ok(result)
+    }
 }
 
 impl<T: Copy> Arr2D<T> {
@@ -677,6 +711,41 @@ mod tests {
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
 
         assert_eq!(data, out);
+    }
+
+    // --- dot product ---
+
+    #[test]
+    fn test_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = arr1.dot(&arr2).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_vec_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![3, 4, 2], 0, 1, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![13, 9, 7, 15, 8, 7, 4, 6, 6, 4, 0, 3], 0, 3, 4).unwrap();
+
+        let expected = Arr2D::from_flat(vec![83, 63, 37, 75], 0, 1, 4).unwrap();
+
+        let res = arr1.dot(&arr2).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_scalar_mul_mat() {
+        let scal = Arr2D::from_flat(vec![2], 0, 1, 1).unwrap();
+        let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
+
+        let res = scal.dot(&mat).unwrap();
+        assert_eq!(res, expected);
     }
 
     // --- misc ---
