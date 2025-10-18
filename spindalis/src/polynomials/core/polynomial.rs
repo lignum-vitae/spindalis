@@ -88,25 +88,25 @@ macro_rules! parse_polynomial {
 macro_rules! _parse_polynomial {
     // first entry can omit the operation (+/-)
     // no coeff, only power
-    (!entry x ^ $power:literal $($polynomial:tt)*) => {
+    (!entry $term:ident ^ $power:literal $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [(1, $power)] $($polynomial)*)
     };
-    (!entry - x ^ $power:literal $($polynomial:tt)*) => {
+    (!entry - $term:ident ^ $power:literal $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [(-1, $power)] $($polynomial)*)
     };
     // no coeff, power implicit
-    (!entry x $($polynomial:tt)*) => {
+    (!entry $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [(1, $power)] $($polynomial)*)
     };
-    (!entry - x $($polynomial:tt)*) => {
+    (!entry - $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [(-1, $power)] $($polynomial)*)
     };
     // coeff and power
-    (!entry $coeff:literal x ^ $power:literal  $($polynomial:tt)*) => {
+    (!entry $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [($coeff, $power)] $($polynomial)*)
     };
     // coeff, power implicit
-    (!entry $coeff:literal x $($polynomial:tt)*) => {
+    (!entry $coeff:literal $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [($coeff, 1)] $($polynomial)*)
     };
     // coeff, no power
@@ -115,38 +115,38 @@ macro_rules! _parse_polynomial {
     };
 
     // no coeff, only power
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - x ^ $power:literal $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $term:ident ^ $power:literal $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-1, $power)] $($polynomial)*)
     };
     // no coeff, only power with subtaction
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + x ^ $power:literal $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $term:ident ^ $power:literal $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (1, $power)] $($polynomial)*)
     };
 
     // no coeff, power implicit
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + x $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (1, 1)] $($polynomial)*)
     };
     // no coeff, power implicit with sutraction
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - x $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-1, 1)] $($polynomial)*)
     };
 
     // coeff and power
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal x ^ $power:literal  $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , ($coeff, $power)] $($polynomial)*)
     };
     // coeff and power with sutraction
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal x ^ $power:literal  $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-$coeff, $power)] $($polynomial)*)
     };
 
     // coeff, power implicit
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal x $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , ($coeff, 1)] $($polynomial)*)
     };
     // coeff, power implicit with sutraction
-    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal x $($polynomial:tt)*) => {
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal $term:ident $($polynomial:tt)*) => {
         $crate::_parse_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-$coeff, 1)] $($polynomial)*)
     };
 
