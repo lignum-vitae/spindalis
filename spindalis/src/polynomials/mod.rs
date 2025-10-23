@@ -1,7 +1,7 @@
 pub mod core;
 pub mod derivatives;
 
-pub use core::multivar::parse_multivar;
+pub use core::complex::parse_complex_poly;
 
 pub fn ascii_letters() -> String {
     ('a'..='z').chain('A'..='Z').collect()
@@ -10,5 +10,5 @@ pub fn ascii_letters() -> String {
 #[derive(Debug, Clone)]
 pub struct Term {
     pub coefficient: f64,
-    pub variables: Vec<(String, usize)>,
+    pub variables: Vec<(String, f64)>,
 }

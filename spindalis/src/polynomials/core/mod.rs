@@ -1,5 +1,5 @@
-pub mod multivar;
-pub mod polynomial;
+pub mod simple;
+pub mod complex;
 
 #[derive(Debug)]
 pub enum PolynomialError {
