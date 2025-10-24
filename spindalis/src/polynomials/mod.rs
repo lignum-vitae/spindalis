@@ -1,7 +1,7 @@
 pub mod core;
 pub mod derivatives;
 
-pub use core::complex::parse_complex_poly;
+pub use core::extended::parse_polynomial_extended;
 
 pub fn ascii_letters() -> String {
     ('a'..='z').chain('A'..='Z').collect()

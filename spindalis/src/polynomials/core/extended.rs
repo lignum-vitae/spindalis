@@ -1,8 +1,12 @@
 use crate::polynomials::{Term, core::ComplexPolyErr};
+use std::collections::HashMap;
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Result<Vec<Term>, ComplexPolyErr> {
+pub fn parse_polynomial_extended(
+    expr: &str,
+    ascii_letters: &str,
+) -> Result<Vec<Term>, ComplexPolyErr> {
     let normalized = expr
         .replace(" ", "")
         .replace("^-", "^@")
@@ -91,9 +95,28 @@ pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Result<Vec<Term>, 
     Ok(parsed)
 }
 
+pub fn eval_polynomial_extended(terms: &[Term], vars: &HashMap<String, f64>) -> f64 {
+    let mut result = 0.0;
+
+    for term in terms {
+        let mut term_value = term.coefficient;
+
+        for (var, pow) in &term.variables {
+            if let Some(value) = vars.get(var) {
+                term_value *= value.powf(*pow);
+            } else {
+                panic!("{var} not in {vars:?}");
+            }
+        }
+        result += term_value;
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     const ASCII_LETTERS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -102,7 +125,7 @@ mod tests {
     #[test]
     fn test_parse_single_variable() {
         let expr = "3x^2";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 3.0);
@@ -112,7 +135,7 @@ mod tests {
     #[test]
     fn test_parse_multiple_variables() {
         let expr = "4x^2y^3";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 4.0);
@@ -125,7 +148,7 @@ mod tests {
     #[test]
     fn test_parse_no_coefficient() {
         let expr = "x^3";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 1.0);
@@ -135,7 +158,7 @@ mod tests {
     #[test]
     fn test_parse_negative_coefficient() {
         let expr = "-2x^2";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, -2.0);
@@ -145,7 +168,7 @@ mod tests {
     #[test]
     fn test_parse_negative_variable() {
         let expr = "-x^2";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, -1.0);
@@ -155,7 +178,7 @@ mod tests {
     #[test]
     fn test_parse_multiple_terms() {
         let expr = "2x^2+3y-4z^3";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 3);
 
@@ -172,7 +195,7 @@ mod tests {
     #[test]
     fn test_parse_missing_power_defaults_to_one() {
         let expr = "5x";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -182,17 +205,17 @@ mod tests {
     #[test]
     fn test_parse_invalid_power_returns_none() {
         let expr = "2x^a";
-        let result = parse_complex_poly(expr, ASCII_LETTERS);
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS);
 
         assert!(result.is_err());
     }
 
-    // test floats
+    // Test floats
 
     #[test]
     fn test_parse_pos_decimal() {
         let expr = "5x^0.5";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -202,7 +225,7 @@ mod tests {
     #[test]
     fn test_parse_neg_decimal() {
         let expr = "5x^-0.5";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -212,17 +235,17 @@ mod tests {
     #[test]
     fn test_parse_err_decimal() {
         let expr = "5x^-0.5.0";
-        let result = parse_complex_poly(expr, ASCII_LETTERS);
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS);
 
         assert!(result.is_err());
     }
 
-    // test fractions
+    // Test fractions
 
     #[test]
     fn test_parse_fraction() {
         let expr = "5x^1/2";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -232,7 +255,7 @@ mod tests {
     #[test]
     fn test_parse_float_fraction() {
         let expr = "5x^0.5/1.0";
-        let result = parse_complex_poly(expr, ASCII_LETTERS).unwrap();
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -242,8 +265,97 @@ mod tests {
     #[test]
     fn test_parse_err_fraction() {
         let expr = "5x^0.5/1.0/1.0";
-        let result = parse_complex_poly(expr, ASCII_LETTERS);
+        let result = parse_polynomial_extended(expr, ASCII_LETTERS);
 
         assert!(result.is_err());
+    }
+
+    // Test eval function
+
+    #[test]
+    fn test_single_variable() {
+        let terms = vec![
+            Term {
+                coefficient: 3.0,
+                variables: vec![("x".to_string(), 2.0)],
+            }, // 3x^2
+            Term {
+                coefficient: -2.0,
+                variables: vec![("x".to_string(), 1.0)],
+            }, // -2x
+            Term {
+                coefficient: 5.0,
+                variables: vec![],
+            },
+        ];
+
+        let mut vars = HashMap::new();
+        vars.insert("x".to_string(), 2.0);
+
+        let result = eval_polynomial_extended(&terms, &vars);
+        // 3*2^2 - 2*2 + 5 = 12 - 4 + 5 = 13
+        assert_eq!(result, 13.0);
+    }
+
+    #[test]
+    fn test_multiple_variables() {
+        let terms = vec![
+            Term {
+                coefficient: 2.0,
+                variables: vec![("x".to_string(), 1.0), ("y".to_string(), 2.0)],
+            }, // 2xy^2
+            Term {
+                coefficient: 4.0,
+                variables: vec![("y".to_string(), 1.0)],
+            }, // 4y
+        ];
+
+        let mut vars = HashMap::new();
+        vars.insert("x".to_string(), 3.0);
+        vars.insert("y".to_string(), 2.0);
+
+        let result = eval_polynomial_extended(&terms, &vars);
+        // 2*3*2^2 + 4*2 = 2*3*4 + 8 = 24 + 8 = 32
+        assert_eq!(result, 32.0);
+    }
+
+    #[test]
+    fn test_fractional_exponent() {
+        let terms = vec![Term {
+            coefficient: 1.0,
+            variables: vec![("x".to_string(), 0.5)],
+        }];
+
+        let mut vars = HashMap::new();
+        vars.insert("x".to_string(), 16.0);
+
+        let result = eval_polynomial_extended(&terms, &vars);
+        assert_eq!(result, 4.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "z not in")]
+    fn test_missing_variable_panics() {
+        let terms = vec![Term {
+            coefficient: 1.0,
+            variables: vec![("z".to_string(), 1.0)],
+        }];
+
+        let vars = HashMap::new();
+        eval_polynomial_extended(&terms, &vars);
+    }
+
+    #[test]
+    fn test_constant_only_term() {
+        let terms = vec![
+            Term {
+                coefficient: 7.5,
+                variables: vec![],
+            }, // constant term
+        ];
+
+        let vars = HashMap::new();
+        let result = eval_polynomial_extended(&terms, &vars);
+        assert_eq!(result, 7.5);
     }
 }

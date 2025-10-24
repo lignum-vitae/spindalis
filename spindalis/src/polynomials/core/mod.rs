@@ -1,4 +1,4 @@
-pub mod complex;
+pub mod extended;
 pub mod simple;
 
 #[derive(Debug)]

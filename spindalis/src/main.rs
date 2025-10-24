@@ -1,5 +1,5 @@
 use spindalis::derivatives::partial::partial_derivative;
-use spindalis::polynomials::{ascii_letters, parse_complex_poly};
+use spindalis::polynomials::{ascii_letters, parse_polynomial_extended};
 use spindalis::solvers::{SolveMode, bisection, newton_raphson_method};
 use spindalis::utils::arr2D::Arr2D;
 use spindalis::{derivative, eval_simple_polynomial, parse_simple_polynomial};
@@ -66,7 +66,7 @@ fn main() {
     }
 
     let letters = ascii_letters();
-    let polynomial = parse_complex_poly("3x^2y + 3x - 4y + 3", &letters).unwrap();
+    let polynomial = parse_polynomial_extended("3x^2y + 3x - 4y + 3", &letters).unwrap();
     println!("{polynomial:?}");
     let derived_x = partial_derivative(&polynomial, "x");
     let derived_y = partial_derivative(&polynomial, "y");
@@ -93,6 +93,6 @@ fn main() {
     let res = arr1.dot(&arr2).unwrap();
     println!("{res}");
 
-    let this = parse_complex_poly("5x^-0.5", &letters);
+    let this = parse_polynomial_extended("5x^-0.5", &letters);
     println!("{this:?}");
 }
