@@ -1,5 +1,5 @@
-pub mod simple;
 pub mod complex;
+pub mod simple;
 
 #[derive(Debug)]
 pub enum PolynomialError {
@@ -8,4 +8,11 @@ pub enum PolynomialError {
     InvalidCoefficient,
     MissingVariable,
     PolynomialSyntaxError,
+}
+
+#[derive(Debug)]
+pub enum ComplexPolyErr {
+    InvalidCoefficient { coeff: String },
+    InvalidFractionalExponent { pow: String },
+    InvalidExponent { pow: String },
 }

@@ -1,8 +1,8 @@
-use crate::polynomials::Term;
+use crate::polynomials::{Term, core::ComplexPolyErr};
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Option<Vec<Term>> {
+pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Result<Vec<Term>, ComplexPolyErr> {
     let normalized = expr
         .replace(" ", "")
         .replace("^-", "^@")
@@ -35,7 +35,11 @@ pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Option<Vec<Term>> 
         let coeff = if coeff.is_empty() || coeff == "-" {
             if coeff == "-" { -1.0 } else { 1.0 }
         } else {
-            coeff.parse::<f64>().unwrap_or(0.0)
+            let parsed = coeff.parse::<f64>();
+            match parsed {
+                Ok(x) => x,
+                Err(_) => return Err(ComplexPolyErr::InvalidCoefficient { coeff }),
+            }
         };
 
         while let Some(ch) = chars.next() {
@@ -50,7 +54,7 @@ pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Option<Vec<Term>> 
                             pow_str.push(next_char);
                             chars.next(); // consume current digit
                         } else if SPECIAL_CHARS.contains(&next_char) {
-                            // Handles fractions and decimals
+                            // Handles fractions and decimals in exponent
                             pow_str.push(next_char);
                             chars.next();
                         } else {
@@ -60,17 +64,20 @@ pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Option<Vec<Term>> 
                     if pow_str.contains('/') {
                         let fraction: Vec<&str> = pow_str.split('/').collect();
                         if fraction.len() != 2 {
-                            return None;
+                            return Err(ComplexPolyErr::InvalidFractionalExponent { pow: pow_str });
                         }
                         match (fraction[0].parse::<f64>(), fraction[1].parse::<f64>()) {
                             (Ok(x), Ok(y)) if y != 0.0 => power = x / y,
-                            _ => return None,
+                            _ => {
+                                return Err(ComplexPolyErr::InvalidFractionalExponent {
+                                    pow: pow_str,
+                                });
+                            }
                         }
                     } else if let Ok(pow) = pow_str.parse::<f64>() {
                         power = pow
                     } else {
-                        // Return none if a valid float is not found
-                        return None;
+                        return Err(ComplexPolyErr::InvalidExponent { pow: pow_str });
                     };
                 };
                 vars.push((var, power));
@@ -81,7 +88,7 @@ pub fn parse_complex_poly(expr: &str, ascii_letters: &str) -> Option<Vec<Term>> 
             variables: vars.clone(),
         });
     }
-    Some(parsed)
+    Ok(parsed)
 }
 
 #[cfg(test)]
@@ -177,7 +184,7 @@ mod tests {
         let expr = "2x^a";
         let result = parse_complex_poly(expr, ASCII_LETTERS);
 
-        assert!(result.is_none());
+        assert!(result.is_err());
     }
 
     // test floats
@@ -202,6 +209,14 @@ mod tests {
         assert_eq!(result[0].variables, vec![("x".into(), -0.5)]);
     }
 
+    #[test]
+    fn test_parse_err_decimal() {
+        let expr = "5x^-0.5.0";
+        let result = parse_complex_poly(expr, ASCII_LETTERS);
+
+        assert!(result.is_err());
+    }
+
     // test fractions
 
     #[test]
@@ -222,5 +237,13 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
         assert_eq!(result[0].variables, vec![("x".into(), 0.5)]);
+    }
+
+    #[test]
+    fn test_parse_err_fraction() {
+        let expr = "5x^0.5/1.0/1.0";
+        let result = parse_complex_poly(expr, ASCII_LETTERS);
+
+        assert!(result.is_err());
     }
 }
