@@ -1,6 +1,6 @@
 use crate::polynomials::Term;
 
-pub fn partial_derivative(poly: &Vec<Term>, var: &str) -> Vec<Term> {
+pub fn partial_derivative(poly: &[Term], var: &str) -> Vec<Term> {
     let mut parsed_deriv = Vec::new();
 
     for part in poly {

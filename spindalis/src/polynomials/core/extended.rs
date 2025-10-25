@@ -358,4 +358,18 @@ mod tests {
         let result = eval_polynomial_extended(&terms, &vars);
         assert_eq!(result, 7.5);
     }
+
+    #[test]
+    fn test_neg_exponent() {
+        let terms = vec![Term {
+            coefficient: 1.0,
+            variables: vec![("x".to_string(), -0.5)],
+        }];
+
+        let mut vars = HashMap::new();
+        vars.insert("x".to_string(), 16.0);
+
+        let result = eval_polynomial_extended(&terms, &vars);
+        assert_eq!(result, 0.25);
+    }
 }
