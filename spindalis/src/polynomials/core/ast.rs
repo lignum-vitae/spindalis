@@ -215,7 +215,7 @@ mod tests {
     fn test_num_and_variable() {
         let expr = "32x";
         let result = lexer(expr).unwrap();
-        let expected = vec![Token::Number(32.0), Token::Variable("x".to_string())];
+        let expected = [Token::Number(32.0), Token::Variable("x".to_string())];
 
         for i in 0..expected.len() {
             assert_eq!(result[i], expected[i]);
@@ -226,7 +226,7 @@ mod tests {
     fn test_expression() {
         let expr = "3x^2 + 1.43";
         let result = lexer(expr).unwrap();
-        let expected = vec![
+        let expected = [
             Token::Number(3.0),
             Token::Variable("x".to_string()),
             Token::Operator(Operators::Caret),
@@ -244,7 +244,7 @@ mod tests {
     fn test_expression_with_constant() {
         let expr = "3x^2 + 1.43xy - pi^3";
         let result = lexer(expr).unwrap();
-        let expected = vec![
+        let expected = [
             Token::Number(3.0),
             Token::Variable("x".to_string()),
             Token::Operator(Operators::Caret),
@@ -269,7 +269,7 @@ mod tests {
     fn test_parens() {
         let expr = "(3*2) / 4";
         let result = lexer(expr).unwrap();
-        let expected = vec![
+        let expected = [
             Token::LParen,
             Token::Number(3.0),
             Token::Operator(Operators::Mul),
