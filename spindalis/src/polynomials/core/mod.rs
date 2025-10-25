@@ -1,5 +1,6 @@
-pub mod multivar;
-pub mod polynomial;
+pub mod ast;
+pub mod extended;
+pub mod simple;
 
 #[derive(Debug)]
 pub enum PolynomialError {
@@ -8,4 +9,17 @@ pub enum PolynomialError {
     InvalidCoefficient,
     MissingVariable,
     PolynomialSyntaxError,
+}
+
+#[derive(Debug)]
+pub enum ComplexPolyErr {
+    InvalidCoefficient { coeff: String },
+    InvalidFractionalExponent { pow: String },
+    InvalidExponent { pow: String },
+}
+
+#[derive(Debug)]
+pub enum AstPolyErr {
+    InvalidNumber { num: String },
+    UnexpectedChar { char: char },
 }

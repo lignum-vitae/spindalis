@@ -1,5 +1,5 @@
 use crate::solvers::{SolveMode, SolverError};
-use crate::{derivative, eval_polynomial, parse_polynomial};
+use crate::{derivative, eval_simple_polynomial, parse_simple_polynomial};
 
 pub fn newton_raphson_method(
     poly: &str,
@@ -12,7 +12,7 @@ pub fn newton_raphson_method(
     let mut x_curr = x_init;
     let mut approx_err = 100_f64;
     let poly_vec = {
-        let parsed = parse_polynomial(poly).map_err(SolverError::InvalidPolynomial)?;
+        let parsed = parse_simple_polynomial(poly).map_err(SolverError::InvalidPolynomial)?;
         match mode {
             SolveMode::Root => parsed,
             SolveMode::Extrema => derivative(&parsed),
@@ -21,8 +21,9 @@ pub fn newton_raphson_method(
     let poly_vec_dx = derivative(&poly_vec);
     loop {
         let xr_old = x_curr;
-        x_curr =
-            xr_old - (eval_polynomial(x_curr, &poly_vec) / eval_polynomial(x_curr, &poly_vec_dx));
+        x_curr = xr_old
+            - (eval_simple_polynomial(x_curr, &poly_vec)
+                / eval_simple_polynomial(x_curr, &poly_vec_dx));
         iter += 1;
         if x_curr != 0 as f64 {
             approx_err = ((x_curr - xr_old).abs() / x_curr) * 100.0;
