@@ -1,5 +1,5 @@
 use crate::solvers::{SolveMode, SolverError};
-use crate::{derivative, eval_polynomial, parse_polynomial};
+use crate::{derivative, eval_simple_polynomial, parse_simple_polynomial};
 
 pub fn bisection(
     poly: &str,
@@ -16,7 +16,7 @@ pub fn bisection(
     let mut lower_bound = lower_bound;
     let mut x_curr = x_init;
     let poly_vec = {
-        let parsed = parse_polynomial(poly).map_err(SolverError::InvalidPolynomial)?;
+        let parsed = parse_simple_polynomial(poly).map_err(SolverError::InvalidPolynomial)?;
         match mode {
             SolveMode::Root => parsed,
             SolveMode::Extrema => derivative(&parsed),
@@ -31,7 +31,8 @@ pub fn bisection(
                 (absv.abs() / x_curr) * 100_f64
             };
         }
-        let test = eval_polynomial(lower_bound, &poly_vec) * eval_polynomial(x_curr, &poly_vec);
+        let test = eval_simple_polynomial(lower_bound, &poly_vec)
+            * eval_simple_polynomial(x_curr, &poly_vec);
         if test < 0 as f64 {
             upper_bound = x_curr;
         } else if test > 0 as f64 {
