@@ -7,6 +7,17 @@ Spindalis provides a collection of numerical methods, polynomial parsing
 and evaluation tools, derivative computation, and optimisation algorithms for
 scientific computing and bioinformatics applications.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Polynomials](#polynomials)
+  - [Math](#math)
+- [Contributing](#contributing)
+- [Stability](#stability)
+- [License](#license)
+
 ## Features
 
 - Polynomial parsing and evaluation
@@ -29,7 +40,9 @@ Then run:
 
 ## Usage
 
-### Parse and evaluate polynomials
+### Polynomials
+
+#### Parse and evaluate polynomials
 
 Parse a polynomial string and evaluate it at a given point:
 
@@ -56,7 +69,7 @@ println!("Polynomial evaluated at x=2: {:?}", value);
 // Polynomial evaluated at x=2: 85.0
 ```
 
-### Find Derivates
+#### Find Derivates
 
 Compute the derivative of a polynomial:
 
@@ -73,7 +86,9 @@ println!("Derivative coefficients: {:?}", dx);
 // Derivative coefficients: [0.0, -10.0, 15.0, 16.0]
 ```
 
-### Bisection
+### Math
+
+#### Bisection
 
 Locate a root or extremum of a polynomial via the bisection method:
 
@@ -145,7 +160,7 @@ match res {
 // True root coords: (1.34612, 0.00026)
 ```
 
-### Newton–Raphson Method
+#### Newton–Raphson Method
 
 Locate a root or extremum of a polynomial via the Newton-Raphson method:
 
@@ -189,3 +204,20 @@ for guess in guesses {
 // Starting at 0, extrema found: (0.93868, 1.10926)
 // Starting at 5, extrema found: (4.26132, -8.06126)
 ```
+
+## Contributing
+
+We welcome contributions! Please read our:
+
+- [Code of Conduct](https://github.com/lignum-vitae/spindalis/blob/main/docs/CODE_OF_CONDUCT.md)
+- [Contribution Guidelines](https://github.com/lignum-vitae/spindalis/blob/main/docs/CONTRIBUTING.md)
+
+## Stability
+
+This project is in the alpha stage. APIs may change without warning until version
+1.0.0.
+
+## License
+
+This project is licensed under the MIT License - see the
+[LICENSE](https://github.com/lignum-vitae/spindalis/blob/main/LICENSE) file for details.
