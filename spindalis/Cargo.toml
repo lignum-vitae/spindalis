@@ -7,8 +7,4 @@ edition = "2024"
 name = "spindalis"
 path = "src/lib.rs"
 
-[[bin]]
-name = "spindalis-bin"
-path = "src/main.rs"
-
 [dependencies]

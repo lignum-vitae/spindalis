@@ -4,12 +4,9 @@ pub mod regressors;
 pub mod solvers;
 pub mod utils;
 
-pub use polynomials::core::simple::eval_simple_polynomial;
-pub use polynomials::core::simple::parse_simple_polynomial;
-pub use polynomials::derivatives::derivative::derivative;
-
 pub mod derivatives {
-    pub use crate::polynomials::derivatives::partial;
+    pub use crate::polynomials::derivatives::extended::partial_derivative;
+    pub use crate::polynomials::derivatives::simple::simple_derivative;
 }
 
 /*

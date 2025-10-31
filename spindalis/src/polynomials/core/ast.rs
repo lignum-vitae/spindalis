@@ -88,8 +88,19 @@ pub enum Expr {
     Number(f64),
     Variable(String),
     Constant(Constants),
-    Function(Functions, Box<Expr>),
-    BinaryOp(Operators, Box<Expr>, Box<Expr>),
+    Function {
+        func: Functions,
+        inner: Box<Expr>,
+    },
+    UnaryOp {
+        op: Operators,
+        node: Box<Expr>,
+    },
+    BinaryOp {
+        op: Operators,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
 }
 
 #[allow(dead_code)]
