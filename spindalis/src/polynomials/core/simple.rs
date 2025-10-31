@@ -170,4 +170,21 @@ mod tests {
         let result_at_0 = eval_simple_polynomial(0.0, &coeffs);
         assert_eq!(result_at_0, 1.0);
     }
+
+    #[test]
+    fn test_invalid_polynomial() {
+        let poly = "2x^ + 3x"; // invalid syntax
+        let parsed = parse_simple_polynomial(poly);
+        assert!(matches!(parsed, Err(PolynomialError::InvalidExponent)));
+    }
+
+    #[test]
+    fn test_invalid_polynomial_2() {
+        let poly = "x^2 + +"; // Invalid syntax
+        let parsed = parse_simple_polynomial(poly);
+        assert!(matches!(
+            parsed,
+            Err(PolynomialError::PolynomialSyntaxError)
+        ));
+    }
 }

@@ -1,4 +1,2 @@
-pub mod derivative;
-pub mod partial;
-
-pub use partial::partial_derivative;
+pub mod extended;
+pub mod simple;
