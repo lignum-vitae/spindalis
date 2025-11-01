@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_multiple_terms_same_power() {
-        let coeffs = parse_simple_polynomial("2x^2+3x^2")
+        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
         let result = vec![
