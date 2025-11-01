@@ -22,7 +22,7 @@ scientific computing and bioinformatics applications.
 
 - Polynomial parsing and evaluation
 - Derivative computation
-- Root finding with Bisection and Newton–Raphson methods
+- Root and Extrema finding with Bisection and Newton–Raphson methods
 - Extensible modules for numerical modelling and optimisation
 
 ## Installation
@@ -42,9 +42,10 @@ Then run:
 
 ### Polynomials
 
-#### Parse and evaluate polynomials
+#### Parse and evaluate simple polynomials
 
-Parse a polynomial string and evaluate it at a given point:
+Parse a univariate polynomial string with positive integer exponents
+and evaluate it at a given point:
 
 Vectors for parsed polynomials and derivatives are organised from $x^0$
 to the highest power of x present in the polynomial.
@@ -52,38 +53,113 @@ to the highest power of x present in the polynomial.
 The value of each position is the coefficient for the polynomial
 raised to the index of the respective position.
 
+This function can handle addition and subtraction.
+
 [1.0, 0.0, -5.0, 5.0, 4.0] -> $1x^0+0x^1-5x^2+5x^3+4x^4$
 
 ```rust
-use spindalis::{eval_polynomial, parse_polynomial};
+use spindalis::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
 
 let polynomial = "5x^3 + 4x^4 - 5x^2 + 1";
-let parsed = parse_polynomial(polynomial);
+let parsed = parse_simple_polynomial(polynomial).unwrap();
 
-println!("Parsed polynomial: {:?}", &parsed);
+println!("Parsed polynomial: {parsed:?}");
 
-let value = eval_polynomial(2.0, &parsed);
+let value = eval_simple_polynomial(2.0, &parsed);
 println!("Polynomial evaluated at x=2: {:?}", value);
 
 // Parsed polynomial: [1.0, 0.0, -5.0, 5.0, 4.0]
 // Polynomial evaluated at x=2: 85.0
 ```
 
-#### Find Derivates
-
-Compute the derivative of a polynomial:
+There is another function that extends the simple polynomial.
+This extended function can additionally handle fractional exponents, decimal
+exponents, multivariate polynomials, and negative exponents.
 
 ```rust
-use spindalis::derivative;
-use spindalis::parse_polynomial;
+use spindalis::polynomials::{eval_polynomial_extended, parse_polynomial_extended};
+
+let polynomial = "4x^2y^3 + 4x - 2y + z^1.0/2.0";
+let parsed = parse_polynomial_extended(polynomial).unwrap();
+
+println!("Parsed polynomial: {parsed:?}");
+
+let mut vars = HashMap::new();
+vars.insert("x".to_string(), 2.0);
+vars.insert("y".to_string(), 1.0);
+vars.insert("z".to_string(), 8.0);
+
+let value = eval_polynomial_extended(&parsed, &vars);
+println!("Polynomial evaluated at x=2, y=1, z=4: {:?}", value);
+
+/*
+Parsed Polynomial:
+ vec![
+    Term {
+        coefficient: 4.0,
+        variables: vec![("x".to_string(), 2.0), ("y".to_string(), 3.0)],
+    }, // 4x^2y^3
+    Term {
+        coefficient: 4.0,
+        variables: vec![("x".to_string(), 1.0)],
+    }, // 4x
+    Term {
+        coefficient: 2.0,
+        variables: vec![("y".to_string(), 1.0)],
+    }, // 2y
+    Term {
+        coefficient: 1.0,
+        variables: vec![("z".to_string(), 0.5)],
+    }, // z^1.0/2.0
+];
+
+Polynomial evaluated at x=2, y=1, z=4: 24
+*/
+```
+
+#### Find Derivates
+
+Compute the derivative of a simple polynomial:
+
+```rust
+use spindalis::derivatives::simple_derivative;
+use spindalis::polynomials::parse_simple_polynomial;
 
 let polynomial = "5x^3 + 4x^4 - 5x^2 + 1";
-let parsed = parse_polynomial(polynomial);
-let dx = derivative(&parsed);
+let parsed = parse_simple_polynomial(polynomial).unwrap();
+let dx = simple_derivative(&parsed);
 
 println!("Derivative coefficients: {:?}", dx);
 
 // Derivative coefficients: [0.0, -10.0, 15.0, 16.0]
+```
+
+The extended polynomials can be derived using the partial derivative from the
+extended file.
+
+```rust
+use spindalis::derivatives::partial_derivative;
+use spindalis::polynomials::parse_polynomial_extended;
+
+let polynomial = "4x^2y^3 + 4x - 2y + z^1.0/2.0";
+let parsed = parse_simple_polynomial(polynomial).unwrap();
+let dx = partial_derivative(&parsed, "x")
+
+println!("Partial derivative of x: {dx:?}");
+
+/*
+Partial derivative of x:
+ vec![
+    Term {
+        coefficient: 8.0,
+        variables: vec![("x".to_string(), 1.0), ("y".to_string(), 3.0)],
+    }, // 8xy^3
+    Term {
+        coefficient: 4.0,
+        variables: vec![],
+    }, // 4
+];
+*/
 ```
 
 ### Math
@@ -93,15 +169,28 @@ println!("Derivative coefficients: {:?}", dx);
 Locate a root or extremum of a polynomial via the bisection method:
 
 ```rust
-use spindalis::solvers::{SolveMode, bisection};
-use spindalis::{eval_polynomial, parse_polynomial};
+use spindalis::solvers::{SolveMode, Bounds, bisection};
+use crate::derivatives::simple_derivative;
+use crate::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
 
 let polynomial = "-2x^6 - 1.6x^4 + 12x + 1";
-let parsed = parse_polynomial(&polynomial);
+let parsed = parse_simple_polynomial(&polynomial);
 
-let res = bisection(polynomial, 0.0, 1.0, 5.0, 1000, 0.6, SolveMode::Extrema);
+let result = bisection(
+    &parsed,
+    simple_derivative,
+    eval_simple_polynomial,
+    Bounds {
+        lower: 0.0,
+        init: 0.6,
+        upper: 1.0,
+    },
+    1e-5,
+    10000,
+    SolveMode::Extrema,
+);
 
-match res {
+match result {
     Some(x) => {
         println!(
             "Approximate maximum coords: ({x}, {:.5})",
@@ -119,9 +208,21 @@ match res {
 // Approximate maximum coords: (0.90625, 9.68783)
 // True maximum coords: (0.90449, 9.68792)
 
-let res = bisection(polynomial, -0.2, 0.0, 0.0001, 1000, -0.05, SolveMode::Root);
+let result = bisection(
+    &parsed,
+    simple_derivative,
+    eval_simple_polynomial,
+    Bounds {
+        lower: -0.2,
+        init: -0.05,
+        upper: 0.0,
+    },
+    1e-5,
+    10000,
+    SolveMode::Root,
+);
 
-match res {
+match result {
     Some(x) => {
         println!(
             "Approximate root coords: ({x}, {:.5})",
@@ -139,9 +240,21 @@ match res {
 // Approximate root coords: (-0.1, -0.20016)
 // True root coords: (-0.08333, 0.00026)
 
-let res = bisection(polynomial, 0.0, 2.0, 5.0, 1000, 0.6, SolveMode::Root);
+let result = bisection(
+    &parsed,
+    simple_derivative,
+    eval_simple_polynomial,
+    Bounds {
+        lower: 0.0,
+        init: 0.6,
+        upper: 2.0,
+    },
+    1e-5,
+    10000,
+    SolveMode::Root,
+);
 
-match res {
+match result {
     Some(x) => {
         println!(
             "Approximate root coords: ({x}, {:.5})",
@@ -166,15 +279,24 @@ Locate a root or extremum of a polynomial via the Newton-Raphson method:
 
 ```rust
 use spindalis::solvers::{SolveMode, newton_raphson_method};
-use spindalis::{eval_polynomial, parse_polynomial};
+use spindalis::derivatives::simple_derivative;
+use spindalis::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
 
 let polynomial = "0.5x^3 - 3.9x^2 + 6x - 1.5";
 let guesses = [0.0, 1.0, 2.0];
 let parsed = parse_polynomial(&polynomial);
 
 for guess in guesses {
-    let res = newton_raphson_method(polynomial, guess, 100, 0.01, SolveMode::Root);
-    match res {
+    let result = newton_raphson_method(
+        &parsed,
+        simple_derivative,
+        eval_simple_polynomial,
+        guess,
+        1000,
+        1e-5,
+        SolveMode::Root,
+    );
+    match result {
         Some(x) => println!(
             "Starting at {guess}, root found: ({x:.5}, {:.5})",
             eval_polynomial(x, &parsed).abs()
@@ -189,8 +311,16 @@ for guess in guesses {
 
 let guesses = [0.0, 5.0];
 for guess in guesses {
-    let res = newton_raphson_method(polynomial, guess, 100, 0.01, SolveMode::Extrema);
-    match res {
+    let result = newton_raphson_method(
+        &parsed,
+        simple_derivative,
+        eval_simple_polynomial,
+        guess,
+        10000,
+        1e-5,
+        SolveMode::Extrema,
+    );
+    match result {
         Some(x) => println!(
             "Starting at {guess}, extrema found: ({x:.5}, {:.5})",
             eval_polynomial(x, &parsed)
