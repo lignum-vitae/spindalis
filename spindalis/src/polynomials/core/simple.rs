@@ -58,12 +58,111 @@ pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError>
         terms.push(term);
     }
 
+    Ok(order_polynomial(&terms))
+}
+
+// eg: 3x^2 + 4x + 2 => [2, 4, 3]
+pub fn order_polynomial(terms: &[(f64, usize)]) -> Vec<f64> {
     let max_power = terms.iter().map(|&(_, power)| power).max().unwrap_or(0);
     let mut coeffs = vec![0.0; max_power + 1];
-    for (coeff, power) in terms {
+    for &(coeff, power) in terms {
         coeffs[power] += coeff;
     }
-    Ok(coeffs)
+    coeffs
+}
+
+#[macro_export]
+macro_rules! parse_simple_polynomial {
+    // entry point of the macro
+    ($($polynomial:tt)*) => {
+        $crate::polynomials::core::simple::order_polynomial(
+            &$crate::_parse_simple_polynomial!(
+                !entry $($polynomial)*
+            )
+        )
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! _parse_simple_polynomial {
+    // first entry can omit the operation (+/-)
+    // no coeff, only power
+    (!entry $term:ident ^ $power:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [(1, $power)] $($polynomial)*)
+    };
+    (!entry - $term:ident ^ $power:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [(-1, $power)] $($polynomial)*)
+    };
+    // no coeff, power implicit
+    (!entry $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [(1, $power)] $($polynomial)*)
+    };
+    (!entry - $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [(-1, $power)] $($polynomial)*)
+    };
+    // coeff and power
+    (!entry $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [($coeff, $power)] $($polynomial)*)
+    };
+    // coeff, power implicit
+    (!entry $coeff:literal $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [($coeff, 1)] $($polynomial)*)
+    };
+    // coeff, no power
+    (!entry $coeff:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [($coeff, 0)] $($polynomial)*)
+    };
+
+    // no coeff, only power
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $term:ident ^ $power:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-1, $power)] $($polynomial)*)
+    };
+    // no coeff, only power with subtaction
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $term:ident ^ $power:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (1, $power)] $($polynomial)*)
+    };
+
+    // no coeff, power implicit
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (1, 1)] $($polynomial)*)
+    };
+    // no coeff, power implicit with sutraction
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-1, 1)] $($polynomial)*)
+    };
+
+    // coeff and power
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , ($coeff, $power)] $($polynomial)*)
+    };
+    // coeff and power with sutraction
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal $term:ident ^ $power:literal  $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-$coeff, $power)] $($polynomial)*)
+    };
+
+    // coeff, power implicit
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , ($coeff, 1)] $($polynomial)*)
+    };
+    // coeff, power implicit with sutraction
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal $term:ident $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-$coeff, 1)] $($polynomial)*)
+    };
+
+    // coeff, no power
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] + $coeff:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , ($coeff, 0)] $($polynomial)*)
+    };
+    // coeff, no power with sutraction
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*] - $coeff:literal $($polynomial:tt)*) => {
+        $crate::_parse_simple_polynomial!(!parse [$(($parsed_coeff, $parsed_power)),* , (-$coeff, 0)] $($polynomial)*)
+    };
+
+    // no more elements
+    (!parse [$(($parsed_coeff:literal, $parsed_power:literal)),*]) => {
+        [$(($parsed_coeff as f64, $parsed_power)),*]
+    };
 }
 
 pub fn eval_simple_polynomial(x: f64, coeffs: &[f64]) -> f64 {
@@ -79,64 +178,81 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_polynomial_simple() {
+    fn test_parse_simple_polynomial_simple() {
         let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4);
+        let result = vec![
+            4.0, // constant term
+            3.0, // x^1 term
+            2.0, // x^2 term
+        ];
 
-        assert_eq!(coeffs.len(), 3);
-        assert_eq!(coeffs[0], 4.0); // constant term
-        assert_eq!(coeffs[1], 3.0); // x^1 term
-        assert_eq!(coeffs[2], 2.0); // x^2 term
+        assert_eq!(coeffs, result);
+        assert_eq!(coeffs_macro, result);
     }
 
     #[test]
-    fn test_parse_polynomial_negative_coeffs() {
+    fn test_parse_simple_polynomial_negative_coeffs() {
         let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1);
 
-        assert_eq!(coeffs.len(), 4);
-        assert_eq!(coeffs[0], 1.0); // constant
-        assert_eq!(coeffs[1], -4.0); // x^1
-        assert_eq!(coeffs[2], 0.0); // x^2 missing → 0
-        assert_eq!(coeffs[3], -2.0); // x^3
+        let result = vec![
+            1.0,  // constant term
+            -4.0, // x^1 term
+            0.0,  // x^2 missing → 0
+            -2.0, // x^3 term
+        ];
+        assert_eq!(coeffs, result);
+        assert_eq!(coeffs_macro, result);
     }
 
     #[test]
-    fn test_parse_polynomial_implicit_coeff() {
+    fn test_parse_simple_polynomial_implicit_coeff() {
         let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(x ^ 2 + x + 1);
 
-        assert_eq!(coeffs.len(), 3);
-        assert_eq!(coeffs[0], 1.0);
-        assert_eq!(coeffs[1], 1.0);
-        assert_eq!(coeffs[2], 1.0);
+        let result = vec![1.0, 1.0, 1.0];
+        assert_eq!(coeffs, result);
+        assert_eq!(coeffs_macro, result);
     }
 
     #[test]
-    fn test_parse_polynomial_constants_only() {
+    fn test_parse_simple_polynomial_constants_only() {
         let result = parse_simple_polynomial("5");
+        
         assert!(matches!(result, Err(PolynomialError::MissingVariable)));
     }
 
     #[test]
-    fn test_parse_polynomial_missing_powers() {
+    fn test_parse_simple_polynomial_missing_powers() {
         let coeffs = parse_simple_polynomial("2x + 3").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(2 x + 3);
 
-        assert_eq!(coeffs.len(), 2);
-        assert_eq!(coeffs[0], 3.0);
-        assert_eq!(coeffs[1], 2.0);
+        let result = vec![3.0, 2.0];
+        assert_eq!(coeffs, result);
+        assert_eq!(coeffs_macro, result);
     }
 
     #[test]
-    fn test_parse_polynomial_multiple_terms_same_power() {
-        let coeffs = parse_simple_polynomial("2x^2 + 3x^2").unwrap();
+    fn test_parse_simple_polynomial_multiple_terms_same_power() {
+        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
-        assert_eq!(coeffs.len(), 3);
-        assert_eq!(coeffs[0], 0.0); // constant
-        assert_eq!(coeffs[1], 0.0); // x^1 missing
-        assert_eq!(coeffs[2], 5.0); // x^2 term: 2+3
+        let result = vec![
+            0.0, // constant missing
+            0.0, // x^1 missing
+            5.0, // x^2 term: 2+3
+        ];
+        assert_eq!(coeffs, result);
+        assert_eq!(coeffs_macro, result);
     }
 
     #[test]
     fn test_eval_polynomial_simple() {
         let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x + 4);
+        assert_eq!(coeffs, coeffs_macro);
+
         let result = eval_simple_polynomial(2.0, &coeffs);
 
         // 2*4 + 3*2 + 4 = 8 + 6 + 4 = 18
@@ -146,6 +262,9 @@ mod tests {
     #[test]
     fn test_eval_polynomial_negative() {
         let coeffs = parse_simple_polynomial("-x^2 + 4x - 5").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(-x ^ 2 + 4 x - 5);
+        assert_eq!(coeffs, coeffs_macro);
+
         let result = eval_simple_polynomial(3.0, &coeffs);
 
         // -9 + 12 - 5 = -2
@@ -153,15 +272,16 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_polynomial_constant_fails() {
+    fn test_parse_simple_polynomial_constant_fails() {
         let result = parse_simple_polynomial("7");
         assert!(matches!(result, Err(PolynomialError::MissingVariable)));
     }
 
     #[test]
     fn test_parse_and_eval_combined() {
-        let expr = "x^3 - 2x + 1";
-        let coeffs = parse_simple_polynomial(expr).unwrap();
+        let coeffs = parse_simple_polynomial("x^3 - 2x + 1").unwrap();
+        let coeffs_macro = parse_simple_polynomial!(x^3 - 2 x + 1);
+        assert_eq!(coeffs, coeffs_macro);
 
         let result_at_2 = eval_simple_polynomial(2.0, &coeffs);
         // 8 - 4 + 1 = 5
