@@ -75,7 +75,7 @@ pub fn order_polynomial(terms: &[(f64, usize)]) -> Vec<f64> {
 macro_rules! parse_simple_polynomial {
     // entry point of the macro
     ($($polynomial:tt)*) => {
-        $crate::polynomials::core::polynomial::order_polynomial(
+        $crate::polynomials::core::simple::order_polynomial(
             &$crate::_parse_simple_polynomial!(
                 !entry $($polynomial)*
             )
@@ -235,6 +235,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_multiple_terms_same_power() {
+        let coeffs = parse_simple_polynomial("2x^2+3x^2")
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
         let result = vec![
