@@ -1,4 +1,5 @@
-use crate::polynomials::{Term, core::ComplexPolyErr};
+use crate::polynomials::ComplexPolyErr;
+use crate::polynomials::Term;
 use std::collections::HashMap;
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];

@@ -2,6 +2,12 @@ pub mod ast;
 pub mod extended;
 pub mod simple;
 
+#[derive(Debug, Clone)]
+pub struct Term {
+    pub coefficient: f64,
+    pub variables: Vec<(String, f64)>,
+}
+
 #[derive(Debug)]
 pub enum PolynomialError {
     InvalidExponent,
