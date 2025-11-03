@@ -60,8 +60,12 @@ This function can handle addition and subtraction.
 ```rust
 use spindalis::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
 
+// Parsing function
 let polynomial = "5x^3 + 4x^4 - 5x^2 + 1";
 let parsed = parse_simple_polynomial(polynomial).unwrap();
+
+// Parsing macro
+let parsed = parse_simple_polynomial!(5x^3 + 4x^4 - 5x^2 + 1);
 
 println!("Parsed polynomial: {parsed:?}");
 
@@ -79,8 +83,12 @@ exponents, multivariate polynomials, and negative exponents.
 ```rust
 use spindalis::polynomials::{eval_polynomial_extended, parse_polynomial_extended};
 
+// Parsing function
 let polynomial = "4x^2y^3 + 4x - 2y + z^1.0/2.0";
 let parsed = parse_polynomial_extended(polynomial).unwrap();
+
+// Parsing macro
+let parsed = parse_polynomial_extended!(4x^2y^3 + 4x - 2y + z^1.0/2.0);
 
 println!("Parsed polynomial: {parsed:?}");
 

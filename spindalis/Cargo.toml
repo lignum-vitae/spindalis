@@ -9,4 +9,4 @@ path = "src/lib.rs"
 
 [dependencies]
 spindalis_core = { "path" = "../spindalis_core" }
-spindalis_derive = { "path" = "../spindalis_derive" }
+spindalis_macros = { "path" = "../spindalis_macros" }

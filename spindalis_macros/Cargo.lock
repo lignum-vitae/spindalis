@@ -25,7 +25,7 @@ name = "spindalis_core"
 version = "0.1.0"
 
 [[package]]
-name = "spindalis_derive"
+name = "spindalis_macros"
 version = "0.1.0"
 dependencies = [
  "quote",
