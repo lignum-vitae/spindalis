@@ -2,7 +2,7 @@ pub mod ast;
 pub mod extended;
 pub mod simple;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Term {
     pub coefficient: f64,
     pub variables: Vec<(String, f64)>,

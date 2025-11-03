@@ -5,7 +5,7 @@ use spindalis_derive::parse_simple_polynomial;
 #[test]
 fn test_parse_simple_polynomial_simple() {
     let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4);
     let result = vec![
         4.0, // constant term
         3.0, // x^1 term
@@ -19,7 +19,7 @@ fn test_parse_simple_polynomial_simple() {
 #[test]
 fn test_parse_simple_polynomial_negative_coeffs() {
     let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1);
 
     let result = vec![
         1.0,  // constant term
@@ -34,7 +34,7 @@ fn test_parse_simple_polynomial_negative_coeffs() {
 #[test]
 fn test_parse_simple_polynomial_implicit_coeff() {
     let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(x ^ 2 + x + 1).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(x ^ 2 + x + 1);
 
     let result = vec![1.0, 1.0, 1.0];
     assert_eq!(coeffs, result);
@@ -51,7 +51,7 @@ fn test_parse_simple_polynomial_constants_only() {
 #[test]
 fn test_parse_simple_polynomial_missing_powers() {
     let coeffs = parse_simple_polynomial("2x + 3").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(2 x + 3).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(2 x + 3);
 
     let result = vec![3.0, 2.0];
     assert_eq!(coeffs, result);
@@ -61,7 +61,7 @@ fn test_parse_simple_polynomial_missing_powers() {
 #[test]
 fn test_parse_simple_polynomial_multiple_terms_same_power() {
     let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
     let result = vec![
         0.0, // constant missing
@@ -75,7 +75,7 @@ fn test_parse_simple_polynomial_multiple_terms_same_power() {
 #[test]
 fn test_eval_polynomial_simple() {
     let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x + 4).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x + 4);
     assert_eq!(coeffs, coeffs_macro);
 
     let result = eval_simple_polynomial(2.0, &coeffs);
@@ -87,7 +87,7 @@ fn test_eval_polynomial_simple() {
 #[test]
 fn test_eval_polynomial_negative() {
     let coeffs = parse_simple_polynomial("-x^2 + 4x - 5").unwrap();
-    let coeffs_macro = parse_simple_polynomial!(-x ^ 2 + 4 x - 5).to_vec();
+    let coeffs_macro = parse_simple_polynomial!(-x ^ 2 + 4 x - 5);
     assert_eq!(coeffs, coeffs_macro);
 
     let result = eval_simple_polynomial(3.0, &coeffs);

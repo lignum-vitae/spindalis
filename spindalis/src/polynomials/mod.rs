@@ -10,4 +10,6 @@ pub use core::simple::eval_simple_polynomial;
 pub use core::simple::parse_simple_polynomial;
 
 #[cfg(test)]
-mod tests;
+mod test_extended_parse;
+#[cfg(test)]
+mod test_simple_parse;
