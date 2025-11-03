@@ -1,4 +1,4 @@
-use crate::polynomials::core::AstPolyErr;
+use crate::polynomials::AstPolyErr;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
