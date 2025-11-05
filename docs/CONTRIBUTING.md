@@ -43,24 +43,21 @@ We encourage open discussions before starting to code a new feature.
 
 To contribute code:
 
-#### Note
+>[!Note]
+>Detailed below is the process of adding the repo as an upstream repo through your
+>Command Line Interface (CLI).
+>However, GitHub allows you to sync your fork through their Web UI by navigating
+>to the GitHub Page of your repo fork and clicking on the `Sync fork` button.
+>GitHub also has its own CLI that allows you to use the command
+>`gh repo sync owner/cli-fork -b BRANCH-NAME`.
+>You can read more about that in the
+>[GitHub Docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
+>here.
+>If you go this route, you should be able to skip steps 4 and 9, as well as omit
+>`upstream/main` from step 5 below. Push your changes directly to your GitHub fork.
 
-Detailed below is the process of adding the repo as an upstream repo through your
-Command Line Interface (CLI).
-
-However, GitHub allows you to sync your fork through their Web UI by navigating
-to the GitHub Page of your repo fork and clicking on the `Sync fork` button.
-
-GitHub also has its own CLI that allows you to use the command
-`gh repo sync owner/cli-fork -b BRANCH-NAME`.
-You can read more about that in the
-[GitHub Docs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
-here.
-If you go this route, you should be able to skip steps 4 and 9, as well as omit
-`upstream/main` from step 5 below. Push your changes directly to your GitHub fork.
-
-The GitHub desktop app also provides a UI that makes creating, deleting, and editing
-branches on your fork easy.
+>The GitHub desktop app also provides a UI that makes creating, deleting, and editing
+>branches on your fork easy.
 
 #### 1. Open a new Issue following the above-mentioned guidelines
 
@@ -108,9 +105,13 @@ cargo test
 
 # Lint your work with Clippy
 cargo clippy
+
+# Optionally clear cache to solve things like failed to resolve errors
+cargo clean
+cargo check
 ```
 
-#### 8. Commit your changes with a descriptive commit message:
+#### 8. Commit your changes with a descriptive commit message
 
 ```nginx
 # Gets latest changes from main Spindalis project if you've set up an upstream branch as detailed above

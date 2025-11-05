@@ -8,4 +8,4 @@ proc-macro = true
 
 [dependencies]
 quote = "1.0.41"
-spindalis_core = { "path" = "../spindalis_core" }
+spindalis_core = { path = "../spindalis_core" }

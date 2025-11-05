@@ -170,6 +170,28 @@ Partial derivative of x:
 */
 ```
 
+#### Find Definite Integrals
+
+Compute the definite integral of a simple polynomial
+
+```rust
+let parsed = parse_simple_polynomial!(64x ^ 3 - 144x ^ 2 + 108x - 27);
+let result = definite_integral(&parsed, eval_simple_polynomial, -3.0, 5.0, 5);
+
+println!("The definite integral of 64x^3 - 144x^2 + 108x - 27 is {result}");
+// The definite integral of 64x^3 - 144x^2 + 108x - 27 is 2056
+```
+
+Use Romberg integration to compute the definite integral
+
+```rust
+let parsed = parse_simple_polynomial!(3x ^ 2);
+let result = romberg_definite(&parsed, eval_simple_polynomial, 0.0, 1.0, 8, 1e-6).unwrap();
+
+println!("The romberg definite integral is {result}");
+// The romberg definite integral is 1
+```
+
 ### Math
 
 #### Bisection

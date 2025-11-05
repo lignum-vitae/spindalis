@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    pub use spindalis::derivatives::simple_derivative;
+    use spindalis::derivatives::simple_derivative;
 
     #[test]
     fn test_derivative_simple() {
