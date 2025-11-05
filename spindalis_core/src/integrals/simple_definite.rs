@@ -1,4 +1,6 @@
 use crate::integrals::IntegralError;
+use crate::integrals::simple_indefinite::indefinite_integral;
+use crate::polynomials::simple::eval_simple_polynomial;
 
 pub fn definite_integral<G>(poly: &[f64], eval: G, start: f64, end: f64, segments: usize) -> f64
 where
@@ -112,4 +114,14 @@ where
     sum += 4_f64 * eval(xi - segment_width, poly) + eval(xi, poly);
 
     segment_width * sum / 3_f64
+}
+
+
+pub fn analytical_integral(poly:&[f64], a: f64, b: f64) -> f64{
+
+    let integrated_polynomial = indefinite_integral(poly);      
+    let fa = eval_simple_polynomial(a, &integrated_polynomial);         // value of integrated polynomial at a
+    let fb = eval_simple_polynomial(b, &integrated_polynomial);         // value of integrated polynomial at b
+
+    fb - fa
 }
