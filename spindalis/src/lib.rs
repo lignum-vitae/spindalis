@@ -35,6 +35,7 @@ pub mod integrals {
     // Functions
     pub use spindalis_core::integrals::simple_definite::definite_integral;
     pub use spindalis_core::integrals::simple_definite::romberg_definite;
+    pub use spindalis_core::integrals::simple_indefinite::indefinite_integral;
 }
 
 /*
