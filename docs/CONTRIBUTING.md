@@ -55,7 +55,6 @@ To contribute code:
 >here.
 >If you go this route, you should be able to skip steps 4 and 9, as well as omit
 >`upstream/main` from step 5 below. Push your changes directly to your GitHub fork.
-
 >The GitHub desktop app also provides a UI that makes creating, deleting, and editing
 >branches on your fork easy.
 
