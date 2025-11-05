@@ -10,7 +10,7 @@ where
         return trapezoidal_rule(poly, &eval, start, end, segments);
     }
     let mut remaining_segments = segments;
-    if segments % 2 != 0 {
+    if !segments.is_multiple_of(2) {
         // Last four points encapsulate last three segments
         let mut points = [0.0; 4];
         for (i, point) in points.iter_mut().enumerate().skip(1) {

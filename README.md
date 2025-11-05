@@ -170,11 +170,14 @@ Partial derivative of x:
 */
 ```
 
-#### Find Definite Integrals
+#### Find Integrals
 
 Compute the definite integral of a simple polynomial
 
 ```rust
+use spindalis::polynomials::parse_simple_polynomial;
+use spindalis::integrals::definite_integral;
+
 let parsed = parse_simple_polynomial!(64x ^ 3 - 144x ^ 2 + 108x - 27);
 let result = definite_integral(&parsed, eval_simple_polynomial, -3.0, 5.0, 5);
 
@@ -185,11 +188,30 @@ println!("The definite integral of 64x^3 - 144x^2 + 108x - 27 is {result}");
 Use Romberg integration to compute the definite integral
 
 ```rust
+use spindalis::polynomials::parse_simple_polynomial;
+use spindalis::integrals::romberg_definite;
+
 let parsed = parse_simple_polynomial!(3x ^ 2);
 let result = romberg_definite(&parsed, eval_simple_polynomial, 0.0, 1.0, 8, 1e-6).unwrap();
 
 println!("The romberg definite integral is {result}");
 // The romberg definite integral is 1
+```
+
+Compute the indefinite integral of a simple polynomial
+
+```rust
+use spindalis::integrals::indefinite_integral;
+use spindalis::polynomials::{parse_simple_polynomial, eval_simple_polynomial};
+
+let parsed = parse_simple_polynomial!(x ^ 3 - x);
+let result = indefinite_integral(&parsed);
+let eval = eval_simple_polynomial(2.0, &result);
+
+println!("The indefinite integral for {parsed:?} is {result:?}.");
+println!("The value for the integral evaluated at 2 is {eval}");
+// The indefinite integral for [0.0, 1.0, 0.0, 1.0] is [0.0, 0.0, -0.5, 0.0, 0.25].
+// The value for the integral evaluated at 2 is 2.0.
 ```
 
 ### Math
