@@ -28,6 +28,15 @@ pub mod derivatives {
     pub use spindalis_core::derivatives::simple::simple_derivative;
 }
 
+pub mod integrals {
+    // Error Enums
+    pub use spindalis_core::integrals::IntegralError;
+
+    // Functions
+    pub use spindalis_core::integrals::simple::definite_integral;
+    pub use spindalis_core::integrals::simple::romberg_definite;
+}
+
 /*
 pub use regressors::linear::linear_regression;
 */
