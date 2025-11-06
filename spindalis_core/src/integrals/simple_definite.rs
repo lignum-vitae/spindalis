@@ -116,12 +116,10 @@ where
     segment_width * sum / 3_f64
 }
 
-
-pub fn analytical_integral(poly:&[f64], a: f64, b: f64) -> f64{
-
-    let integrated_polynomial = indefinite_integral(poly);      
-    let fa = eval_simple_polynomial(a, &integrated_polynomial);         // value of integrated polynomial at a
-    let fb = eval_simple_polynomial(b, &integrated_polynomial);         // value of integrated polynomial at b
+pub fn analytical_integral(poly: &[f64], a: f64, b: f64) -> f64 {
+    let integrated_polynomial = indefinite_integral(poly);
+    let fa = eval_simple_polynomial(a, &integrated_polynomial); // value of integrated polynomial at a
+    let fb = eval_simple_polynomial(b, &integrated_polynomial); // value of integrated polynomial at b
 
     fb - fa
 }

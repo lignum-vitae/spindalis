@@ -22,6 +22,10 @@ impl<T> Arr2D<T> {
         self.inner.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.height == 0 || self.width == 0
+    }
+
     /// Change the height and width.
     ///
     /// # Errors
@@ -48,6 +52,19 @@ impl<T> Arr2D<T> {
     {
         let inner: Vec<_> = self.inner.iter().map(f).collect();
 
+        Arr2D {
+            inner,
+            height: self.height,
+            width: self.width,
+        }
+    }
+
+    /// Convert each element to another type `U` that T can convert into.
+    pub fn convert_to<U>(&self) -> Arr2D<U>
+    where
+        T: Into<U> + Clone,
+    {
+        let inner: Vec<U> = self.inner.iter().cloned().map(|x| x.into()).collect();
         Arr2D {
             inner,
             height: self.height,
@@ -189,6 +206,23 @@ impl<T: Copy> Arr2D<T> {
         std::mem::swap(&mut self.width, &mut self.height);
     }
 
+    pub fn swap_rows(&mut self, mut a: usize, mut b: usize) {
+        if a == b {
+            return;
+        }
+        if a > b {
+            std::mem::swap(&mut a, &mut b);
+        }
+
+        let w = self.width;
+
+        let (left, right) = self.inner.split_at_mut(b * w);
+        let row_b = &mut right[..w];
+        let row_a = &mut left[a * w..(a + 1) * w];
+
+        row_a.swap_with_slice(row_b);
+    }
+
     /// Create Arr2D with all elements being the specified value
     pub fn full(val: T, height: usize, width: usize) -> Self {
         Arr2D {
@@ -294,6 +328,58 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
                 width: 0,
             })
         }
+    }
+}
+
+// Vec<Vec<T>> -> Arr2D<f64>
+impl<T: Into<f64> + Clone> TryFrom<&Vec<Vec<T>>> for Arr2D<f64> {
+    type Error = Arr2DError;
+
+    fn try_from(values: &Vec<Vec<T>>) -> Result<Self, Self::Error> {
+        if values.is_empty() {
+            return Ok(Self {
+                inner: vec![],
+                height: 0,
+                width: 0,
+            });
+        }
+
+        let width = values[0].len();
+        let mut inner = Vec::with_capacity(values.len() * width);
+
+        for row in values {
+            if row.len() != width {
+                return Err(Arr2DError::InconsistentRowLengths);
+            }
+            inner.extend(row.iter().cloned().map(|x| x.into()));
+        }
+
+        Ok(Self {
+            inner,
+            height: values.len(),
+            width,
+        })
+    }
+}
+
+// Arr2D<T> -> Arr2D<f64>
+impl<T: Into<f64> + Clone> TryFrom<&Arr2D<T>> for Arr2D<f64> {
+    type Error = Arr2DError;
+
+    fn try_from(arr: &Arr2D<T>) -> Result<Self, Self::Error> {
+        if arr.is_empty() {
+            return Ok(Self {
+                inner: vec![],
+                height: 0,
+                width: 0,
+            });
+        }
+
+        Ok(Arr2D {
+            inner: arr.inner.iter().cloned().map(|x| x.into()).collect(),
+            height: arr.height,
+            width: arr.width,
+        })
     }
 }
 
@@ -427,6 +513,38 @@ impl<T: Display> Display for Arr2D<T> {
         }
 
         Ok(())
+    }
+}
+
+impl<T: PartialEq> PartialEq<Vec<Vec<T>>> for Arr2D<T> {
+    fn eq(&self, other: &Vec<Vec<T>>) -> bool {
+        if self.height != other.len() {
+            return false;
+        }
+        if self.height == 0 {
+            return true; // both empty
+        }
+
+        let width = self.width;
+
+        if other.iter().any(|row| row.len() != width) {
+            return false;
+        }
+
+        for r in 0..self.height {
+            for c in 0..self.width {
+                if self[r][c] != other[r][c] {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+impl<T: PartialEq> PartialEq<Arr2D<T>> for Vec<Vec<T>> {
+    fn eq(&self, other: &Arr2D<T>) -> bool {
+        other == self
     }
 }
 

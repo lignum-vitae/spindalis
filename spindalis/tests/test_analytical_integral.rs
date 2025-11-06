@@ -31,4 +31,3 @@ fn test_analytical_integral_constant() {
     let result = analytical_integral(&poly, 0.0, 1.0);
     assert!((result - 3.0).abs() < 1e-6);
 }
-
