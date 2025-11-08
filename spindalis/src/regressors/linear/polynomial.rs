@@ -15,14 +15,14 @@ impl LinearRegressor for PolynomialRegression {
         for i in 0..=order {
             for j in 0..=i {
                 let k = i + j;
-                let poly_sum = x.iter().map(|n| n.powi(k as i32)).sum::<f64>();
+                let poly_sum = x.iter().map(|x_i| x_i.powi(k as i32)).sum::<f64>();
                 matrix[i][j] = poly_sum;
                 matrix[j][i] = poly_sum;
             }
             let poly_sum = y
                 .iter()
                 .zip(x.iter())
-                .map(|(n, m)| n * m.powi(i as i32))
+                .map(|(y_i, x_i)| y_i * x_i.powi(i as i32))
                 .sum::<f64>();
             rhs[i] = poly_sum;
         }
@@ -39,7 +39,7 @@ impl LinearRegressor for PolynomialRegression {
                 let y_pred: f64 = coefficients
                     .iter()
                     .enumerate()
-                    .map(|(pow, &c)| c * x_i.powi(pow as i32))
+                    .map(|(pow, &coef)| coef * x_i.powi(pow as i32))
                     .sum();
 
                 (y_i - y_pred).powi(2)

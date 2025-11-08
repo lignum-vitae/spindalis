@@ -27,7 +27,7 @@ scientific computing and bioinformatics applications.
 
 ## Installation
 
-Add spindalis as a dependency in your Cargo.toml:
+Add Spindalis as a dependency in your Cargo.toml:
 
 ```toml
 [dependencies]
@@ -196,6 +196,19 @@ let result = romberg_definite(&parsed, eval_simple_polynomial, 0.0, 1.0, 8, 1e-6
 
 println!("The romberg definite integral is {result}");
 // The romberg definite integral is 1
+```
+
+Use the Analytical method to compute the definite integral
+
+```rust
+use spindalis::polynomials::parse_simple_polynomial;
+use spindalis::integrals::analytical_integral;
+let poly = parse_simple_polynomial!(3x ^ 2 - 1);
+let result = analytical_integral(poly, 1.0, 5.0);
+
+println!("The result of the analytical integral is {result}");
+// The result of the analytical integral is 120
+
 ```
 
 Compute the indefinite integral of a simple polynomial

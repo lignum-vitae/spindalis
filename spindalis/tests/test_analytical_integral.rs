@@ -1,4 +1,5 @@
 use spindalis::integrals::analytical_integral;
+use spindalis::polynomials::parse_simple_polynomial;
 
 #[test]
 fn test_analytical_integral_cubic() {
@@ -30,4 +31,11 @@ fn test_analytical_integral_constant() {
     let poly = [3.0];
     let result = analytical_integral(&poly, 0.0, 1.0);
     assert!((result - 3.0).abs() < 1e-6);
+}
+
+#[test]
+fn test_parsed_polynomial() {
+    let poly = parse_simple_polynomial!(3x ^ 2 - 1);
+    let result = analytical_integral(poly, 1.0, 5.0);
+    assert!((result - 120_f64).abs() < 1e-6);
 }

@@ -1,5 +1,6 @@
 use crate::utils::Arr2DError;
 use std::{
+    any::type_name,
     fmt::{self, Display},
     ops::{Index, IndexMut, Mul},
 };
@@ -52,19 +53,6 @@ impl<T> Arr2D<T> {
     {
         let inner: Vec<_> = self.inner.iter().map(f).collect();
 
-        Arr2D {
-            inner,
-            height: self.height,
-            width: self.width,
-        }
-    }
-
-    /// Convert each element to another type `U` that T can convert into.
-    pub fn convert_to<U>(&self) -> Arr2D<U>
-    where
-        T: Into<U> + Clone,
-    {
-        let inner: Vec<U> = self.inner.iter().cloned().map(|x| x.into()).collect();
         Arr2D {
             inner,
             height: self.height,
@@ -302,32 +290,27 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
     type Error = Arr2DError;
 
     fn try_from(values: Vec<Vec<T>>) -> Result<Self, Self::Error> {
-        let mut it = values.into_iter();
-        if let Some(first_row) = it.next() {
-            let width = first_row.len();
-            let mut height = 1;
-            let mut inner = first_row;
-
-            for row in it {
-                if row.len() != width {
-                    return Err(Arr2DError::InconsistentRowLengths);
-                }
-                inner.extend(row);
-                height += 1;
-            }
-
-            Ok(Self {
-                inner,
-                height,
-                width,
-            })
-        } else {
-            Ok(Self {
+        if values.is_empty() {
+            return Ok(Self {
                 inner: vec![],
                 height: 0,
                 width: 0,
-            })
+            });
         }
+        let width = values[0].len();
+        let height = values.len();
+        let mut inner: Vec<T> = Vec::with_capacity(height * width);
+        for row in values {
+            if row.len() != width {
+                return Err(Arr2DError::InconsistentRowLengths);
+            }
+            inner.extend(row);
+        }
+        Ok(Self {
+            inner,
+            height,
+            width,
+        })
     }
 }
 
@@ -353,7 +336,12 @@ impl<T: Clone, U: TryFrom<T>> TryFrom<&Vec<Vec<T>>> for Arr2D<U> {
             }
 
             for x in row {
-                inner.push(U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed)?);
+                inner.push(
+                    U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed {
+                        from: type_name::<T>(),
+                        to: type_name::<U>(),
+                    })?,
+                );
             }
         }
 
@@ -380,7 +368,12 @@ impl<T: Clone, U: TryFrom<T>> TryFrom<&Arr2D<T>> for Arr2D<U> {
 
         let mut inner = Vec::with_capacity(arr.inner.len());
         for x in &arr.inner {
-            inner.push(U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed)?);
+            inner.push(
+                U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed {
+                    from: type_name::<T>(),
+                    to: type_name::<U>(),
+                })?,
+            );
         }
 
         Ok(Self {

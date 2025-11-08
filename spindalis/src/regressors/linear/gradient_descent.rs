@@ -35,8 +35,8 @@ impl LinearRegressor for GradientDescentRegression {
                 / (y.len() as f64);
 
             // Update weights
-            wy -= alpha * gradient_wy;
             wx -= alpha * gradient_wx;
+            wy -= alpha * gradient_wy;
         }
 
         let sq_total: f64 = y.iter().map(|y_i| (y_i - y_mean).powi(2)).sum();

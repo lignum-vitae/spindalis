@@ -26,7 +26,7 @@ impl LinearRegressor for LeastSquaresRegression {
             .map(|(&x_i, &y_i)| (y_i - (intercept + slope * x_i)).powi(2))
             .sum::<f64>();
 
-        let std_err = (sq_residual / (length - 2.0)).sqrt();
+        let std_err = (sq_residual / (length - 2_f64)).sqrt();
         let r2 = (sq_total - sq_residual) / sq_total;
 
         coefficients.push(intercept);

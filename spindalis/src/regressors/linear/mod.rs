@@ -59,9 +59,9 @@ impl LinearModel {
                     _ => format!("{coef:.5}x"),
                 },
                 _ => match coef {
-                    1.0 => format!("x^{}", pow),
-                    -1.0 => format!("-x^{}", pow),
-                    _ => format!("{coef:.5}x^{}", pow),
+                    1.0 => format!("x^{pow}"),
+                    -1.0 => format!("-x^{pow}"),
+                    _ => format!("{coef:.5}x^{pow}"),
                 },
             };
             parts.push(term);

@@ -2,10 +2,17 @@ use crate::integrals::IntegralError;
 use crate::integrals::simple_indefinite::indefinite_integral;
 use crate::polynomials::simple::eval_simple_polynomial;
 
-pub fn definite_integral<G>(poly: &[f64], eval: G, start: f64, end: f64, segments: usize) -> f64
+pub fn definite_integral<G>(
+    poly: impl AsRef<[f64]>,
+    eval: G,
+    start: f64,
+    end: f64,
+    segments: usize,
+) -> f64
 where
     G: Fn(f64, &[f64]) -> f64,
 {
+    let poly = poly.as_ref();
     let segment_width = (end - start) / segments as f64;
     let mut sum = 0.0;
     if segments == 1 {
@@ -30,7 +37,7 @@ where
 }
 
 pub fn romberg_definite<G>(
-    poly: &[f64],
+    poly: impl AsRef<[f64]>,
     eval: G,
     start: f64,
     end: f64,
@@ -40,6 +47,7 @@ pub fn romberg_definite<G>(
 where
     G: Fn(f64, &[f64]) -> f64,
 {
+    let poly = poly.as_ref();
     let maxiter = maxiter as usize;
     let mut romberg_table: Vec<Vec<f64>> = vec![vec![0.0; 10]; 10];
     let mut iter = 0_usize;
@@ -116,7 +124,8 @@ where
     segment_width * sum / 3_f64
 }
 
-pub fn analytical_integral(poly: &[f64], a: f64, b: f64) -> f64 {
+pub fn analytical_integral(poly: impl AsRef<[f64]>, a: f64, b: f64) -> f64 {
+    let poly = poly.as_ref();
     let integrated_polynomial = indefinite_integral(poly);
     let fa = eval_simple_polynomial(a, &integrated_polynomial); // value of integrated polynomial at a
     let fb = eval_simple_polynomial(b, &integrated_polynomial); // value of integrated polynomial at b

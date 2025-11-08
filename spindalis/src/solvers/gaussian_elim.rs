@@ -15,7 +15,7 @@ where
         return Err(SolverError::NonSquareMatrix);
     }
     if coeff_matrix.height != rhs.len() {
-        return Err(SolverError::ArgumentMismatch {
+        return Err(SolverError::NumArgumentsMismatch {
             matrix_rows: coeff_matrix.height,
             rhs_vector_len: rhs.len(),
         });
@@ -105,6 +105,7 @@ fn partial_pivot(
     }
 }
 
+#[allow(clippy::needless_range_loop)]
 fn back_substitution(
     coeff_matrix: &Arr2D<f64>,
     size: usize,
