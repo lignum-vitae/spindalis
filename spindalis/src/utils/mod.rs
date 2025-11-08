@@ -18,6 +18,10 @@ pub enum Arr2DError {
         lhs: usize,
         rhs: usize,
     },
+    ConversionFailed {
+        from: &'static str,
+        to: &'static str,
+    },
 }
 
 #[derive(Copy, Clone)]

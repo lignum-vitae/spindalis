@@ -27,7 +27,7 @@ scientific computing and bioinformatics applications.
 
 ## Installation
 
-Add spindalis as a dependency in your Cargo.toml:
+Add Spindalis as a dependency in your Cargo.toml:
 
 ```toml
 [dependencies]
@@ -198,6 +198,19 @@ println!("The romberg definite integral is {result}");
 // The romberg definite integral is 1
 ```
 
+Use the Analytical method to compute the definite integral
+
+```rust
+use spindalis::polynomials::parse_simple_polynomial;
+use spindalis::integrals::analytical_integral;
+let poly = parse_simple_polynomial!(3x ^ 2 - 1);
+let result = analytical_integral(poly, 1.0, 5.0);
+
+println!("The result of the analytical integral is {result}");
+// The result of the analytical integral is 120
+
+```
+
 Compute the indefinite integral of a simple polynomial
 
 ```rust
@@ -215,6 +228,110 @@ println!("The value for the integral evaluated at 2 is {eval}");
 ```
 
 ### Math
+
+#### Linear Regression
+
+Gradient Descent Regression
+
+```rust
+use spindalis::regressors::{GradientDescentRegression, LinearModel};
+
+let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
+
+let grad_descent = GradientDescentRegression{
+    steps: 10000,
+    step_size: 0.01,
+};
+
+let model = grad_descent.fit(&x, &y);
+
+println!("Slope = {:.2}\nIntercept = {:.2}", model.slope().unwrap(), model.intercept());
+// Slope = 1.46
+// Intercept = -2.01
+println!("Standard Error = {:.3}\nR2 Score = {:.3}", model.std_err, model.r2);
+// Standard Error = 1.307
+// R2 Score = 0.914
+println!("{}", model.to_polynomial_string());
+// -2.01389 + 1.45833x
+```
+
+Least Squares Regression
+
+```rust
+use spindalis::regressors::{LeastSquaresRegression, LinearModel};
+
+let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
+
+let least_squares = LeastSquaresRegression;
+
+let model = least_squares.fit(&x, &y);
+
+println!("Slope = {:.2}\nIntercept = {:.2}", model.slope().unwrap(), model.intercept());
+// Slope = 1.46
+// Intercept = -2.01
+println!("Standard Error = {:.3}\nR2 Score = {:.3}", model.std_err, model.r2);
+// Standard Error = 1.307
+// R2 Score = 0.914
+println!("{}", model.to_polynomial_string());
+// -2.01389 + 1.45833x
+```
+
+Polynomial Regression
+
+```rust
+use spindalis::regressors::{PolynomialRegression, LinearModel};
+
+let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
+
+let poly_regression = PolynomialRegression { order: 2 };
+
+let model = poly_regression.fit(&x, &y);
+
+println!("Slopes = {:?}\nIntercept = {:.2}", model.slopes().unwrap(), model.intercept());
+// Slopes = [-0.4518398268398198, 0.19101731601731534]
+// Intercept = 1.49
+println!("Standard Error = {:.3}\nR2 Score = {:.3}", model.std_err, model.r2);
+// Standard Error = 0.319
+// R2 Score = 0.995
+println!("{}", model.to_polynomial_string());
+// 1.48810 - 0.45184x + 0.19102x^2
+```
+
+#### System of Linear Equations
+
+Gaussian Elimination
+
+This function accepts any coefficient matrix that can be coerced
+into a `Arr2D<f64>` type. That includes nested vecs of ints or floats,
+nested arrays of ints or floats, and Arr2D vectors of types other than
+`f64`. The right hand side vector also accepts a vector containing
+any numerical values that can be converted into `f64`.
+
+```rust
+let coeff_matrix = vec![
+    vec![8.0, 2.0, -2.0],
+    vec![10.0, 2.0, 4.0],
+    vec![12.0, 2.0, 2.0],
+];
+
+let mut rhs_vector = vec![8.0, 16.0, 16.0];
+let tol = 1e-12;
+let expected: Vec<f64> = vec![1.0; 3];
+
+let solution = gaussian_elimination(&coeff_matrix, &mut rhs_vector, tol).unwrap();
+println!("Solution:");
+for (i, sol) in solution.iter().enumerate() {
+    print!("x{} = {sol}", i + 1);
+    if i != solution.len() - 1 {
+        print!(", ")
+    }
+}
+// Solution:
+// x1 = 1, x2 = 1, x3 = 1
+```
 
 #### Bisection
 

@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn test_integral_single_segment_trapezoid() {
         let poly = [0.0, 2.0]; // f(x) = 2x
-        let result = definite_integral(&poly, eval_simple_polynomial, 0.0, 4.0, 1);
+        let result = definite_integral(poly, eval_simple_polynomial, 0.0, 4.0, 1);
         let expected = 16.0;
         assert!((result - expected).abs() < 1e-5);
     }
