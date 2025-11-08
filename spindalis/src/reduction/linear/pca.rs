@@ -1,5 +1,5 @@
 use crate::reduction::{DimensionError, ReductionError};
-use crate::utils::{StdDevType, arr2D::Arr2D, variation::arith_mean, variation::std_dev};
+use crate::utils::{StdDevType, arith_mean, arr2D::Arr2D, std_dev};
 
 // ┌─────────────┬────────┬────────┬────────┬────────┬──────────┐
 // │             │  USA   │ France │ Belgium│   UK   │ Czechia  │

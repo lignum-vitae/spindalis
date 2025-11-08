@@ -1,3 +1,4 @@
+// Uses Chain Rule to find integral
 pub fn indefinite_integral(poly: impl AsRef<[f64]>) -> Vec<f64> {
     let poly = poly.as_ref();
     let mut anti_deriv = Vec::with_capacity(poly.len().saturating_add(1));

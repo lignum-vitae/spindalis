@@ -16,8 +16,8 @@ where
     }
     if coeff_matrix.height != rhs.len() {
         return Err(SolverError::NumArgumentsMismatch {
-            matrix_rows: coeff_matrix.height,
-            rhs_vector_len: rhs.len(),
+            num_rows: coeff_matrix.height,
+            rhs_len: rhs.len(),
         });
     }
     let mut rhs_vector: Vec<f64> = rhs.iter().map(|x| (*x).into()).collect();

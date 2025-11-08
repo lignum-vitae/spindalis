@@ -13,12 +13,12 @@ pub struct Arr2D<T> {
 }
 
 impl<T> Arr2D<T> {
-    /// Return a tuple of (height, width).
+    /// Return a tuple of (height, width)
     pub fn shape(&self) -> (usize, usize) {
         (self.height, self.width)
     }
 
-    /// Return the total number of items (i.e. height * width).
+    /// Return the total number of items (i.e. height * width)
     pub fn size(&self) -> usize {
         self.inner.len()
     }
@@ -27,11 +27,11 @@ impl<T> Arr2D<T> {
         self.height == 0 || self.width == 0
     }
 
-    /// Change the height and width.
+    /// Change the height and width
     ///
     /// # Errors
     ///
-    /// This function will return an error if the size isn't divislbe by the new height.
+    /// This function will return an error if the size isn't divislbe by the new height
     pub fn reshape(&mut self, height: usize) -> Result<(), Arr2DError> {
         let size = self.height * self.width;
         if !size.is_multiple_of(height) {
@@ -46,7 +46,7 @@ impl<T> Arr2D<T> {
         Ok(())
     }
 
-    /// Element-wise map operatiorn.
+    /// Element-wise map operatiorn
     pub fn map<F, U>(&self, f: F) -> Arr2D<U>
     where
         F: Fn(&T) -> U,
@@ -60,7 +60,7 @@ impl<T> Arr2D<T> {
         }
     }
 
-    /// Create an iterator of refs to rows.
+    /// Create an iterator of refs to rows
     pub fn rows(&self) -> Arr2DRows<'_, T> {
         Arr2DRows {
             data: &self.inner,
@@ -69,7 +69,7 @@ impl<T> Arr2D<T> {
         }
     }
 
-    /// Create an iterator of mut refs to rows.
+    /// Create an iterator of mut refs to rows
     pub fn rows_mut(&mut self) -> Arr2DRowsMut<'_, T> {
         Arr2DRowsMut {
             data: self.inner.as_mut_slice(),
@@ -116,7 +116,7 @@ impl<T> Arr2D<T> {
         })
     }
 
-    // dot product
+    // Dot product for scalar x matrix, vector x matrix, and matrix x matrix
     pub fn dot(&self, rhs: &Self) -> Result<Self, Arr2DError>
     where
         T: Copy + std::default::Default + std::ops::AddAssign + std::ops::Mul<Output = T>,
@@ -269,7 +269,7 @@ impl<'a, T> Iterator for Arr2DRowsMut<'a, T> {
         }
 
         // it's important to take a temporary ownership over the mut slice here
-        // because `self.data` would be alive only during an invokation of this method
+        // because `self.data` would be alive only during an invocation of this method
         // (which would lead to borrow checker error).
         // `std::mem::take` allows you to own the slice, leaving `self.data` with an empty slice.
         let (row, rest) = std::mem::take(&mut self.data).split_at_mut(self.width);
@@ -285,7 +285,7 @@ impl<'a, T> Iterator for Arr2DRowsMut<'a, T> {
     }
 }
 
-// Convert a nested Vec to Arr2D.
+// Convert a nested Vec to Arr2D
 impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
     type Error = Arr2DError;
 
@@ -402,7 +402,7 @@ impl<'a, T> IntoIterator for &'a mut Arr2D<T> {
     }
 }
 
-// Convert a nested array like `&[[1, 2], [3, 4]]` to Arr2D.
+// Convert a nested array like `&[[1, 2], [3, 4]]` to Arr2D
 impl<T, const M: usize, const N: usize> From<&[[T; N]; M]> for Arr2D<T>
 where
     T: Clone,
@@ -422,7 +422,7 @@ where
     }
 }
 
-// Allow indexing Arr2D items like `arr[(0, 1)]`.
+// Allow indexing Arr2D items like `arr[(0, 1)]`
 impl<T> Index<(usize, usize)> for Arr2D<T> {
     type Output = T;
 
@@ -450,7 +450,7 @@ impl<T> IndexMut<(usize, usize)> for Arr2D<T> {
     }
 }
 
-// Allow indexing Arr2D rows like `arr[1]`.
+// Allow indexing Arr2D rows like `arr[1]`
 impl<T> Index<usize> for Arr2D<T> {
     type Output = [T];
 

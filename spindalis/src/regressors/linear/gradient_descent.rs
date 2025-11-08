@@ -86,4 +86,40 @@ mod tests {
         assert!(approx_eq(model.r2, 0.9144, ERROR_TOL));
         assert_eq!(model.to_polynomial_string(), "-2.01389 + 1.45833x")
     }
+
+    #[test]
+    fn perfect_line_recovery() {
+        // y = 3x + 2
+        let x: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let y: Vec<f64> = x.iter().map(|&x| 3.0 * x + 2.0).collect();
+
+        let grad_descent = GradientDescentRegression {
+            steps: 5000,
+            step_size: 0.01,
+        };
+        let model = grad_descent.fit(&x, &y);
+
+        assert!(approx_eq(model.slope().unwrap(), 3.0, ERROR_TOL));
+        assert!(approx_eq(model.intercept(), 2.0, ERROR_TOL));
+        assert!(approx_eq(model.std_err, 0.0, ERROR_TOL));
+        assert!(approx_eq(model.r2, 1.0, 1e-6));
+    }
+
+    #[test]
+    fn low_r2_score() {
+        // No relationship: x varies, y is random noise
+        let x: Vec<f64> = (0..20).map(|i| i as f64).collect();
+        let y: Vec<f64> = vec![
+            1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 1.5, -0.5, 0.3, -0.3, 1.2, -1.1, 2.1, -2.1, 3.1, -3.1,
+            0.2, 0.1, -0.2, 0.0,
+        ];
+
+        let grad_descent = GradientDescentRegression {
+            steps: 8000,
+            step_size: 0.01,
+        };
+        let model = grad_descent.fit(&x, &y);
+
+        assert!(approx_eq(model.r2, 0.00642, 1e-5));
+    }
 }

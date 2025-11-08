@@ -87,8 +87,11 @@ impl std::fmt::Display for LinearModel {
         } else {
             write!(
                 f,
-                "PolynomialModel {{ coefficients: {:?}, std_err: {:.5}, r2: {:.5} }}",
-                self.coefficients, self.std_err, self.r2
+                "PolynomialModel {{ intercept: {:.5}, coefficients: {:?}, std_err: {:.5}, r2: {:.5} }}",
+                self.coefficients[0],
+                &self.coefficients[1..],
+                self.std_err,
+                self.r2
             )
         }
     }

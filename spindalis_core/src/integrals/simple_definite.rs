@@ -96,6 +96,7 @@ where
     segment_width * sum / 2_f64
 }
 
+// Handles an odd number of segments
 fn simpson38<G>(segment_width: f64, poly: &[f64], eval: G, points: [f64; 4]) -> f64
 where
     G: Fn(f64, &[f64]) -> f64,
@@ -108,6 +109,7 @@ where
     3_f64 * segment_width * (f[0] + 3_f64 * f[1] + 3_f64 * f[2] + f[3]) / 8_f64
 }
 
+// Handles an even number of segments
 fn simpson13<G>(segment_width: f64, poly: &[f64], eval: G, start: f64, segments: usize) -> f64
 where
     G: Fn(f64, &[f64]) -> f64,
@@ -125,10 +127,12 @@ where
 }
 
 pub fn analytical_integral(poly: impl AsRef<[f64]>, a: f64, b: f64) -> f64 {
+    // ∫ₐᵇ x dx = F(b) − F(a)
+
     let poly = poly.as_ref();
     let integrated_polynomial = indefinite_integral(poly);
-    let fa = eval_simple_polynomial(a, &integrated_polynomial); // value of integrated polynomial at a
-    let fb = eval_simple_polynomial(b, &integrated_polynomial); // value of integrated polynomial at b
+    let fa = eval_simple_polynomial(a, &integrated_polynomial);
+    let fb = eval_simple_polynomial(b, &integrated_polynomial);
 
     fb - fa
 }

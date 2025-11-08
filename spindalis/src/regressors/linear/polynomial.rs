@@ -86,4 +86,75 @@ mod tests {
             "1.48810 - 0.45184x + 0.19102x^2"
         )
     }
+    #[test]
+    fn constant_function_order_0() {
+        // y = 4 for all x
+        let x: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let y: Vec<f64> = vec![4.0; 10];
+
+        let poly_regression = PolynomialRegression { order: 0 };
+        let model = poly_regression.fit(&x, &y);
+
+        assert!(approx_eq(model.intercept(), 4.0, ERROR_TOL));
+        assert!(model.slope().is_none());
+        // R2 score will be NAN for this because all y values = y_mean,
+        // therefore a division by 0 error will happen.
+        // This is probably fine because I don't know who is running
+        // polynomial regression on a horizontal line.
+        // If this becomes a problem in the future, we can adjust the R2 score calculations
+    }
+
+    #[test]
+    fn perfect_linear_recovery_order_1() {
+        // y = 2x - 1
+        let x: Vec<f64> = (0..10).map(|i| i as f64).collect();
+        let y: Vec<f64> = x.iter().map(|&x| 2.0 * x - 1.0).collect();
+
+        let poly_regression = PolynomialRegression { order: 1 };
+        let model = poly_regression.fit(&x, &y);
+
+        assert!(approx_eq(model.intercept(), -1.0, ERROR_TOL));
+        assert!(approx_eq(model.slope().unwrap(), 2.0, ERROR_TOL));
+        assert!(approx_eq(model.std_err, 0.0, 1e-6));
+        assert!(approx_eq(model.r2, 1.0, 1e-6));
+    }
+
+    #[test]
+    fn perfect_quadratic_recovery_order_2() {
+        // y = 3x^2 + 2x + 1
+        let x: Vec<f64> = (-5..6).map(|i| i as f64).collect();
+        let y: Vec<f64> = x.iter().map(|&x| 3.0 * x * x + 2.0 * x + 1.0).collect();
+
+        let poly_regression = PolynomialRegression { order: 2 };
+        let model = poly_regression.fit(&x, &y);
+
+        assert!(approx_eq(model.intercept(), 1.0, ERROR_TOL));
+        assert!(approx_eq(model.slopes().unwrap()[0], 2.0, ERROR_TOL));
+        assert!(approx_eq(model.slopes().unwrap()[1], 3.0, ERROR_TOL));
+        assert!(approx_eq(model.std_err, 0.0, 1e-6));
+        assert!(approx_eq(model.r2, 1.0, 1e-6));
+    }
+
+    #[test]
+    fn perfect_cubic_recovery_order_3() {
+        // y = -x^3 + 2x^2 - 3x + 4
+        let x: Vec<f64> = (-4..5).map(|i| i as f64).collect();
+        let y: Vec<f64> = x
+            .iter()
+            .map(|&x| -x.powi(3) + 2.0 * x * x - 3.0 * x + 4.0)
+            .collect();
+
+        let poly_regression = PolynomialRegression { order: 3 };
+        let model = poly_regression.fit(&x, &y);
+
+        assert!(approx_eq(model.intercept(), 4.0, ERROR_TOL));
+
+        let slopes = model.slopes().unwrap();
+        assert!(approx_eq(slopes[0], -3.0, ERROR_TOL));
+        assert!(approx_eq(slopes[1], 2.0, ERROR_TOL));
+        assert!(approx_eq(slopes[2], -1.0, ERROR_TOL));
+
+        assert!(approx_eq(model.std_err, 0.0, 1e-6));
+        assert!(approx_eq(model.r2, 1.0, 1e-6));
+    }
 }
