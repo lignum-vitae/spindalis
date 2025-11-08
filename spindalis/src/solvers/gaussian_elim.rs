@@ -14,6 +14,12 @@ where
     if coeff_matrix.height != coeff_matrix.width {
         return Err(SolverError::NonSquareMatrix);
     }
+    if coeff_matrix.height != rhs.len() {
+        return Err(SolverError::ArgumentMismatch {
+            matrix_rows: coeff_matrix.height,
+            rhs_vector_len: rhs.len(),
+        });
+    }
     let mut rhs_vector: Vec<f64> = rhs.iter().map(|x| (*x).into()).collect();
     let size = coeff_matrix.height;
     let mut solution = vec![0.0; size];

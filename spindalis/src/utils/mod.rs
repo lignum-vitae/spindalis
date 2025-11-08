@@ -18,6 +18,7 @@ pub enum Arr2DError {
         lhs: usize,
         rhs: usize,
     },
+    ConversionFailed,
 }
 
 #[derive(Copy, Clone)]

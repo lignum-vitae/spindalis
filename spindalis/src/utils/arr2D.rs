@@ -331,8 +331,8 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
     }
 }
 
-// Vec<Vec<T>> -> Arr2D<f64>
-impl<T: Into<f64> + Clone> TryFrom<&Vec<Vec<T>>> for Arr2D<f64> {
+// Vec<Vec<T>> -> Arr2D<U>
+impl<T: Clone, U: TryFrom<T>> TryFrom<&Vec<Vec<T>>> for Arr2D<U> {
     type Error = Arr2DError;
 
     fn try_from(values: &Vec<Vec<T>>) -> Result<Self, Self::Error> {
@@ -351,7 +351,10 @@ impl<T: Into<f64> + Clone> TryFrom<&Vec<Vec<T>>> for Arr2D<f64> {
             if row.len() != width {
                 return Err(Arr2DError::InconsistentRowLengths);
             }
-            inner.extend(row.iter().cloned().map(|x| x.into()));
+
+            for x in row {
+                inner.push(U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed)?);
+            }
         }
 
         Ok(Self {
@@ -362,8 +365,8 @@ impl<T: Into<f64> + Clone> TryFrom<&Vec<Vec<T>>> for Arr2D<f64> {
     }
 }
 
-// Arr2D<T> -> Arr2D<f64>
-impl<T: Into<f64> + Clone> TryFrom<&Arr2D<T>> for Arr2D<f64> {
+// Arr2D<T> -> Arr2D<U>
+impl<T: Clone, U: TryFrom<T>> TryFrom<&Arr2D<T>> for Arr2D<U> {
     type Error = Arr2DError;
 
     fn try_from(arr: &Arr2D<T>) -> Result<Self, Self::Error> {
@@ -375,8 +378,13 @@ impl<T: Into<f64> + Clone> TryFrom<&Arr2D<T>> for Arr2D<f64> {
             });
         }
 
-        Ok(Arr2D {
-            inner: arr.inner.iter().cloned().map(|x| x.into()).collect(),
+        let mut inner = Vec::with_capacity(arr.inner.len());
+        for x in &arr.inner {
+            inner.push(U::try_from(x.clone()).map_err(|_| Arr2DError::ConversionFailed)?);
+        }
+
+        Ok(Self {
+            inner,
             height: arr.height,
             width: arr.width,
         })

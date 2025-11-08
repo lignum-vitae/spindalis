@@ -21,6 +21,10 @@ pub enum SolverError {
     XInitOutOfBounds,
     NonSquareMatrix,
     InvalidVector(Arr2DError),
+    ArgumentMismatch {
+        matrix_rows: usize,
+        rhs_vector_len: usize,
+    },
 }
 
 impl From<Arr2DError> for SolverError {
