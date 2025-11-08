@@ -221,12 +221,12 @@ println!("The value for the integral evaluated at 2 is {eval}");
 Gradient Descent Regression
 
 ```rust
-use spindalis::regressors::{GradientDescent, LinearModel};
+use spindalis::regressors::{GradientDescentRegression, LinearModel};
 
 let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-let grad_descent = GradientDescent{
+let grad_descent = GradientDescentRegression{
     steps: 10000,
     step_size: 0.01,
 };
@@ -246,12 +246,12 @@ println!("{}", model.to_polynomial_string());
 Least Squares Regression
 
 ```rust
-use spindalis::regressors::{LeastSquares, LinearModel};
+use spindalis::regressors::{LeastSquaresRegression, LinearModel};
 
 let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-let least_squares = LeastSquares;
+let least_squares = LeastSquaresRegression;
 
 let model = least_squares.fit(&x, &y);
 
@@ -268,12 +268,12 @@ println!("{}", model.to_polynomial_string());
 Polynomial Regression
 
 ```rust
-use spindalis::regressors::{Polynomial, LinearModel};
+use spindalis::regressors::{PolynomialRegression, LinearModel};
 
 let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-let poly_regression = Polynomial { order: 2 };
+let poly_regression = PolynomialRegression { order: 2 };
 
 let model = poly_regression.fit(&x, &y);
 

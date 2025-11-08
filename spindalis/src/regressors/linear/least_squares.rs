@@ -1,8 +1,8 @@
 use crate::regressors::linear::{LinearModel, LinearRegressor};
 
-pub struct LeastSquares;
+pub struct LeastSquaresRegression;
 
-impl LinearRegressor for LeastSquares {
+impl LinearRegressor for LeastSquaresRegression {
     fn fit(&self, x: &[f64], y: &[f64]) -> LinearModel {
         let mut coefficients = Vec::new();
         let length = x.len() as f64;
@@ -54,7 +54,7 @@ mod tests {
         let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
         let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-        let least_squares = LeastSquares;
+        let least_squares = LeastSquaresRegression;
         let model = least_squares.fit(&x, &y);
 
         assert!(approx_eq(model.slope().unwrap(), 1.458, ERROR_TOL));

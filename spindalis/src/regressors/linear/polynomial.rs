@@ -1,11 +1,11 @@
 use crate::regressors::linear::{LinearModel, LinearRegressor};
 use crate::solvers::gaussian_elimination;
 
-pub struct Polynomial {
+pub struct PolynomialRegression {
     order: usize,
 }
 
-impl LinearRegressor for Polynomial {
+impl LinearRegressor for PolynomialRegression {
     #[allow(clippy::needless_range_loop)]
     fn fit(&self, x: &[f64], y: &[f64]) -> LinearModel {
         let order = self.order;
@@ -71,7 +71,7 @@ mod tests {
         let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
         let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-        let poly_regression = Polynomial { order: 2 };
+        let poly_regression = PolynomialRegression { order: 2 };
         let model = poly_regression.fit(&x, &y);
 
         let expected_slopes = vec![-0.4518, 0.1910];

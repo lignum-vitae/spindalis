@@ -1,11 +1,11 @@
 use crate::regressors::linear::{LinearModel, LinearRegressor};
 
-pub struct GradientDescent {
+pub struct GradientDescentRegression {
     pub steps: usize,
     pub step_size: f64,
 }
 
-impl LinearRegressor for GradientDescent {
+impl LinearRegressor for GradientDescentRegression {
     fn fit(&self, x: &[f64], y: &[f64]) -> LinearModel {
         let mut coefficients = Vec::new();
         let mut wx = 0.0_f64;
@@ -74,7 +74,7 @@ mod tests {
         let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
         let y: Vec<f64> = vec![1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 13.0];
 
-        let grad_descent = GradientDescent {
+        let grad_descent = GradientDescentRegression {
             steps: 10000,
             step_size: 0.01,
         };
