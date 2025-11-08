@@ -134,11 +134,11 @@ mod tests {
             vec![12.0, 2.0, 2.0],
         ];
 
-        let mut rhs_vector = vec![8.0, 16.0, 16.0];
+        let rhs_vector = vec![8.0, 16.0, 16.0];
         let tol = 1e-12;
         let expected: Vec<f64> = vec![1.0; 3];
 
-        let res = gaussian_elimination(&coeff_matrix, &mut rhs_vector, tol).unwrap();
+        let res = gaussian_elimination(&coeff_matrix, &rhs_vector, tol).unwrap();
 
         assert_eq!(res, expected)
     }
@@ -148,11 +148,11 @@ mod tests {
         let matrix = vec![vec![3, 6], vec![5, -8]];
 
         let coeff_matrix = Arr2D::try_from(matrix).unwrap();
-        let mut rhs_vector = vec![12, 2];
+        let rhs_vector = vec![12, 2];
         let tol = 1e-12;
         let expected: Vec<f64> = vec![2.0, 1.0];
 
-        let res = gaussian_elimination(&coeff_matrix, &mut rhs_vector, tol).unwrap();
+        let res = gaussian_elimination(&coeff_matrix, &rhs_vector, tol).unwrap();
 
         assert_eq!(res, expected)
     }
@@ -166,10 +166,10 @@ mod tests {
         ];
 
         let coeff_matrix = Arr2D::try_from(matrix).unwrap();
-        let mut rhs_vector = vec![0.0; 4];
+        let rhs_vector = vec![0.0; 4];
         let tol = 1e-12;
 
-        let result = gaussian_elimination(&coeff_matrix, &mut rhs_vector, tol);
+        let result = gaussian_elimination(&coeff_matrix, &rhs_vector, tol);
 
         assert!(matches!(result, Err(SolverError::NonSquareMatrix)));
     }
