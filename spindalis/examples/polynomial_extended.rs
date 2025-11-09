@@ -1,6 +1,7 @@
 use spindalis::derivatives::partial_derivative;
 use spindalis::polynomials::{eval_polynomial_extended, parse_polynomial_extended};
 
+#[allow(clippy::unnecessary_to_owned)]
 fn main() {
     // Parsing function
     let polynomial = "4x^2y^3 + 4x - 2y + z^1.0/2.0";
@@ -16,15 +17,15 @@ fn main() {
     println!("Evaluating Polynomials");
     let vars = vec![("x", 2), ("y", 1), ("z", 4)];
     let value = eval_polynomial_extended(&parsed, &vars);
-    println!("Polynomial evaluated at x=2, y=1, z=4: {:?}", value);
+    println!("Polynomial evaluated at x=2, y=1, z=4: {value:?}");
 
     let vars = [("x", 4), ("y", 5), ("z", 2)];
     let value = eval_polynomial_extended(&parsed, &vars);
-    println!("Polynomial evaluated at x=4, y=5, z=2: {:?}", value);
+    println!("Polynomial evaluated at x=4, y=5, z=2: {value:?}");
 
     let vars = [("x", 0.5), ("y", 5.3), ("z", 2.1)];
     let value = eval_polynomial_extended(&parsed, &vars);
-    println!("Polynomial evaluated at x=0.5, y=5.3, z=2.1: {:?}\n", value);
+    println!("Polynomial evaluated at x=0.5, y=5.3, z=2.1: {value:?}\n");
 
     // Calculative partial derivative
     println!("Partial derivatives of polynomials");

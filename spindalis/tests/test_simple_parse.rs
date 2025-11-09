@@ -43,13 +43,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_simple_polynomial_constants_only() {
-        let result = parse_simple_polynomial("5");
-
-        assert!(matches!(result, Err(PolynomialError::MissingVariable)));
-    }
-
-    #[test]
     fn test_parse_simple_polynomial_missing_powers() {
         let coeffs = parse_simple_polynomial("2x + 3").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x + 3);
@@ -98,9 +91,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_simple_polynomial_constant_fails() {
-        let result = parse_simple_polynomial("7");
-        assert!(matches!(result, Err(PolynomialError::MissingVariable)));
+    fn test_parse_simple_polynomial_constant() {
+        let result = parse_simple_polynomial("7").unwrap();
+        assert_eq!(result, vec![7.0]);
     }
 
     #[test]
@@ -127,6 +120,16 @@ mod tests {
     #[test]
     fn test_invalid_polynomial_2() {
         let poly = "x^2 + +"; // Invalid syntax
+        let parsed = parse_simple_polynomial(poly);
+        assert!(matches!(
+            parsed,
+            Err(PolynomialError::PolynomialSyntaxError)
+        ));
+    }
+
+    #[test]
+    fn test_invalid_polynomial_3() {
+        let poly = "x^2 - -4"; // Invalid syntax
         let parsed = parse_simple_polynomial(poly);
         assert!(matches!(
             parsed,

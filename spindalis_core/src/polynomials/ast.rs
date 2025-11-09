@@ -200,6 +200,15 @@ mod tests {
     }
 
     #[test]
+    fn test_decimal_number_token() {
+        let expr = "32.0";
+        let result = lexer(expr).unwrap();
+        let expected = Token::Number(32.0);
+
+        assert_eq!(result[0], expected);
+    }
+
+    #[test]
     fn test_float_token() {
         let expr = "0.32";
         let result = lexer(expr).unwrap();

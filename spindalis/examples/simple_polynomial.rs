@@ -16,10 +16,10 @@ fn main() {
     // Evaluating polynomials
     println!("Evaluating polynomials");
     let value = eval_simple_polynomial(2.0, &parsed);
-    println!("Polynomial evaluated at x=2: {:?}\n", value);
+    println!("Polynomial evaluated at x=2: {value:?}\n");
 
     // Derivative of parsed polynomial
     println!("Finding derivatives of polynomials");
     let dx = simple_derivative(&parsed);
-    println!("Derivative coefficients: {:?}", dx);
+    println!("Derivative coefficients: {dx:?}");
 }

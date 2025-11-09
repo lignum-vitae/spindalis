@@ -240,10 +240,7 @@ mod tests {
             }, // 4y
         ];
 
-        let mut vars = HashMap::new();
-        vars.insert("x".to_string(), 3.0);
-        vars.insert("y".to_string(), 2.0);
-
+        let vars = vec![("x", 3), ("y", 2)];
         let result = eval_polynomial_extended(&terms, &vars);
         // 2*3*2^2 + 4*2 = 2*3*4 + 8 = 24 + 8 = 32
         assert_eq!(result, 32.0);
@@ -296,8 +293,7 @@ mod tests {
             variables: vec![("x".to_string(), -0.5)],
         }];
 
-        let mut vars = HashMap::new();
-        vars.insert("x".to_string(), 16.0);
+        let vars = [("x", 16)];
 
         let result = eval_polynomial_extended(&terms, &vars);
         assert_eq!(result, 0.25);

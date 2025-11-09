@@ -5,7 +5,7 @@ use spindalis::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
 
 fn main() {
     // Calculate the definite integral from a to b
-    // This method uses Simpon's rules for multiple segments
+    // This method uses Simpon's 1/3 and 3/8 rules for multiple segments
     // and the trapezoid method for a single segment
     let parsed = parse_simple_polynomial!(64x ^ 3 - 144x ^ 2 + 108x - 27);
     let result = definite_integral(&parsed, eval_simple_polynomial, -3.0, 5.0, 5);

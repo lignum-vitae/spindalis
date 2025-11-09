@@ -4,7 +4,7 @@ use spindalis::solvers::{Bounds, SolveMode, bisection};
 
 fn main() {
     let polynomial = "-2x^6 - 1.6x^4 + 12x + 1";
-    let parsed = parse_simple_polynomial(&polynomial).unwrap();
+    let parsed = parse_simple_polynomial(polynomial).unwrap();
     let error_tol = 1e-5;
     let itermax = 10000;
     println!("The polynomial being evaluated is {polynomial}");

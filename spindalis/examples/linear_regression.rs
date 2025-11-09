@@ -15,7 +15,7 @@ fn main() {
     let model = grad_descent.fit(&x, &y);
 
     // Gradient Descent
-    println!("Linear Regression using gradient descent");
+    println!("Linear Regression using Gradient Descent");
     println!(
         "Slope = {:.2}\nIntercept = {:.2}",
         model.slope().unwrap(),
@@ -31,7 +31,7 @@ fn main() {
     );
 
     // Least Squares
-    println!("Linear Regression using least squares");
+    println!("Linear Regression using Least Squares");
     let least_squares = LeastSquaresRegression;
 
     let model = least_squares.fit(&x, &y);
@@ -51,7 +51,7 @@ fn main() {
     );
 
     // Polynomial Regression
-    println!("Linear regression using polynomial regression");
+    println!("Linear regression using Polynomial Regression");
     let poly_regression = PolynomialRegression { order: 2 };
 
     let model = poly_regression.fit(&x, &y);

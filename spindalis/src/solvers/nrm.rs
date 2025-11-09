@@ -131,9 +131,7 @@ mod tests {
             // Check if the absolute difference between result and expected is less than 0.01 (for 2 decimal places)
             assert!(
                 (result - expected).abs() < 0.01,
-                "Expected {} but got {}. Difference is too large.",
-                expected,
-                result
+                "Expected {expected} but got {result}. Difference is too large.",
             );
         }
     }
@@ -167,9 +165,7 @@ mod tests {
             // Check if the absolute difference between result and expected is less than 0.01 (for 2 decimal places)
             assert!(
                 (result - expected).abs() < 0.01,
-                "Expected {} but got {}. Difference is too large.",
-                expected,
-                result
+                "Expected {expected} but got {result}. Difference is too large.",
             );
         }
     }

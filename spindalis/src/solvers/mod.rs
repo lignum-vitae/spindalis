@@ -30,6 +30,7 @@ impl From<Arr2DError> for SolverError {
     }
 }
 
+// Bounds for bisection method
 pub struct Bounds {
     pub lower: f64,
     pub init: f64,

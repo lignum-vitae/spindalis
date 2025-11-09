@@ -269,9 +269,7 @@ mod tests {
 
         assert!(
             (res - expected).abs() < 0.01,
-            "Expected {} but got {}. Difference is too large.",
-            expected,
-            res
+            "Expected {expected} but got {res}. Difference is too large.",
         );
     }
 }

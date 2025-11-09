@@ -98,9 +98,9 @@ where
     Ok(parsed)
 }
 
-pub fn eval_polynomial_extended<I, S, F>(terms: &[Term], vars: &I) -> f64
+pub fn eval_polynomial_extended<V, S, F>(terms: &[Term], vars: &V) -> f64
 where
-    I: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
+    V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
     S: AsRef<str>,
     F: Into<f64>,
 {

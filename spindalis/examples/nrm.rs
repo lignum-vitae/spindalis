@@ -5,7 +5,7 @@ use spindalis::solvers::{SolveMode, newton_raphson_method};
 fn main() {
     let polynomial = "0.5x^3 - 3.9x^2 + 6x - 1.5";
     let guesses = [0.0, 1.0, 2.0];
-    let parsed = parse_simple_polynomial(&polynomial).unwrap();
+    let parsed = parse_simple_polynomial(polynomial).unwrap();
 
     println!("The polynomial being evaluated is {polynomial}");
     for guess in guesses {
