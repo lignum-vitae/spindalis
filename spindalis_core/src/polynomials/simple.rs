@@ -1,6 +1,10 @@
 use crate::polynomials::PolynomialError;
 
-pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError> {
+pub fn parse_simple_polynomial<S>(input: S) -> Result<Vec<f64>, PolynomialError>
+where
+    S: AsRef<str>,
+{
+    let input = input.as_ref();
     let normalized = input.replace(" ", "").replace("-", "+-");
     let mut parts: Vec<&str> = normalized.split('+').collect();
 
@@ -66,7 +70,11 @@ pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError>
     Ok(coeffs)
 }
 
-pub fn eval_simple_polynomial(x: f64, coeffs: &[f64]) -> f64 {
+pub fn eval_simple_polynomial<F>(x: F, coeffs: &[f64]) -> f64
+where
+    F: Into<f64>,
+{
+    let x: f64 = x.into();
     coeffs
         .iter()
         .enumerate()

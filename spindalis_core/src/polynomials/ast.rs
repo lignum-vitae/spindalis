@@ -104,7 +104,11 @@ pub enum Expr {
 }
 
 #[allow(dead_code)]
-fn lexer(input: &str) -> Result<Vec<Token>, AstPolyErr> {
+fn lexer<S>(input: S) -> Result<Vec<Token>, AstPolyErr>
+where
+    S: AsRef<str>,
+{
+    let input = input.as_ref();
     let mut tokens: Vec<Token> = Vec::new();
     let mut temp = String::new();
     let chars = input.replace(" ", "");

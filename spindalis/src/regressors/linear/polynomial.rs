@@ -2,7 +2,7 @@ use crate::regressors::linear::{LinearModel, LinearRegressor};
 use crate::solvers::gaussian_elimination;
 
 pub struct PolynomialRegression {
-    order: usize,
+    pub order: usize,
 }
 
 impl LinearRegressor for PolynomialRegression {

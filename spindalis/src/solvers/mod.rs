@@ -29,3 +29,9 @@ impl From<Arr2DError> for SolverError {
         SolverError::InvalidVector(err)
     }
 }
+
+pub struct Bounds {
+    pub lower: f64,
+    pub init: f64,
+    pub upper: f64,
+}

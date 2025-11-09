@@ -4,7 +4,11 @@ use std::collections::HashMap;
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_polynomial_extended(expr: &str) -> Result<Vec<Term>, ComplexPolyErr> {
+pub fn parse_polynomial_extended<S>(expr: S) -> Result<Vec<Term>, ComplexPolyErr>
+where
+    S: AsRef<str>,
+{
+    let expr = expr.as_ref();
     let ascii_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let normalized = expr
         .replace(" ", "")
@@ -94,14 +98,25 @@ pub fn parse_polynomial_extended(expr: &str) -> Result<Vec<Term>, ComplexPolyErr
     Ok(parsed)
 }
 
-pub fn eval_polynomial_extended(terms: &[Term], vars: &HashMap<String, f64>) -> f64 {
+pub fn eval_polynomial_extended<I, S, F>(terms: &[Term], vars: &I) -> f64
+where
+    I: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
+    S: AsRef<str>,
+    F: Into<f64>,
+{
+    let vars_map: HashMap<String, f64> = vars
+        .clone()
+        .into_iter()
+        .map(|(k, v)| (k.as_ref().to_string(), v.into()))
+        .collect();
+
     let mut result = 0.0;
 
     for term in terms {
         let mut term_value = term.coefficient;
 
         for (var, pow) in &term.variables {
-            if let Some(value) = vars.get(var) {
+            if let Some(value) = vars_map.get(var) {
                 term_value *= value.powf(*pow);
             } else {
                 panic!("{var} not in {vars:?}");
