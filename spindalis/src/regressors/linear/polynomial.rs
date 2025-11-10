@@ -2,7 +2,7 @@ use crate::regressors::linear::{LinearModel, LinearRegressor};
 use crate::solvers::gaussian_elimination;
 
 pub struct PolynomialRegression {
-    order: usize,
+    pub order: usize,
 }
 
 impl LinearRegressor for PolynomialRegression {
@@ -143,6 +143,7 @@ mod tests {
             .iter()
             .map(|&x| -x.powi(3) + 2.0 * x * x - 3.0 * x + 4.0)
             .collect();
+        let expected = [-3.0, 2.0, -1.0];
 
         let poly_regression = PolynomialRegression { order: 3 };
         let model = poly_regression.fit(&x, &y);
@@ -150,9 +151,9 @@ mod tests {
         assert!(approx_eq(model.intercept(), 4.0, ERROR_TOL));
 
         let slopes = model.slopes().unwrap();
-        assert!(approx_eq(slopes[0], -3.0, ERROR_TOL));
-        assert!(approx_eq(slopes[1], 2.0, ERROR_TOL));
-        assert!(approx_eq(slopes[2], -1.0, ERROR_TOL));
+        for (i, slope) in slopes.iter().enumerate() {
+            assert!(approx_eq(*slope, expected[i], ERROR_TOL));
+        }
 
         assert!(approx_eq(model.std_err, 0.0, 1e-6));
         assert!(approx_eq(model.r2, 1.0, 1e-6));

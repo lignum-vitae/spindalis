@@ -1,10 +1,4 @@
-use crate::solvers::{SolveMode, SolverError};
-
-pub struct Bounds {
-    lower: f64,
-    init: f64,
-    upper: f64,
-}
+use crate::solvers::{Bounds, SolveMode, SolverError};
 
 pub fn bisection<F, G, T>(
     polynomial: T,
@@ -22,9 +16,9 @@ where
 {
     let mut iter = 0;
     let mut approx_err = 100.0;
-    let mut lower_bound = bounds.lower;
-    let mut x_curr = bounds.init;
-    let mut upper_bound = bounds.upper;
+    let mut lower_bound: f64 = bounds.lower;
+    let mut x_curr: f64 = bounds.init;
+    let mut upper_bound: f64 = bounds.upper;
 
     if x_curr < lower_bound || x_curr > upper_bound {
         return Err(SolverError::XInitOutOfBounds);
@@ -275,9 +269,7 @@ mod tests {
 
         assert!(
             (res - expected).abs() < 0.01,
-            "Expected {} but got {}. Difference is too large.",
-            expected,
-            res
+            "Expected {expected} but got {res}. Difference is too large.",
         );
     }
 }

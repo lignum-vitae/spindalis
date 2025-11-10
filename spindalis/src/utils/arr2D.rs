@@ -935,7 +935,7 @@ mod tests {
     #[test]
     fn test_display() {
         let data = Arr2D::from(&[[1.2, 34.5678], [789.02, 0.123]]);
-        let out = format!("{}", data);
+        let out = format!("{data}");
         let expected = r#"
 [[    1.2, 34.5678 ]
  [ 789.02,   0.123 ]]"#;

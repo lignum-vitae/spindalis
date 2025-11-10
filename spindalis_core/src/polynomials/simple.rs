@@ -1,6 +1,10 @@
 use crate::polynomials::PolynomialError;
 
-pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError> {
+pub fn parse_simple_polynomial<S>(input: S) -> Result<Vec<f64>, PolynomialError>
+where
+    S: AsRef<str>,
+{
+    let input = input.as_ref();
     let normalized = input.replace(" ", "").replace("-", "+-");
     let mut parts: Vec<&str> = normalized.split('+').collect();
 
@@ -10,20 +14,17 @@ pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError>
         parts.remove(0);
     }
 
-    if parts.iter().any(|s| s.is_empty()) {
+    // Handles double plusses and double minuses
+    if parts.iter().any(|s| s.is_empty() || *s == "-") {
         return Err(PolynomialError::PolynomialSyntaxError);
     }
 
-    // unwrap_or to maintain functionality of parsing just a constant
-    // (might replace with '.map_err()?' to bubble up Error)
-    let var = normalized
-        .chars()
-        .find(|&c| c.is_alphabetic())
-        .ok_or(PolynomialError::MissingVariable)?;
+    // Allowing parsing just a constant in case someone wants to integral a constant
+    let variable = normalized.chars().find(|&c| c.is_alphabetic());
 
     let mut terms: Vec<(f64, usize)> = Vec::new();
     for part in parts {
-        let term = {
+        let term = if let Some(var) = variable {
             if let Some(x) = part.find(var) {
                 let coeff_str = &part[..x];
                 let coeff = if coeff_str.is_empty() || coeff_str == "+" {
@@ -53,6 +54,12 @@ pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError>
                     .map_err(|_| PolynomialError::InvalidConstant)?;
                 (constant, 0)
             }
+        } else {
+            // No variable (just constant)
+            let constant = part
+                .parse::<f64>()
+                .map_err(|_| PolynomialError::InvalidConstant)?;
+            (constant, 0)
         };
         terms.push(term);
     }
@@ -66,7 +73,11 @@ pub fn parse_simple_polynomial(input: &str) -> Result<Vec<f64>, PolynomialError>
     Ok(coeffs)
 }
 
-pub fn eval_simple_polynomial(x: f64, coeffs: &[f64]) -> f64 {
+pub fn eval_simple_polynomial<F>(x: F, coeffs: &[f64]) -> f64
+where
+    F: Into<f64>,
+{
+    let x: f64 = x.into();
     coeffs
         .iter()
         .enumerate()
