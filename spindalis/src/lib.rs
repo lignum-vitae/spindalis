@@ -1,3 +1,6 @@
+// "Needless borrows" are needed for tests
+#![allow(clippy::needless_borrows_for_generic_args)]
+
 pub mod reduction;
 pub mod regressors;
 pub mod solvers;
