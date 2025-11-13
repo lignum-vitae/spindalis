@@ -13,6 +13,14 @@ pub struct Arr2D<T> {
 }
 
 impl<T> Arr2D<T> {
+    pub fn new() -> Self {
+        Arr2D {
+            inner: Vec::new(),
+            height: 0,
+            width: 0,
+        }
+    }
+
     /// Return a tuple of (height, width)
     pub fn shape(&self) -> (usize, usize) {
         (self.height, self.width)
@@ -153,12 +161,21 @@ impl<T> Arr2D<T> {
     where
         T: Copy + std::default::Default + std::ops::AddAssign + std::ops::Mul<Output = T>,
     {
-        if self.height == 1 && self.width == 1 {
-            let scalar = self[0][0];
-            let mut result = Arr2D::full(T::default(), rhs.height, rhs.width);
-            for i in 0..rhs.height {
-                for j in 0..rhs.width {
-                    result[i][j] = scalar * rhs[i][j];
+        if self.height == 1 && self.width == 1 || rhs.height == 1 && rhs.width == 2 {
+            let mut matrix = Arr2D::new();
+            let mut scalar = T::default();
+            if rhs.height == 1 {
+                matrix = self.clone();
+                scalar = rhs[0][0];
+            } else if self.height == 1 {
+                matrix = rhs.clone();
+                scalar = self[0][0];
+            }
+
+            let mut result = Arr2D::full(T::default(), matrix.height, matrix.width);
+            for i in 0..matrix.height {
+                for j in 0..matrix.width {
+                    result[i][j] = scalar * matrix[i][j];
                 }
             }
             return Ok(result);
@@ -183,26 +200,74 @@ impl<T> Arr2D<T> {
     }
 }
 
-// Generic Mul implementation for Arr2D * Arr2D (matrix * matrix)
+// Mul implementation for &Arr2D * &Arr2D (&matrix * &matrix)
+impl<'b, T> Mul<&'b Arr2D<T>> for &Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: &'b Arr2D<T>) -> Arr2D<T> {
+        self.dot(rhs).unwrap_or_default()
+    }
+}
+
+// Mul implementation for Arr2D * Arr2D (matrix * matrix)
 impl<T> Mul<Arr2D<T>> for Arr2D<T>
 where
     T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
 {
     type Output = Arr2D<T>;
 
-    fn mul(self, rhs: Arr2D<T>) -> Self {
+    fn mul(self, rhs: Arr2D<T>) -> Arr2D<T> {
         self.dot(&rhs).unwrap_or_default()
     }
 }
 
-// Generic Mul implementation for Arr2D * scalar (matrix * scalar)
+// Mul implementation for Arr2D * &Arr2D (matrix * &matrix)
+impl<'b, T> Mul<&'b Arr2D<T>> for Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: &'b Arr2D<T>) -> Arr2D<T> {
+        self.dot(rhs).unwrap_or_default()
+    }
+}
+
+// Mul implementation for &Arr2D * Arr2D (&matrix * matrix)
+impl<T> Mul<Arr2D<T>> for &Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy + std::ops::AddAssign,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: Arr2D<T>) -> Arr2D<T> {
+        self.dot(&rhs).unwrap_or_default()
+    }
+}
+
+// Mul implementation for Arr2D * scalar (matrix * scalar)
 impl<T> Mul<T> for Arr2D<T>
 where
     T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy,
 {
     type Output = Arr2D<T>;
 
-    fn mul(self, rhs: T) -> Self {
+    fn mul(self, rhs: T) -> Arr2D<T> {
+        &self * rhs
+    }
+}
+
+// Mul implementation for &Arr2D * scalar (&matrix * scalar)
+impl<T> Mul<T> for &Arr2D<T>
+where
+    T: Mul<Output = T> + Clone + std::default::Default + std::marker::Copy,
+{
+    type Output = Arr2D<T>;
+
+    fn mul(self, rhs: T) -> Arr2D<T> {
         let mut result = Arr2D::full(T::default(), self.height, self.width);
         for i in 0..self.height {
             for j in 0..self.width {
@@ -213,13 +278,14 @@ where
     }
 }
 
-impl<T> Div<T> for Arr2D<T>
+// Div implementation for &Arr2D / scalar (&matrix / scalar)
+impl<T> Div<T> for &Arr2D<T>
 where
     T: Div<Output = T> + Clone + std::default::Default + std::marker::Copy,
 {
     type Output = Arr2D<T>;
 
-    fn div(self, rhs: T) -> Self {
+    fn div(self, rhs: T) -> Arr2D<T> {
         let mut result = Arr2D::full(T::default(), self.height, self.width);
         for i in 0..self.height {
             for j in 0..self.width {
@@ -227,6 +293,18 @@ where
             }
         }
         result
+    }
+}
+
+// Div implementation for Arr2D / scalar (matrix / scalar)
+impl<T> Div<T> for Arr2D<T>
+where
+    T: Div<Output = T> + Clone + std::default::Default + std::marker::Copy,
+{
+    type Output = Arr2D<T>;
+
+    fn div(self, rhs: T) -> Self {
+        &self / rhs
     }
 }
 
@@ -851,7 +929,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_ref() {
         let data = Arr2D::from_flat(&vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
@@ -860,7 +937,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice() {
         let data = Arr2D::from_flat(&[1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 5, 6]]);
@@ -877,7 +953,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_with_default_ref() {
         let data = Arr2D::from_flat(&vec![1, 2, 3, 4], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[1, 2, 3], [4, 0, 0]]);
@@ -886,7 +961,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_full_zeros() {
         let flat_data = Arr2D::from_flat(&vec![], 0, 2, 3).unwrap();
         let full_data = Arr2D::full(0, 2, 3);
@@ -895,7 +969,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_from_flat_slice_full_zeros() {
         let data = Arr2D::from_flat(&[], 0, 2, 3).unwrap();
         let out = Arr2D::from(&[[0, 0, 0], [0, 0, 0]]);
@@ -958,6 +1031,17 @@ mod tests {
     }
 
     #[test]
+    fn test_Mul_trait_scalar_2() {
+        let scal = 2;
+        let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![8, 0, 2, -18], 0, 2, 2).unwrap();
+
+        let res = &mat * scal;
+        assert_eq!(res, expected)
+    }
+
+    #[test]
     fn test_Mul_trait_mat_mul_mat() {
         let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
         let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
@@ -965,6 +1049,39 @@ mod tests {
         let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
 
         let res = arr1 * arr2;
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test__borrowed_Mul_trait_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = arr1 * &arr2;
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test__borrowed_Mul_trait_mat_mul_mat_2() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = &arr1 * arr2;
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test__double_borrowed_Mul_trait_mat_mul_mat() {
+        let arr1 = Arr2D::from_flat(vec![1, 2, 3, 4, 5, 6], 0, 2, 3).unwrap();
+        let arr2 = Arr2D::from_flat(vec![7, 8, 9, 10, 11, 12], 0, 3, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![58, 64, 139, 154], 0, 2, 2).unwrap();
+
+        let res = &arr1 * &arr2;
         assert_eq!(res, expected);
     }
 
@@ -983,6 +1100,15 @@ mod tests {
     fn test_Div_trait_mat_div_scalar() {
         let mat = Arr2D::from_flat(vec![1.778, 0.0, 1.778], 0.0, 3, 1).unwrap();
         let result = mat / 1.778;
+        let expected = Arr2D::from(&[[1.0], [0.0], [1.0]]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_borrow_Div_trait_mat_div_scalar() {
+        let mat = Arr2D::from_flat(vec![1.778, 0.0, 1.778], 0.0, 3, 1).unwrap();
+        let result = &mat / 1.778;
         let expected = Arr2D::from(&[[1.0], [0.0], [1.0]]);
 
         assert_eq!(result, expected);
