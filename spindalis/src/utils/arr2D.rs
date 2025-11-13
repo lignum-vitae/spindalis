@@ -2,7 +2,7 @@ use crate::utils::Arr2DError;
 use std::{
     any::type_name,
     fmt::{self, Display},
-    ops::{Index, IndexMut, Mul},
+    ops::{Div, Index, IndexMut, Mul},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
@@ -25,6 +25,38 @@ impl<T> Arr2D<T> {
 
     pub fn is_empty(&self) -> bool {
         self.height == 0 || self.width == 0
+    }
+
+    pub fn max(&self) -> Option<T>
+    where
+        T: std::cmp::PartialOrd + Clone,
+    {
+        if self.is_empty() {
+            return None;
+        }
+        Some(
+            self.inner
+                .iter()
+                .reduce(|a, b| if a > b { a } else { b })
+                .unwrap()
+                .clone(),
+        )
+    }
+
+    pub fn min(&self) -> Option<T>
+    where
+        T: std::cmp::PartialOrd + Clone,
+    {
+        if self.is_empty() {
+            return None;
+        }
+        Some(
+            self.inner
+                .iter()
+                .reduce(|a, b| if a < b { a } else { b })
+                .unwrap()
+                .clone(),
+        )
     }
 
     /// Change the height and width
@@ -175,6 +207,23 @@ where
         for i in 0..self.height {
             for j in 0..self.width {
                 result[i][j] = self[i][j] * rhs;
+            }
+        }
+        result
+    }
+}
+
+impl<T> Div<T> for Arr2D<T>
+where
+    T: Div<Output = T> + Clone + std::default::Default + std::marker::Copy,
+{
+    type Output = Arr2D<T>;
+
+    fn div(self, rhs: T) -> Self {
+        let mut result = Arr2D::full(T::default(), self.height, self.width);
+        for i in 0..self.height {
+            for j in 0..self.width {
+                result[i][j] = self[i][j] / rhs;
             }
         }
         result
@@ -930,6 +979,15 @@ mod tests {
         assert_eq!(res, expected);
     }
 
+    #[test]
+    fn test_Div_trait_mat_div_scalar() {
+        let mat = Arr2D::from_flat(vec![1.778, 0.0, 1.778], 0.0, 3, 1).unwrap();
+        let result = mat / 1.778;
+        let expected = Arr2D::from(&[[1.0], [0.0], [1.0]]);
+
+        assert_eq!(result, expected);
+    }
+
     // --- misc ---
 
     #[test]
@@ -940,5 +998,41 @@ mod tests {
 [[    1.2, 34.5678 ]
  [ 789.02,   0.123 ]]"#;
         assert_eq!(&out, &expected[1..]);
+    }
+
+    #[test]
+    fn test_int_max() {
+        let data = Arr2D::from(&[[12], [10], [11], [20], [9]]);
+        let result = data.max().unwrap();
+        let expected = 20;
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_float_max() {
+        let data = Arr2D::from(&[[23.3], [12.4], [23.4], [10.4]]);
+        let result = data.max().unwrap();
+        let expected = 23.4;
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_int_min() {
+        let data = Arr2D::from(&[[12], [10], [11], [20], [9]]);
+        let result = data.min().unwrap();
+        let expected = 9;
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_float_min() {
+        let data = Arr2D::from(&[[23.3], [12.4], [23.4], [10.4]]);
+        let result = data.min().unwrap();
+        let expected = 10.4;
+
+        assert_eq!(result, expected);
     }
 }
