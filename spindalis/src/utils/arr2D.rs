@@ -278,7 +278,7 @@ where
     }
 }
 
-// Div implementation for &Arr2D * scalar (&matrix * scalar)
+// Div implementation for &Arr2D / scalar (&matrix / scalar)
 impl<T> Div<T> for &Arr2D<T>
 where
     T: Div<Output = T> + Clone + std::default::Default + std::marker::Copy,
@@ -296,7 +296,7 @@ where
     }
 }
 
-// Div implementation for Arr2D * scalar (matrix * scalar)
+// Div implementation for Arr2D / scalar (matrix / scalar)
 impl<T> Div<T> for Arr2D<T>
 where
     T: Div<Output = T> + Clone + std::default::Default + std::marker::Copy,
