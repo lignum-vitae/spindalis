@@ -1,5 +1,5 @@
 use crate::solvers::SolverError;
-use crate::utils::{Arr2DError, arr2D::Arr2D};
+use crate::utils::{Arr2DError, arr2D::Arr2D, back_substitution};
 
 pub fn gaussian_elimination<M, W>(
     matrix: M,
@@ -102,23 +102,6 @@ fn partial_pivot(
 
         // Swap entries in scale_factor
         scale_factor.swap(p, k);
-    }
-}
-
-#[allow(clippy::needless_range_loop)]
-fn back_substitution(
-    coeff_matrix: &Arr2D<f64>,
-    size: usize,
-    rhs_vector: &[f64],
-    solution: &mut [f64],
-) {
-    solution[size - 1] = rhs_vector[size - 1] / coeff_matrix[size - 1][size - 1];
-    for i in (0..(size - 1)).rev() {
-        let mut sum = 0.0;
-        for j in (i + 1)..size {
-            sum += coeff_matrix[i][j] * solution[j]
-        }
-        solution[i] = (rhs_vector[i] - sum) / coeff_matrix[i][i];
     }
 }
 

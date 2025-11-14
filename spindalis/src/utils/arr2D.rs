@@ -1,5 +1,5 @@
-use crate::solvers::decomposition::lu_decomposition;
-use crate::utils::Arr2DError;
+use crate::decomposition::lu_pivot_decomposition;
+use crate::utils::{Arr2DError, back_substitution, forward_substitution};
 use std::{
     any::type_name,
     fmt::{self, Display},
@@ -66,6 +66,52 @@ impl<T> Arr2D<T> {
                 .unwrap()
                 .clone(),
         )
+    }
+
+    pub fn inverse(&self) -> Result<Arr2D<f64>, Arr2DError>
+    where
+        Arr2D<f64>: for<'a> TryFrom<&'a Arr2D<T>>,
+    {
+        if self.height != self.width {
+            return Err(Arr2DError::NonSquareMatrix);
+        }
+        let coeff_matrix: &Arr2D<f64> =
+            &self.try_into().map_err(|_| Arr2DError::ConversionFailed {
+                from: type_name::<T>(),
+                to: type_name::<f64>(),
+            })?;
+        let size = self.height;
+
+        let (l, u, p) = lu_pivot_decomposition(coeff_matrix).unwrap();
+
+        // No inverse matrix if zero on the diagonal of u
+        for i in 0..size {
+            if u[i][i].abs() < f64::EPSILON {
+                return Err(Arr2DError::SingularMatrix);
+            }
+        }
+        let mut inverse_matrix = Arr2D::full(0.0, size, size);
+
+        for j in 0..size {
+            let mut b_prime = vec![0.0; size];
+            for i in 0..size {
+                // b' = P * e_j is the j-th column of P
+                b_prime[i] = p[i][j];
+            }
+            // L * y = b' -> solve for y
+            let mut y = vec![0.0; size];
+            forward_substitution(&l, size, &b_prime, &mut y);
+
+            // U * x = y -> solve for x
+            let mut x_j = vec![0.0; size];
+            back_substitution(&u, size, &y, &mut x_j);
+
+            // Solution vector placed into j-th column of inverse matrix
+            for i in 0..size {
+                inverse_matrix[i][j] = x_j[i];
+            }
+        }
+        Ok(inverse_matrix)
     }
 
     /// Change the height and width
@@ -645,6 +691,18 @@ impl<T: Display> Display for Arr2D<T> {
     }
 }
 
+pub trait Rounding {
+    fn round_to_decimal(&self, decimals: u32) -> Self;
+}
+
+impl Rounding for Arr2D<f64> {
+    fn round_to_decimal(&self, decimals: u32) -> Arr2D<f64> {
+        let factor = (10.0_f64).powi(decimals as i32);
+
+        self.clone().map(|&val| (val * factor).round() / factor)
+    }
+}
+
 impl<T: PartialEq> PartialEq<Vec<Vec<T>>> for Arr2D<T> {
     fn eq(&self, other: &Vec<Vec<T>>) -> bool {
         if self.height != other.len() {
@@ -1161,5 +1219,33 @@ mod tests {
         let expected = 10.4;
 
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_known_inverse() {
+        let matrix = Arr2D::from(&[[3, 0, 2], [2, 0, -2], [0, 1, 1]]);
+        let result = matrix.inverse().unwrap();
+        let rounded_result = result.round_to_decimal(1);
+        let expected = Arr2D::from(&[[0.2, 0.2, 0.0], [-0.2, 0.3, 1.0], [0.2, -0.3, 0.0]]);
+
+        assert_eq!(rounded_result, expected);
+    }
+
+    #[test]
+    fn test_known_inverse_2() {
+        let matrix = Arr2D::from(&[
+            [3.556, -1.778, 0.0],
+            [-1.778, 3.556, -1.778],
+            [0.0, -1.778, 3.556],
+        ]);
+        let result = matrix.inverse().unwrap();
+        let rounded_result = result.round_to_decimal(3);
+        let expected = Arr2D::from(&[
+            [0.422, 0.281, 0.141],
+            [0.281, 0.562, 0.281],
+            [0.141, 0.281, 0.422],
+        ]);
+
+        assert_eq!(rounded_result, expected);
     }
 }

@@ -41,3 +41,8 @@ pub mod integrals {
     pub use spindalis_core::integrals::simple_definite::romberg_definite;
     pub use spindalis_core::integrals::simple_indefinite::indefinite_integral;
 }
+
+pub mod decomposition {
+    pub use crate::solvers::decomposition::lu::lu_decomposition;
+    pub use crate::solvers::decomposition::plu::lu_pivot_decomposition;
+}
