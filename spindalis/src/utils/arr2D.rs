@@ -1,3 +1,4 @@
+use crate::solvers::decomposition::lu_decomposition;
 use crate::utils::Arr2DError;
 use std::{
     any::type_name,
@@ -441,7 +442,7 @@ impl<T> TryFrom<Vec<Vec<T>>> for Arr2D<T> {
     }
 }
 
-// Vec<Vec<T>> -> Arr2D<U>
+// &Vec<Vec<T>> -> Arr2D<U>
 impl<T: Clone, U: TryFrom<T>> TryFrom<&Vec<Vec<T>>> for Arr2D<U> {
     type Error = Arr2DError;
 

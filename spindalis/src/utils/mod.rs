@@ -3,6 +3,7 @@ pub mod arr2D;
 
 pub mod variation;
 
+pub use arr2D::Arr2D;
 pub use variation::arith_mean;
 pub use variation::geom_mean;
 pub use variation::std_dev;

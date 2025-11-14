@@ -2,12 +2,12 @@ use crate::solvers::SolverError;
 use crate::utils::{Arr2DError, arr2D::Arr2D};
 
 pub fn gaussian_elimination<M, W>(
-    matrix: &M,
+    matrix: M,
     rhs: &[W],
     tolerance: f64,
 ) -> Result<Vec<f64>, SolverError>
 where
-    for<'a> &'a M: TryInto<Arr2D<f64>, Error = Arr2DError>,
+    M: TryInto<Arr2D<f64>, Error = Arr2DError>,
     W: Into<f64> + Copy,
 {
     let mut coeff_matrix: Arr2D<f64> = matrix.try_into()?;
@@ -165,7 +165,7 @@ mod tests {
             vec![3.0, -5.0, 5.0, -4.0],
         ];
 
-        let coeff_matrix = Arr2D::try_from(matrix).unwrap();
+        let coeff_matrix: Arr2D<f64> = Arr2D::try_from(matrix).unwrap();
         let rhs_vector = vec![0.0; 4];
         let tol = 1e-12;
 
