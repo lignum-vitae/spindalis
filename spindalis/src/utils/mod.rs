@@ -1,8 +1,11 @@
 #[allow(non_snake_case)]
 pub mod arr2D;
-
+pub mod substitution;
 pub mod variation;
 
+pub use arr2D::Arr2D;
+pub use substitution::back_substitution;
+pub use substitution::forward_substitution;
 pub use variation::arith_mean;
 pub use variation::geom_mean;
 pub use variation::std_dev;
@@ -10,6 +13,8 @@ pub use variation::std_dev;
 #[derive(Debug)]
 pub enum Arr2DError {
     InconsistentRowLengths,
+    NonSquareMatrix,
+    SingularMatrix,
     InvalidReshape {
         size: usize,
         new_height: usize,

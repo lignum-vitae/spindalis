@@ -1,4 +1,5 @@
 pub mod bisection;
+pub mod decomposition;
 pub mod gaussian_elim;
 pub mod nrm;
 
