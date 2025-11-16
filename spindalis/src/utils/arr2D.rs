@@ -393,6 +393,17 @@ impl<T: Copy> Arr2D<T> {
             width,
         }
     }
+
+    pub fn identity(size: usize) -> Self
+    where
+        T: From<i32> + Default + Copy,
+    {
+        let mut ident_mat: Arr2D<T> = Arr2D::full(T::from(0), size, size);
+        for i in 0..size {
+            ident_mat[i][i] = T::from(1);
+        }
+        ident_mat
+    }
 }
 
 /// Iterator for Arr2D

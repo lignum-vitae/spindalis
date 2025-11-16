@@ -21,6 +21,7 @@ pub enum SolverError {
     NoConvergence,
     XInitOutOfBounds,
     NonSquareMatrix,
+    SingularMatrix,
     InvalidVector(Arr2DError),
     NumArgumentsMismatch { num_rows: usize, rhs_len: usize },
 }
