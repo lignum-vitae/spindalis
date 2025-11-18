@@ -4,6 +4,7 @@ pub mod substitution;
 pub mod variation;
 
 pub use arr2D::Arr2D;
+pub use arr2D::Rounding;
 pub use substitution::back_substitution;
 pub use substitution::forward_substitution;
 pub use variation::arith_mean;

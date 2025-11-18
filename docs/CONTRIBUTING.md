@@ -93,21 +93,26 @@ git checkout feature-name
 
 #### 6. Make your changes in your local repository
 
+```nginx
+# Make sure latest changes are taken from main BEFORE making changes
+git pull
+```
+
 #### 7. Run your changes in your local environment
 
 ```nginx
 # Format your changes
 cargo fmt
 
-# Run your tests locally
-cargo test
-
-# Lint your work with Clippy
-cargo clippy
-
-# Optionally clear cache to solve things like failed to resolve errors
+# Clear cache to avoid issuessuch as "failed to resolve" errors
 cargo clean
 cargo check
+
+# Lint your work with Clippy
+cargo clippy --all-targets --all-features
+
+# Run your tests locally
+cargo test
 ```
 
 #### 8. Commit your changes with a descriptive commit message

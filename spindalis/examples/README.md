@@ -35,37 +35,72 @@ pub struct Term {
 ### Find Derivates
 
 - Derivatives
-    - Simple Derivative
-    - Partial Derivative (for use with polynomial extended)
+  - Simple Derivative
+  - Partial Derivative (for use with polynomial extended)
 
 ### Find Integrals
 
 - Definite Integrals
-    - Simple Definite Integral
-    - Romberg integration
-    - Analytical method
+  - Simple Definite Integral
+  - Romberg integration
+  - Analytical method
 
 - Indefinite Integrals
-    - Simple Indefinite Integral
+  - Simple Indefinite Integral
 
 ## Math
+
+Where applicable, functions accept any coefficient matrix that can be coerced
+into a `Arr2D<f64>` type. That includes nested vecs of ints or floats,
+nested arrays of ints or floats, and Arr2D vectors of types other than
+`f64`. The matrix must be borrowed for conversion to work.
+The right hand side vector also accepts a vector containing
+any numerical values that can be converted into `f64`.
 
 ### Linear Regression
 
 - Gradient Descent Regression
+  - Finds the line of best fit by iteratively adjusting the model's parameters
+  (coefficients) to minimize the cost function, often the mean squared error.
 - Least Squares Regression
+  - Analytically determines the line of best fit by directly minimizing the
+  sum of the squares of the vertical distances (residuals) from the data points
+  to the line.
 - Polynomial Regression
+  - Models the relationship between the independent variable and the dependent
+  variable as an n-th degree polynomial to fit non-linear data patterns.
 
 ### System of Linear Equations
 
 - Gaussian Elimination
-    - This function accepts any coefficient matrix that can be coerced
-into a `Arr2D<f64>` type. That includes nested vecs of ints or floats,
-nested arrays of ints or floats, and Arr2D vectors of types other than
-`f64`. The right hand side vector also accepts a vector containing
-any numerical values that can be converted into `f64`.
+  - A direct method for solving a system of linear equations ($\mathbf{Ax} = \mathbf{b}$)
+  by performing a series of row operations to transform the augmented matrix into
+  an upper triangular matrix. This allows the solution to be found easily using
+  back substitution.
+- LU Decomposition (Lower-Upper)
+  - A factorization method to decompose a matrix into a lower triangular matrix
+  and an upper triangular matrix. This significantly speeds up solving
+  $\mathbf{Ax} = \mathbf{b}$ for multiple right-hand side vectors $\mathbf{b}$.
+
+- PLU Decomposition (Permutation, Lower-Upper)
+  - An extension of LU decomposition that includes a permutation matrix to keep
+  track of pivoting to handle singular matrices and improve numerical stability.
+  The factorization is $\mathbf{PA} = \mathbf{LU}$.
+
+### Eigenvalue Problems
+
+- Power Method (Eigenvalue and Associated Eigenvector)
+  - An iterative algorithm used to find the largest eigenvalue (the dominant eigenvalue)
+  of a given matrix and its corresponding eigenvector of a matrix. The smallest
+  eigenvalue can be found by performing the algorithm on the inverse of the matrix,
+  with the smallest eigenvalue being the reciprocal of the result.
 
 ### Root and Extrema Finders
 
 - Bisection method
+  - A bracketed root-finding method that repeatedly bisects an interval and
+  selects the subinterval where the function changes sign, ensuring convergence
+  to a root.
 - Newton-Raphson method
+  - An open root-finding method that uses a polynomial and its derivative
+  at an initial guess to iteratively find better approximations of a root.
