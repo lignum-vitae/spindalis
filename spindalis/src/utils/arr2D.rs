@@ -82,14 +82,9 @@ impl<T> Arr2D<T> {
             })?;
         let size = self.height;
 
-        let (l, u, p) = lu_pivot_decomposition(coeff_matrix).unwrap();
+        let (l, u, p) =
+            lu_pivot_decomposition(coeff_matrix).map_err(|_| Arr2DError::SingularMatrix)?;
 
-        // No inverse matrix if zero on the diagonal of u
-        for i in 0..size {
-            if u[i][i].abs() < f64::EPSILON {
-                return Err(Arr2DError::SingularMatrix);
-            }
-        }
         let mut inverse_matrix = Arr2D::full(0.0, size, size);
 
         for j in 0..size {

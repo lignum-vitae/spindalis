@@ -38,14 +38,16 @@ Then run:
 
 ## Project layout
 
-| Module               | Decsription                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `polynomials`        | Parsing and evaluating simple and extended polynomials                                                 |
-| `derivatives`        | Differentiating simple and extended polynomials                                                        |
-| `integrals`          | Integrating simple and extended polynomials                                                            |
-| `solvers`            | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
-| `regressors`         | Linear and non-linear regression, including least-squares, gaussian, and polynomial regression         |
-| `reduction`          | Linear and non-linear dimensionality reduction algorithms, incuding PCA                                |
+| Module                 | Decsription                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `utils`                | Utility functions such as `Arr2D`, `Arr2DError`, forward substitution, and back substitution           |
+| `polynomials`          | Parsing and evaluating simple and extended polynomials                                                 |
+| `derivatives`          | Differentiating simple and extended polynomials                                                        |
+| `integrals`            | Integrating simple and extended polynomials                                                            |
+| `solvers`              | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
+| `solvers/decomposition`| Decomposition algorithms including LU decomposition and LU decomposition with partial pivoting         |
+| `regressors`           | Linear and non-linear regression, including least-squares, Gaussian, and polynomial regression         |
+| `reduction`            | Linear and non-linear dimensionality reduction algorithms, including PCA                               |
 
 ### Running Examples
 

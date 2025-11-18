@@ -36,6 +36,7 @@ where
             }
         }
 
+        // Max value placed on diagonal (column and row index for swap are the same)
         if pivot_row != i {
             lu.swap_rows(pivot_row, i);
             permutation.swap_rows(pivot_row, i);
