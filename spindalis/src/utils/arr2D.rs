@@ -351,14 +351,38 @@ where
 }
 
 impl<T: Copy> Arr2D<T> {
-    pub fn transpose(&mut self) {
+    pub fn as_scalar(&self) -> Option<T> {
+        if self.height == 1 && self.width == 1 {
+            Some(self.inner[0])
+        } else {
+            None
+        }
+    }
+
+    pub fn as_scalar_unchecked(&self) -> T {
+        self.inner[0]
+    }
+
+    pub fn transpose(&self) -> Arr2D<T> {
         let mut new_inner = Vec::with_capacity(self.inner.len());
         for col in 0..self.width {
             for row in 0..self.height {
                 new_inner.push(self[(row, col)]);
             }
         }
-
+        Arr2D {
+            inner: new_inner,
+            height: self.width,
+            width: self.height,
+        }
+    }
+    pub fn transpose_mut(&mut self) {
+        let mut new_inner = Vec::with_capacity(self.inner.len());
+        for col in 0..self.width {
+            for row in 0..self.height {
+                new_inner.push(self[(row, col)]);
+            }
+        }
         self.inner = new_inner;
         std::mem::swap(&mut self.width, &mut self.height);
     }
@@ -937,7 +961,7 @@ mod tests {
     #[test]
     fn test_transpose() {
         let mut data = Arr2D::from(&[[1, 2, 3], [6, 5, 4]]);
-        data.transpose();
+        data.transpose_mut();
         let expected = Arr2D::from(&[[1, 6], [2, 5], [3, 4]]);
         assert_eq!(data, expected);
     }

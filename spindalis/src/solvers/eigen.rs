@@ -5,30 +5,35 @@ where
     M: TryInto<Arr2D<f64>, Error = Arr2DError>,
 {
     let matrix: Arr2D<f64> = matrix.try_into()?;
-    let initial_eigen_vector = Arr2D::from(&[[1.0], [1.0], [1.0]]);
-    let mut eigen_vector = &matrix * initial_eigen_vector;
-    let mut eigen_value = eigen_vector.max().unwrap();
-    eigen_vector = eigen_vector / eigen_value;
+    let initial_eigenvector = Arr2D::from(&[[1.0], [1.0], [1.0]]);
+    let mut eigenvector = &matrix * initial_eigenvector;
+    let mut eigenvalue = eigenvector.max().unwrap();
+    eigenvector = eigenvector / eigenvalue; // Normalised Eigenvector
     loop {
-        eigen_vector = &matrix * eigen_vector;
-        let next_eigen_value = eigen_vector.max().unwrap();
+        eigenvector = &matrix * eigenvector;
+        let normalisation_value = eigenvector.max().unwrap();
+        let normalised_eigenvector = &eigenvector / normalisation_value;
 
-        let ea = ((next_eigen_value - eigen_value) / next_eigen_value).abs();
+        // Rayleigh quotient for faster convergence
+        let numerator = &normalised_eigenvector.transpose() * (&matrix * &normalised_eigenvector); // x_k^T * (A * x_k)
+        let denominator = &normalised_eigenvector.transpose() * &normalised_eigenvector; // x_k^T * x_k
+        let next_eigenvalue = numerator.as_scalar_unchecked() / denominator.as_scalar_unchecked(); // convert to f64
 
-        eigen_value = next_eigen_value;
-        eigen_vector = eigen_vector / eigen_value;
+        let ea = ((next_eigenvalue - eigenvalue) / next_eigenvalue).abs();
+
+        eigenvalue = next_eigenvalue;
+        eigenvector = normalised_eigenvector;
         if ea < es {
             break;
         }
     }
-    Ok((eigen_value, eigen_vector))
+    Ok((eigenvalue, eigenvector))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::arr2D::Rounding;
-
     use super::*;
+    use crate::utils::arr2D::Rounding;
 
     #[test]
     fn test_known_solution() {
@@ -45,14 +50,56 @@ mod tests {
         eigenvector = eigenvector.round_to_decimal(3);
         let result = (eigenvalue, eigenvector);
         assert_eq!(result, expected);
+    }
 
+    #[test]
+    fn test_known_inverse_solution() {
         // Smallest eigenvalue and eigenvector
+        let matrix = Arr2D::from(&[
+            [3.556, -1.778, 0.0],
+            [-1.778, 3.556, -1.778],
+            [0.0, -1.778, 3.556],
+        ]);
         let inverse_res = matrix.inverse().unwrap();
-        let expected = (0.96, Arr2D::from(&[[0.707], [1.0], [0.707]]));
+        let rounded_expected_eigenvalue =
+            ((1_f64 / 0.960127) * 10_f64.powi(5)).round() / 10_f64.powi(5);
+        let expected = (
+            rounded_expected_eigenvalue,
+            Arr2D::from(&[[0.707], [1.0], [0.707]]),
+        );
 
-        let (mut eigenvalue, mut eigenvector) = power_method(&inverse_res, 1e-10).unwrap();
-        eigenvalue = (eigenvalue * 10_f64.powi(2)).round() / 10_f64.powi(2);
+        let (converged_value, mut eigenvector) = power_method(&inverse_res, 1e-10).unwrap();
+        let mut eigenvalue = 1_f64 / converged_value;
+        eigenvalue = (eigenvalue * 10_f64.powi(5)).round() / 10_f64.powi(5);
         eigenvector = eigenvector.round_to_decimal(3);
+        let result = (eigenvalue, eigenvector);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_known_solution_2() {
+        // Largest eigenvalue and eigenvector
+        let matrix = Arr2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
+        let expected = (19.88, Arr2D::from(&[[0.9035], [0.7698], [1.0]]));
+
+        let (mut eigenvalue, mut eigenvector) = power_method(&matrix, 1e-10).unwrap();
+        eigenvalue = (eigenvalue * 10_f64.powi(2)).round() / 10_f64.powi(2);
+        eigenvector = eigenvector.round_to_decimal(4);
+        let result = (eigenvalue, eigenvector);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_known_inverse_solution_2() {
+        // Smallest eigenvalue and eigenvector
+        let matrix = Arr2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
+        let expected = (0.29, Arr2D::from(&[[0.04117], [1.0], [-0.80702]]));
+
+        let inverse_res = matrix.inverse().unwrap();
+        let (converged_value, mut eigenvector) = power_method(&inverse_res, 1e-10).unwrap();
+        let mut eigenvalue = 1_f64 / converged_value;
+        eigenvalue = (eigenvalue * 10_f64.powi(2)).round() / 10_f64.powi(2);
+        eigenvector = eigenvector.round_to_decimal(5);
         let result = (eigenvalue, eigenvector);
         assert_eq!(result, expected);
     }
