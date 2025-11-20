@@ -48,5 +48,5 @@ pub mod decomposition {
 }
 
 pub mod eigen {
-    pub use crate::solvers::eigen::power_method;
+    pub use crate::solvers::eigen::power_method::power_method;
 }

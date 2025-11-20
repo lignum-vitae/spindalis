@@ -1,4 +1,4 @@
-use crate::reduction::{DimensionError, ReductionError};
+use crate::reduction::dimension::{DimensionError, ReductionError};
 use crate::utils::{StdDevType, arith_mean, arr2D::Arr2D, std_dev};
 
 // ┌─────────────┬────────┬────────┬────────┬────────┬──────────┐
