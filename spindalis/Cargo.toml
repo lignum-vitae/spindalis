@@ -25,5 +25,5 @@ name = "spindalis"
 path = "src/lib.rs"
 
 [dependencies]
-spindalis_core = { path = "../spindalis_core" }
-spindalis_macros = { path = "../spindalis_macros" }
+spindalis_core = { path = "../spindalis_core", version = "0.2.0" }
+spindalis_macros = { path = "../spindalis_macros", version = "0.1.0" }
