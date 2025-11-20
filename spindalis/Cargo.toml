@@ -3,6 +3,23 @@ name = "spindalis"
 version = "0.4.6"
 edition = "2024"
 
+description = "A bioinformatics-focused library for numerical modeling, optimisation, and simulation written in Rust"
+repository = "https://github.com/lignum-vitae/spindalis"
+license = "MIT"
+readme = "../README.md"
+
+keywords = [
+    "polynomials",
+    "derivative",
+    "integral",
+    "solvers",
+    "ODE",
+    "dimensionality reduction",
+    "regression",
+    "linear regression",
+    "decomposition",
+]
+
 [lib]
 name = "spindalis"
 path = "src/lib.rs"
