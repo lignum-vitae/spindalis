@@ -3,6 +3,10 @@ name = "spindalis_macros"
 version = "0.1.0"
 edition = "2024"
 
+description = "Marco implementations for Spindalis"
+repository = "https://github.com/lignum-vitae/spindalis"
+license = "MIT"
+
 [lib]
 proc-macro = true
 

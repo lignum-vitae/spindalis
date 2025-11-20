@@ -3,4 +3,8 @@ name = "spindalis_core"
 version = "0.2.0"
 edition = "2024"
 
+description = "Core polynomial logic for Spindalis package"
+repository = "https://github.com/lignum-vitae/spindalis"
+license = "MIT"
+
 [dependencies]
