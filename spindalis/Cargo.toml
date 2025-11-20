@@ -8,17 +8,7 @@ repository = "https://github.com/lignum-vitae/spindalis"
 license = "MIT"
 readme = "../README.md"
 
-keywords = [
-    "polynomials",
-    "derivative",
-    "integral",
-    "solvers",
-    "ODE",
-    "dimensionality reduction",
-    "regression",
-    "linear regression",
-    "decomposition",
-]
+keywords = ["polynomials", "derivative", "integral", "solvers", "decomposition"]
 
 [lib]
 name = "spindalis"
