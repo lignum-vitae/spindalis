@@ -2,8 +2,47 @@ pub mod gradient_descent;
 pub mod least_squares;
 pub mod polynomial;
 
+#[derive(Debug)]
+pub enum LinearRegressorError {
+    InputLengthMismatch { x_length: usize, y_length: usize },
+    EmptyInput { x_length: usize, y_length: usize },
+}
+
 pub trait LinearRegressor {
     fn fit(&self, x: &[f64], y: &[f64]) -> LinearModel;
+}
+
+pub fn validate_single_input<'a>(
+    x: &'a [f64],
+    y: &'a [f64],
+) -> Result<(&'a [f64], &'a [f64]), LinearRegressorError> {
+    if x.len() != y.len() {
+        return Err(LinearRegressorError::InputLengthMismatch {
+            x_length: x.len(),
+            y_length: y.len(),
+        });
+    } else if x.is_empty() || y.is_empty() {
+        return Err(LinearRegressorError::EmptyInput {
+            x_length: x.len(),
+            y_length: y.len(),
+        });
+    }
+    Ok((x, y))
+}
+
+pub fn batch_validate_input<'a>(
+    inputs: Vec<(&'a [f64], &'a [f64])>,
+) -> Option<Vec<(&'a [f64], &'a [f64])>> {
+    let mut validated = Vec::new();
+    for (x, y) in inputs {
+        if validate_single_input(x, y).is_ok() {
+            validated.push((x, y));
+        }
+    }
+    if validated.is_empty() {
+        return None;
+    }
+    Some(validated)
 }
 
 pub struct LinearModel {
@@ -80,7 +119,7 @@ impl std::fmt::Display for LinearModel {
                 f,
                 "BinomialModel {{ intercept: {:.5}, slope: {:.5}, std_err: {:.5}, r2: {:.5} }}",
                 self.intercept(),
-                self.slope().unwrap(),
+                self.slope().unwrap(), // Slope will always unwrap successfully due to length check
                 self.std_err,
                 self.r2
             )

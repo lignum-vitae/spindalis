@@ -1,4 +1,5 @@
 use spindalis::regressors::LinearRegressor;
+use spindalis::regressors::linear::{batch_validate_input, validate_single_input};
 use spindalis::regressors::{
     GradientDescentRegression, LeastSquaresRegression, PolynomialRegression,
 };
@@ -11,7 +12,23 @@ fn main() {
         steps: 10000,
         step_size: 0.01,
     };
+    let x_mismatch_len = vec![1.0, 3.0];
+    let y_mismatch_len = vec![1.0, 3.0, 5.0];
 
+    let validated = validate_single_input(&x_mismatch_len, &y_mismatch_len);
+    if let Err(e) = validated {
+        println!("Example of Error with mismatched input lengths:");
+        println!("{e:?}");
+        println!("Error handling up to user\n")
+    }
+    let validated_inputs = batch_validate_input(vec![(&x, &y), (&x_mismatch_len, &y_mismatch_len)]);
+    if let Some(valid) = validated_inputs {
+        println!(
+            "The batch validation can be used to filter out inputs that wouldn't be valid from a vector"
+        );
+        println!("These are the valid inputs {valid:?}");
+        println!("Again, user can determine what they want to do with this output\n");
+    }
     let model = grad_descent.fit(&x, &y);
 
     // Gradient Descent

@@ -59,6 +59,8 @@ any numerical values that can be converted into `f64`.
 
 ### Linear Regression
 
+Ensure that input vectors are not empty and are of the same length to avoid errors.
+
 - Gradient Descent Regression
   - Finds the line of best fit by iteratively adjusting the model's parameters
   (coefficients) to minimize the cost function, often the mean squared error.

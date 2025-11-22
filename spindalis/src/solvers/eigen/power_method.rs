@@ -5,13 +5,17 @@ where
     M: TryInto<Arr2D<f64>, Error = Arr2DError>,
 {
     let matrix: Arr2D<f64> = matrix.try_into()?;
+    if matrix.height != matrix.width || matrix.height == 0 || matrix.width == 0 {
+        return Err(Arr2DError::NonSquareMatrix);
+    }
     let initial_eigenvector = Arr2D::from(&[[1.0], [1.0], [1.0]]);
     let mut eigenvector = &matrix * initial_eigenvector;
-    let mut eigenvalue = eigenvector.max().unwrap();
+    // Arr2D.max() only returns None if the matrix is empty
+    let mut eigenvalue = eigenvector.max().unwrap(); // Matrix won't be empty here
     eigenvector = eigenvector / eigenvalue; // Normalised Eigenvector
     loop {
         eigenvector = &matrix * eigenvector;
-        let normalisation_value = eigenvector.max().unwrap();
+        let normalisation_value = eigenvector.max().unwrap(); // Matrix also won't be empty here
         let normalised_eigenvector = &eigenvector / normalisation_value;
 
         // Rayleigh quotient for faster convergence
