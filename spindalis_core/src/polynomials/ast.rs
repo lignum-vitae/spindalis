@@ -1,6 +1,79 @@
 use crate::polynomials::AstPolyErr;
 use std::str::FromStr;
 
+/*
+* ##### AST_STR MACRO: USAGE EXAMPLE ####
+*
+* ### INPUT:
+*
+* ast_str! {
+* #[derive(Foo,Bar)] //
+* #[derive(This,Too)] //
+* SomeEnum {
+*  Var1 => "var1str", // NOTE1: strings must be in lowercase
+*  Var2 => "var2str", // NOTE2: strings must not be duplicated
+*  ..., // <- may or may not end with a trailing comma
+* }
+*
+* ### OUTPUT GENERATED:
+*
+* // 1. `enum` declaration
+* // im assuming you want a hardcoded `pub` qualifier
+* // lmk if visibility matching needed, easy to add
+*
+* #[derive(Foo,Bar)]
+* pub enum SomeEnum {
+*  Var1,
+*  Var2,
+*  ...
+* }
+*
+* // 2. `FromStr` and string matching logic
+* impl FromStr for SomeEnum{
+*  type Err = ();
+*  fn from_str(s:&str)->Result<Self,Self::Err>{
+*      // btw, idk what the best alternative is, but
+*      // i imagine this `to_lowercase()` on hotpath isnt great for performance
+*      match s.to_lowercase().as_str(){
+*          var1str => Ok(SomeEnum::Var1),
+*          var2str => Ok(SomeEnum::Var2),
+*          ...
+*          _ => Err(()),
+*      }
+*  }
+* }
+*
+*/
+
+// feel free to rename the macro, btw
+// i went with `ast_str` because the variants go `AST=>&str`
+macro_rules! ast_str {
+    (
+        //INPUT
+        $(#[$meta_exp:meta])*
+        $enum_name:ident {
+            $($var_name:ident => $var_str:literal),* $(,)*
+        }
+    ) => {
+        // OUTPUT
+        // 1. `enum` declaration
+        $(#[$meta_exp])*
+        pub enum $enum_name {
+            $($var_name),*
+        }
+        // 2. `FromStr` implementation
+        impl ::std::str::FromStr for $enum_name {
+            type Err = ();
+            fn from_str(s:&str)->::std::result::Result<Self,Self::Err>{
+                match s.to_lowercase().as_str(){
+                    $($var_str => Ok($enum_name::$var_name),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Operators {
     Add,
@@ -25,51 +98,75 @@ impl Operators {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Functions {
-    Sin,
-    Cos,
-    Tan,
-    Cot,
-    Log,
-    Ln,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Functions {
+//     Sin,
+//     Cos,
+//     Tan,
+//     Cot,
+//     Log,
+//     Ln,
+// }
 
-impl FromStr for Functions {
-    type Err = ();
+// impl FromStr for Functions {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "sin" => Ok(Functions::Sin),
-            "cos" => Ok(Functions::Cos),
-            "tan" => Ok(Functions::Tan),
-            "cot" => Ok(Functions::Cot),
-            "log" => Ok(Functions::Log),
-            "ln" => Ok(Functions::Ln),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "sin" => Ok(Functions::Sin),
+//             "cos" => Ok(Functions::Cos),
+//             "tan" => Ok(Functions::Tan),
+//             "cot" => Ok(Functions::Cot),
+//             "log" => Ok(Functions::Log),
+//             "ln" => Ok(Functions::Ln),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Functions` with `ast_str`
+ast_str! {
+    #[derive(Debug, PartialEq)]
+    Functions {
+        Sin => "sin",
+        Cos => "cos",
+        Tan => "tan",
+        Cot => "cot",
+        Log => "log",
+        Ln => "ln",
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Constants {
-    Pi,
-    E,
-    Tau,
-    Phi,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Constants {
+//     Pi,
+//     E,
+//     Tau,
+//     Phi,
+// }
 
-impl FromStr for Constants {
-    type Err = ();
+// impl FromStr for Constants {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "pi" => Ok(Constants::Pi),
-            "e" => Ok(Constants::E),
-            "tau" => Ok(Constants::Tau),
-            "phi" => Ok(Constants::Phi),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "pi" => Ok(Constants::Pi),
+//             "e" => Ok(Constants::E),
+//             "tau" => Ok(Constants::Tau),
+//             "phi" => Ok(Constants::Phi),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Constants` with `ast_str`
+ast_str! {
+    #[derive(Debug, PartialEq)]
+    Constants {
+        Pi => "pi",
+        E => "e",
+        Tau => "tau",
+        Phi => "phi",
     }
 }
 
@@ -307,5 +404,41 @@ mod tests {
             println!("{:?} {:?}", result[i], expected[i]);
             assert_eq!(result[i], expected[i]);
         }
+    }
+
+    // ===== basic throwaway`ast_str` macro tests =====
+    // only to establish correctness for the PR
+    // please replace with whichever testing strat suits you
+
+    // example `enum` created using `ast_str`
+    ast_str! {
+        #[derive(Debug, PartialEq)]
+        TestEnum {
+            Alpha => "alpha",
+            Beta  => "beta",
+            Gamma => "gamma",
+        }
+    }
+
+    // test: all variants can be found and matched with `from_str`
+    #[test]
+    fn test_ast_str_from_str_success() {
+        assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
+    #[test]
+    fn test_ast_str_from_str_case_insensitive() {
+        assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: invalid string goes unmatched, throws error
+    #[test]
+    fn test_ast_str_from_str_invalid() {
+        assert!(TestEnum::from_str("not_an_option").is_err());
     }
 }
