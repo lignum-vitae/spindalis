@@ -98,51 +98,75 @@ impl Operators {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Functions {
-    Sin,
-    Cos,
-    Tan,
-    Cot,
-    Log,
-    Ln,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Functions {
+//     Sin,
+//     Cos,
+//     Tan,
+//     Cot,
+//     Log,
+//     Ln,
+// }
 
-impl FromStr for Functions {
-    type Err = ();
+// impl FromStr for Functions {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "sin" => Ok(Functions::Sin),
-            "cos" => Ok(Functions::Cos),
-            "tan" => Ok(Functions::Tan),
-            "cot" => Ok(Functions::Cot),
-            "log" => Ok(Functions::Log),
-            "ln" => Ok(Functions::Ln),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "sin" => Ok(Functions::Sin),
+//             "cos" => Ok(Functions::Cos),
+//             "tan" => Ok(Functions::Tan),
+//             "cot" => Ok(Functions::Cot),
+//             "log" => Ok(Functions::Log),
+//             "ln" => Ok(Functions::Ln),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Functions` with `ast_str`
+ast_str! {
+    #[derive(Debug, PartialEq)]
+    Functions {
+        Sin => "sin",
+        Cos => "cos",
+        Tan => "tan",
+        Cot => "cot",
+        Log => "log",
+        Ln => "ln",
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Constants {
-    Pi,
-    E,
-    Tau,
-    Phi,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Constants {
+//     Pi,
+//     E,
+//     Tau,
+//     Phi,
+// }
 
-impl FromStr for Constants {
-    type Err = ();
+// impl FromStr for Constants {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "pi" => Ok(Constants::Pi),
-            "e" => Ok(Constants::E),
-            "tau" => Ok(Constants::Tau),
-            "phi" => Ok(Constants::Phi),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "pi" => Ok(Constants::Pi),
+//             "e" => Ok(Constants::E),
+//             "tau" => Ok(Constants::Tau),
+//             "phi" => Ok(Constants::Phi),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Constants` with `ast_str`
+ast_str! {
+    #[derive(Debug, PartialEq)]
+    Constants {
+        Pi => "pi",
+        E => "e",
+        Tau => "tau",
+        Phi => "phi",
     }
 }
 
