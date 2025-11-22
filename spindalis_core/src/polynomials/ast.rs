@@ -381,4 +381,40 @@ mod tests {
             assert_eq!(result[i], expected[i]);
         }
     }
+
+    // ===== basic throwaway`ast_str` macro tests =====
+    // only to establish correctness for the PR
+    // please replace with whichever testing strat suits you
+
+    // example `enum` created using `ast_str`
+    ast_str! {
+        #[derive(Debug, PartialEq)]
+        TestEnum {
+            Alpha => "alpha",
+            Beta  => "beta",
+            Gamma => "gamma",
+        }
+    }
+
+    // test: all variants can be found and matched with `from_str`
+    #[test]
+    fn test_ast_str_from_str_success() {
+        assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
+    #[test]
+    fn test_ast_str_from_str_case_insensitive() {
+        assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: invalid string goes unmatched, throws error
+    #[test]
+    fn test_ast_str_from_str_invalid() {
+        assert!(TestEnum::from_str("not_an_option").is_err());
+    }
 }
