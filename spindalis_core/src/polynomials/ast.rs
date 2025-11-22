@@ -1,6 +1,79 @@
 use crate::polynomials::AstPolyErr;
 use std::str::FromStr;
 
+/*
+* ##### AST_STR MACRO: USAGE EXAMPLE ####
+*
+* ### INPUT:
+*
+* ast_str! {
+* #[derive(Foo,Bar)] //
+* #[derive(This,Too)] //
+* SomeEnum {
+*  Var1 => "var1str", // NOTE1: strings must be in lowercase
+*  Var2 => "var2str", // NOTE2: strings must not be duplicated
+*  ..., // <- may or may not end with a trailing comma
+* }
+*
+* ### OUTPUT GENERATED:
+*
+* // 1. `enum` declaration
+* // im assuming you want a hardcoded `pub` qualifier
+* // lmk if visibility matching needed, easy to add
+*
+* #[derive(Foo,Bar)]
+* pub enum SomeEnum {
+*  Var1,
+*  Var2,
+*  ...
+* }
+*
+* // 2. `FromStr` and string matching logic
+* impl FromStr for SomeEnum{
+*  type Err = ();
+*  fn from_str(s:&str)->Result<Self,Self::Err>{
+*      // btw, idk what the best alternative is, but
+*      // i imagine this `to_lowercase()` on hotpath isnt great for performance
+*      match s.to_lowercase().as_str(){
+*          var1str => Ok(SomeEnum::Var1),
+*          var2str => Ok(SomeEnum::Var2),
+*          ...
+*          _ => Err(()),
+*      }
+*  }
+* }
+*
+*/
+
+// feel free to rename the macro, btw
+// i went with `ast_str` because the variants go `AST=>&str`
+macro_rules! ast_str {
+    (
+        //INPUT
+        $(#[$meta_exp:meta])*
+        $enum_name:ident {
+            $($var_name:ident => $var_str:literal),* $(,)*
+        }
+    ) => {
+        // OUTPUT
+        // 1. `enum` declaration
+        $(#[$meta_exp])*
+        pub enum $enum_name {
+            $($var_name),*
+        }
+        // 2. `FromStr` implementation
+        impl ::std::str::FromStr for $enum_name {
+            type Err = ();
+            fn from_str(s:&str)->::std::result::Result<Self,Self::Err>{
+                match s.to_lowercase().as_str(){
+                    $($var_str => Ok($enum_name::$var_name),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Operators {
     Add,
