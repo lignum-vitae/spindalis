@@ -2,14 +2,14 @@ use crate::polynomials::AstPolyErr;
 use std::str::FromStr;
 
 /*
-* ##### AST_STR MACRO: USAGE EXAMPLE ####
+* ##### TOKEN_FROM_STR MACRO: USAGE EXAMPLE ####
 *
 * ### INPUT:
 *
-* ast_str! {
+* token_from_str! {
 * #[derive(Foo,Bar)] //
 * #[derive(This,Too)] //
-* SomeEnum {
+* pub SomeEnum { // visibility specification is OPTIONAL. `SomeEnum{...}` would also work
 *  Var1 => "var1str", // NOTE1: strings must be in lowercase
 *  Var2 => "var2str", // NOTE2: strings must not be duplicated
 *  ..., // <- may or may not end with a trailing comma
@@ -17,9 +17,7 @@ use std::str::FromStr;
 *
 * ### OUTPUT GENERATED:
 *
-* // 1. `enum` declaration
-* // im assuming you want a hardcoded `pub` qualifier
-* // lmk if visibility matching needed, easy to add
+* // 1. `enum` declaration (with optionally specified visibility)
 *
 * #[derive(Foo,Bar)]
 * pub enum SomeEnum {
@@ -32,8 +30,6 @@ use std::str::FromStr;
 * impl FromStr for SomeEnum{
 *  type Err = ();
 *  fn from_str(s:&str)->Result<Self,Self::Err>{
-*      // btw, idk what the best alternative is, but
-*      // i imagine this `to_lowercase()` on hotpath isnt great for performance
 *      match s.to_lowercase().as_str(){
 *          var1str => Ok(SomeEnum::Var1),
 *          var2str => Ok(SomeEnum::Var2),
@@ -45,20 +41,18 @@ use std::str::FromStr;
 *
 */
 
-// feel free to rename the macro, btw
-// i went with `ast_str` because the variants go `AST=>&str`
-macro_rules! ast_str {
+macro_rules! token_from_str {
     (
         //INPUT
         $(#[$meta_exp:meta])*
-        $enum_name:ident {
+        $visb:vis $enum_name:ident {
             $($var_name:ident => $var_str:literal),* $(,)*
         }
     ) => {
         // OUTPUT
         // 1. `enum` declaration
         $(#[$meta_exp])*
-        pub enum $enum_name {
+        $visb enum $enum_name {
             $($var_name),*
         }
         // 2. `FromStr` implementation
@@ -124,10 +118,10 @@ impl Operators {
 //     }
 // }
 
-// declaring `Functions` with `ast_str`
-ast_str! {
+// declaring `Functions` with `token_from_str`
+token_from_str! {
     #[derive(Debug, PartialEq)]
-    Functions {
+    pub Functions {
         Sin => "sin",
         Cos => "cos",
         Tan => "tan",
@@ -159,10 +153,10 @@ ast_str! {
 //     }
 // }
 
-// declaring `Constants` with `ast_str`
-ast_str! {
+// declaring `Constants` with `token_from_str`
+token_from_str! {
     #[derive(Debug, PartialEq)]
-    Constants {
+    pub Constants {
         Pi => "pi",
         E => "e",
         Tau => "tau",
@@ -406,14 +400,12 @@ mod tests {
         }
     }
 
-    // ===== basic throwaway`ast_str` macro tests =====
-    // only to establish correctness for the PR
-    // please replace with whichever testing strat suits you
+    // ===== `token_from_str` unit tests =====
 
-    // example `enum` created using `ast_str`
-    ast_str! {
+    // example `enum` created using `token_from_str`
+    token_from_str! {
         #[derive(Debug, PartialEq)]
-        TestEnum {
+        pub TestEnum {
             Alpha => "alpha",
             Beta  => "beta",
             Gamma => "gamma",
@@ -422,7 +414,7 @@ mod tests {
 
     // test: all variants can be found and matched with `from_str`
     #[test]
-    fn test_ast_str_from_str_success() {
+    fn test_token_from_str_success() {
         assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
         assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
         assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
@@ -430,7 +422,7 @@ mod tests {
 
     // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
     #[test]
-    fn test_ast_str_from_str_case_insensitive() {
+    fn test_token_from_str_case_insensitive() {
         assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
         assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
         assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
@@ -438,7 +430,7 @@ mod tests {
 
     // test: invalid string goes unmatched, throws error
     #[test]
-    fn test_ast_str_from_str_invalid() {
+    fn test_token_from_str_invalid() {
         assert!(TestEnum::from_str("not_an_option").is_err());
     }
 }
