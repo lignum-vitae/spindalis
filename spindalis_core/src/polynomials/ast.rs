@@ -1,6 +1,73 @@
 use crate::polynomials::AstPolyErr;
 use std::str::FromStr;
 
+/*
+* ##### TOKEN_FROM_STR MACRO: USAGE EXAMPLE ####
+*
+* ### INPUT:
+*
+* token_from_str! {
+* #[derive(Foo,Bar)] //
+* #[derive(This,Too)] //
+* pub SomeEnum { // visibility specification is OPTIONAL. `SomeEnum{...}` would also work
+*  Var1 => "var1str", // NOTE1: strings must be in lowercase
+*  Var2 => "var2str", // NOTE2: strings must not be duplicated
+*  ..., // <- may or may not end with a trailing comma
+* }
+*
+* ### OUTPUT GENERATED:
+*
+* // 1. `enum` declaration (with optionally specified visibility)
+*
+* #[derive(Foo,Bar)]
+* pub enum SomeEnum {
+*  Var1,
+*  Var2,
+*  ...
+* }
+*
+* // 2. `FromStr` and string matching logic
+* impl FromStr for SomeEnum{
+*  type Err = ();
+*  fn from_str(s:&str)->Result<Self,Self::Err>{
+*      match s.to_lowercase().as_str(){
+*          var1str => Ok(SomeEnum::Var1),
+*          var2str => Ok(SomeEnum::Var2),
+*          ...
+*          _ => Err(()),
+*      }
+*  }
+* }
+*
+*/
+
+macro_rules! token_from_str {
+    (
+        //INPUT
+        $(#[$meta_exp:meta])*
+        $visb:vis $enum_name:ident {
+            $($var_name:ident => $var_str:literal),* $(,)*
+        }
+    ) => {
+        // OUTPUT
+        // 1. `enum` declaration
+        $(#[$meta_exp])*
+        $visb enum $enum_name {
+            $($var_name),*
+        }
+        // 2. `FromStr` implementation
+        impl ::std::str::FromStr for $enum_name {
+            type Err = ();
+            fn from_str(s:&str)->::std::result::Result<Self,Self::Err>{
+                match s.to_lowercase().as_str(){
+                    $($var_str => Ok($enum_name::$var_name),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Operators {
     Add,
@@ -25,51 +92,75 @@ impl Operators {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Functions {
-    Sin,
-    Cos,
-    Tan,
-    Cot,
-    Log,
-    Ln,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Functions {
+//     Sin,
+//     Cos,
+//     Tan,
+//     Cot,
+//     Log,
+//     Ln,
+// }
 
-impl FromStr for Functions {
-    type Err = ();
+// impl FromStr for Functions {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "sin" => Ok(Functions::Sin),
-            "cos" => Ok(Functions::Cos),
-            "tan" => Ok(Functions::Tan),
-            "cot" => Ok(Functions::Cot),
-            "log" => Ok(Functions::Log),
-            "ln" => Ok(Functions::Ln),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "sin" => Ok(Functions::Sin),
+//             "cos" => Ok(Functions::Cos),
+//             "tan" => Ok(Functions::Tan),
+//             "cot" => Ok(Functions::Cot),
+//             "log" => Ok(Functions::Log),
+//             "ln" => Ok(Functions::Ln),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Functions` with `token_from_str`
+token_from_str! {
+    #[derive(Debug, PartialEq)]
+    pub Functions {
+        Sin => "sin",
+        Cos => "cos",
+        Tan => "tan",
+        Cot => "cot",
+        Log => "log",
+        Ln => "ln",
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Constants {
-    Pi,
-    E,
-    Tau,
-    Phi,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Constants {
+//     Pi,
+//     E,
+//     Tau,
+//     Phi,
+// }
 
-impl FromStr for Constants {
-    type Err = ();
+// impl FromStr for Constants {
+//     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "pi" => Ok(Constants::Pi),
-            "e" => Ok(Constants::E),
-            "tau" => Ok(Constants::Tau),
-            "phi" => Ok(Constants::Phi),
-            _ => Err(()),
-        }
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         match s.to_lowercase().as_str() {
+//             "pi" => Ok(Constants::Pi),
+//             "e" => Ok(Constants::E),
+//             "tau" => Ok(Constants::Tau),
+//             "phi" => Ok(Constants::Phi),
+//             _ => Err(()),
+//         }
+//     }
+// }
+
+// declaring `Constants` with `token_from_str`
+token_from_str! {
+    #[derive(Debug, PartialEq)]
+    pub Constants {
+        Pi => "pi",
+        E => "e",
+        Tau => "tau",
+        Phi => "phi",
     }
 }
 
@@ -307,5 +398,39 @@ mod tests {
             println!("{:?} {:?}", result[i], expected[i]);
             assert_eq!(result[i], expected[i]);
         }
+    }
+
+    // ===== `token_from_str` unit tests =====
+
+    // example `enum` created using `token_from_str`
+    token_from_str! {
+        #[derive(Debug, PartialEq)]
+        pub TestEnum {
+            Alpha => "alpha",
+            Beta  => "beta",
+            Gamma => "gamma",
+        }
+    }
+
+    // test: all variants can be found and matched with `from_str`
+    #[test]
+    fn test_token_from_str_success() {
+        assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
+    #[test]
+    fn test_token_from_str_case_insensitive() {
+        assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
+        assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
+        assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
+    }
+
+    // test: invalid string goes unmatched, throws error
+    #[test]
+    fn test_token_from_str_invalid() {
+        assert!(TestEnum::from_str("not_an_option").is_err());
     }
 }
