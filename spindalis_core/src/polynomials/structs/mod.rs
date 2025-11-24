@@ -1,15 +1,18 @@
 pub mod extended;
 pub mod simple;
 
-pub use crate::polynomials::PolynomialError;
+pub use extended::PolynomialExtended;
+pub use simple::SimplePolynomial;
+
+pub use crate::polynomials::PolynomialError; // import Polynomial Error
 
 pub trait PolynomialTraits {
-    fn parse(&self, input: &str) -> Result<Self, PolynomialError>
+    fn parse(input: &str) -> Result<Self, PolynomialError>
     where
         Self: std::marker::Sized;
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
     where
-        F: Into<f64>;
+        F: Into<f64> + std::clone::Clone + std::fmt::Debug;
     fn eval_multivariate<V, S, F>(&self, vars: &V) -> Result<f64, PolynomialError>
     where
         V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,

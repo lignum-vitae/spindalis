@@ -9,7 +9,7 @@ where
     let mut parts: Vec<&str> = normalized.split('+').collect();
 
     // Handles instance of the first value of poly being negative
-    // Prevents throwing syntax error for "-x + 4" etc
+    // Prevents throwing a syntax error for "-x + 4" etc
     if parts.first() == Some(&"") {
         parts.remove(0);
     }

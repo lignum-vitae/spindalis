@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
     use spindalis::polynomials::Term;
-    use spindalis::polynomials::{eval_polynomial_extended, parse_polynomial_extended};
+    use spindalis::polynomials::{
+        PolynomialError, eval_polynomial_extended, parse_polynomial_extended,
+    };
     use std::collections::HashMap;
 
     // test positive ints
@@ -222,7 +224,7 @@ mod tests {
 
         let vars = vec![("x", 2)];
 
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars).unwrap();
         // 3*2^2 - 2*2 + 5 = 12 - 4 + 5 = 13
         assert_eq!(result, 13.0);
     }
@@ -241,7 +243,7 @@ mod tests {
         ];
 
         let vars = vec![("x", 3), ("y", 2)];
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars).unwrap();
         // 2*3*2^2 + 4*2 = 2*3*4 + 8 = 24 + 8 = 32
         assert_eq!(result, 32.0);
     }
@@ -256,12 +258,11 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert("x".to_string(), 16.0);
 
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars).unwrap();
         assert_eq!(result, 4.0);
     }
 
     #[test]
-    #[should_panic(expected = "z not in")]
     fn test_missing_variable_panics() {
         let terms = vec![Term {
             coefficient: 1.0,
@@ -269,7 +270,11 @@ mod tests {
         }];
 
         let vars: Vec<(&str, f64)> = vec![];
-        eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars);
+        assert!(matches!(
+            result,
+            Err(PolynomialError::VariableNotFound { variable: _ })
+        ))
     }
 
     #[test]
@@ -282,7 +287,7 @@ mod tests {
         ];
 
         let vars: Vec<(&str, f64)> = vec![];
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars).unwrap();
         assert_eq!(result, 7.5);
     }
 
@@ -295,7 +300,7 @@ mod tests {
 
         let vars = [("x", 16)];
 
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_polynomial_extended(&terms, &vars).unwrap();
         assert_eq!(result, 0.25);
     }
 }

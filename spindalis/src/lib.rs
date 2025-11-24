@@ -10,12 +10,15 @@ pub mod polynomials {
     pub use spindalis_core::polynomials as core;
     pub use spindalis_macros as macros;
 
-    // Structs
+    // Component Structs
     pub use core::Term;
+    pub use core::structs::PolynomialTraits;
+
+    // Polynomial Structs
+    pub use core::structs::PolynomialExtended;
+    pub use core::structs::SimplePolynomial;
 
     // Error Enums
-    pub use core::AstPolyErr;
-    pub use core::ComplexPolyErr;
     pub use core::PolynomialError;
 
     // Parsers and evaluators

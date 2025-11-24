@@ -9,16 +9,16 @@ pub struct SimplePolynomial {
 }
 
 impl PolynomialTraits for SimplePolynomial {
-    fn parse(&self, input: &str) -> Result<Self, PolynomialError> {
+    fn parse(input: &str) -> Result<SimplePolynomial, PolynomialError> {
         let parsed = parse_simple_polynomial(input)?;
-        Ok(Self {
+        Ok(SimplePolynomial {
             coefficients: parsed,
         })
     }
 
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
     where
-        F: Into<f64>,
+        F: Into<f64> + std::clone::Clone + std::fmt::Debug,
     {
         Ok(eval_simple_polynomial(point, &self.coefficients))
     }
@@ -44,7 +44,7 @@ impl PolynomialTraits for SimplePolynomial {
             .map(|(k, v)| (k.as_ref().to_string(), v.into()))
             .collect();
         if vars_map.len() != 1 {
-            let vars = vars_map.iter().map(|(var, _)| var.clone()).collect();
+            let vars: Vec<String> = vars_map.keys().cloned().collect();
             return Err(PolynomialError::TooManyVariables { variables: vars });
         }
         let point: f64 = *vars_map.values().next().unwrap_or(&0_f64);

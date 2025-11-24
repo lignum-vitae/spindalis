@@ -1,6 +1,11 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::Term;
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Term {
+    pub coefficient: f64,
+    pub variables: Vec<(String, f64)>,
+}
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
@@ -38,7 +43,7 @@ where
             }
         }
 
-        // If no explicit coefficient (e.g., "-x"), set it to 1 or -1
+        // If no explicit coefficient (e.g., "-x" instead of "-1x"), set it to 1 or -1
         let coeff = if coeff.is_empty() || coeff == "-" {
             if coeff == "-" { -1.0 } else { 1.0 }
         } else {
@@ -100,7 +105,7 @@ where
     Ok(parsed)
 }
 
-pub fn eval_polynomial_extended<V, S, F>(terms: &[Term], vars: &V) -> f64
+pub fn eval_polynomial_extended<V, S, F>(terms: &[Term], vars: &V) -> Result<f64, PolynomialError>
 where
     V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
     S: AsRef<str>,
@@ -121,10 +126,12 @@ where
             if let Some(value) = vars_map.get(var) {
                 term_value *= value.powf(*pow);
             } else {
-                panic!("{var} not in {vars:?}");
+                return Err(PolynomialError::VariableNotFound {
+                    variable: var.to_string(),
+                });
             }
         }
         result += term_value;
     }
-    result
+    Ok(result)
 }
