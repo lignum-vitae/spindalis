@@ -100,30 +100,6 @@ macro_rules! token_from_char {
     };
 }
 
-// #[derive(Debug, PartialEq)]
-// pub enum Operators {
-//     Add,
-//     Sub,
-//     Div,
-//     Mul,
-//     Rem,
-//     Caret,
-// }
-
-// impl Operators {
-//     pub fn from_char(c: char) -> Option<Self> {
-//         match c {
-//             '+' => Some(Operators::Add),
-//             '-' => Some(Operators::Sub),
-//             '*' => Some(Operators::Mul),
-//             '/' => Some(Operators::Div),
-//             '%' => Some(Operators::Rem),
-//             '^' => Some(Operators::Caret),
-//             _ => None,
-//         }
-//     }
-// }
-
 // declaring `Operators` with `token_from_char`
 token_from_char! {
     #[derive(Debug, PartialEq)]
@@ -137,32 +113,6 @@ token_from_char! {
     }
 }
 
-// #[derive(Debug, PartialEq)]
-// pub enum Functions {
-//     Sin,
-//     Cos,
-//     Tan,
-//     Cot,
-//     Log,
-//     Ln,
-// }
-
-// impl FromStr for Functions {
-//     type Err = ();
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s.to_lowercase().as_str() {
-//             "sin" => Ok(Functions::Sin),
-//             "cos" => Ok(Functions::Cos),
-//             "tan" => Ok(Functions::Tan),
-//             "cot" => Ok(Functions::Cot),
-//             "log" => Ok(Functions::Log),
-//             "ln" => Ok(Functions::Ln),
-//             _ => Err(()),
-//         }
-//     }
-// }
-
 // declaring `Functions` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq)]
@@ -175,28 +125,6 @@ token_from_str! {
         Ln => "ln",
     }
 }
-
-// #[derive(Debug, PartialEq)]
-// pub enum Constants {
-//     Pi,
-//     E,
-//     Tau,
-//     Phi,
-// }
-
-// impl FromStr for Constants {
-//     type Err = ();
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s.to_lowercase().as_str() {
-//             "pi" => Ok(Constants::Pi),
-//             "e" => Ok(Constants::E),
-//             "tau" => Ok(Constants::Tau),
-//             "phi" => Ok(Constants::Phi),
-//             _ => Err(()),
-//         }
-//     }
-// }
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
