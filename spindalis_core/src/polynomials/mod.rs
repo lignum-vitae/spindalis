@@ -2,6 +2,8 @@ pub mod ast;
 pub mod extended;
 pub mod simple;
 
+pub mod structs;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Term {
     pub coefficient: f64,
@@ -10,18 +12,14 @@ pub struct Term {
 
 #[derive(Debug)]
 pub enum PolynomialError {
-    InvalidExponent,
-    InvalidConstant,
-    InvalidCoefficient,
-    MissingVariable,
-    PolynomialSyntaxError,
-}
-
-#[derive(Debug)]
-pub enum ComplexPolyErr {
     InvalidCoefficient { coeff: String },
-    InvalidFractionalExponent { pow: String },
+    InvalidConstant,
     InvalidExponent { pow: String },
+    InvalidFractionalExponent { pow: String },
+    PolynomialSyntaxError,
+    MissingVariable,
+    TooManyVariables { variables: Vec<String> },
+    TooFewVariables { variables: Vec<String> },
 }
 
 #[derive(Debug)]

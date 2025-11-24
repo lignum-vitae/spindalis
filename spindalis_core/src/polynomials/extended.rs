@@ -1,10 +1,10 @@
-use crate::polynomials::ComplexPolyErr;
+use crate::polynomials::PolynomialError;
 use crate::polynomials::Term;
 use std::collections::HashMap;
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_polynomial_extended<S>(expr: S) -> Result<Vec<Term>, ComplexPolyErr>
+pub fn parse_polynomial_extended<S>(expr: S) -> Result<Vec<Term>, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -45,7 +45,7 @@ where
             let parsed = coeff.parse::<f64>();
             match parsed {
                 Ok(x) => x,
-                Err(_) => return Err(ComplexPolyErr::InvalidCoefficient { coeff }),
+                Err(_) => return Err(PolynomialError::InvalidCoefficient { coeff }),
             }
         };
 
@@ -71,12 +71,14 @@ where
                     if pow_str.contains('/') {
                         let fraction: Vec<&str> = pow_str.split('/').collect();
                         if fraction.len() != 2 {
-                            return Err(ComplexPolyErr::InvalidFractionalExponent { pow: pow_str });
+                            return Err(PolynomialError::InvalidFractionalExponent {
+                                pow: pow_str,
+                            });
                         }
                         match (fraction[0].parse::<f64>(), fraction[1].parse::<f64>()) {
                             (Ok(x), Ok(y)) if y != 0.0 => power = x / y,
                             _ => {
-                                return Err(ComplexPolyErr::InvalidFractionalExponent {
+                                return Err(PolynomialError::InvalidFractionalExponent {
                                     pow: pow_str,
                                 });
                             }
@@ -84,7 +86,7 @@ where
                     } else if let Ok(pow) = pow_str.parse::<f64>() {
                         power = pow
                     } else {
-                        return Err(ComplexPolyErr::InvalidExponent { pow: pow_str });
+                        return Err(PolynomialError::InvalidExponent { pow: pow_str });
                     };
                 };
                 vars.push((var, power));

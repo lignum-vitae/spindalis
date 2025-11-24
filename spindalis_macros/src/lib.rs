@@ -1,6 +1,7 @@
+use proc_macro::TokenStream;
 use std::str::FromStr;
 
-use proc_macro::TokenStream;
+// Polynomial Parsing Macros
 
 #[proc_macro]
 pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
