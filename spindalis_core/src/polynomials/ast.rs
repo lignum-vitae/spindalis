@@ -20,6 +20,7 @@ use std::str::FromStr;
 * // 1. `enum` declaration (with optionally specified visibility)
 *
 * #[derive(Foo,Bar)]
+* #[derive(This,Too)]
 * pub enum SomeEnum {
 *  Var1,
 *  Var2,
@@ -68,6 +69,7 @@ macro_rules! token_from_str {
     };
 }
 
+// `token_from_char` is similar to `token_from_str`
 macro_rules! token_from_char {
     // INPUT
     (
@@ -98,27 +100,40 @@ macro_rules! token_from_char {
     };
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Operators {
-    Add,
-    Sub,
-    Div,
-    Mul,
-    Rem,
-    Caret,
-}
+// #[derive(Debug, PartialEq)]
+// pub enum Operators {
+//     Add,
+//     Sub,
+//     Div,
+//     Mul,
+//     Rem,
+//     Caret,
+// }
 
-impl Operators {
-    pub fn from_char(c: char) -> Option<Self> {
-        match c {
-            '+' => Some(Operators::Add),
-            '-' => Some(Operators::Sub),
-            '*' => Some(Operators::Mul),
-            '/' => Some(Operators::Div),
-            '%' => Some(Operators::Rem),
-            '^' => Some(Operators::Caret),
-            _ => None,
-        }
+// impl Operators {
+//     pub fn from_char(c: char) -> Option<Self> {
+//         match c {
+//             '+' => Some(Operators::Add),
+//             '-' => Some(Operators::Sub),
+//             '*' => Some(Operators::Mul),
+//             '/' => Some(Operators::Div),
+//             '%' => Some(Operators::Rem),
+//             '^' => Some(Operators::Caret),
+//             _ => None,
+//         }
+//     }
+// }
+
+// declaring `Operators` with `token_from_char`
+token_from_char! {
+    #[derive(Debug, PartialEq)]
+    pub Operators {
+        Add   => '+',
+        Sub   => '-',
+        Div   => '/',
+        Mul   => '*',
+        Rem   => '%',
+        Caret => '^',
     }
 }
 
