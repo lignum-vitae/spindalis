@@ -9,7 +9,7 @@ where
     let mut parts: Vec<&str> = normalized.split('+').collect();
 
     // Handles instance of the first value of poly being negative
-    // Prevents throwing syntax error for "-x + 4" etc
+    // Prevents throwing a syntax error for "-x + 4" etc
     if parts.first() == Some(&"") {
         parts.remove(0);
     }
@@ -34,14 +34,19 @@ where
                 } else {
                     coeff_str
                         .parse::<f64>()
-                        .map_err(|_| PolynomialError::InvalidCoefficient)?
+                        .map_err(|_| PolynomialError::InvalidCoefficient {
+                            coeff: coeff_str.to_string(),
+                        })?
                 };
 
                 if let Some(pow) = part.find('^') {
                     let pow_str = &part[pow + 1..];
-                    let power = pow_str
-                        .parse::<usize>()
-                        .map_err(|_| PolynomialError::InvalidExponent)?;
+                    let power =
+                        pow_str
+                            .parse::<usize>()
+                            .map_err(|_| PolynomialError::InvalidExponent {
+                                pow: pow_str.to_string(),
+                            })?;
                     (coeff, power)
                 } else {
                     // x^1 value

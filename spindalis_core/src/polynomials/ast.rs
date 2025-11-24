@@ -1,4 +1,4 @@
-use crate::polynomials::AstPolyErr;
+use crate::polynomials::PolynomialError;
 use std::str::FromStr;
 
 /*
@@ -195,7 +195,7 @@ pub enum Expr {
 }
 
 #[allow(dead_code)]
-fn lexer<S>(input: S) -> Result<Vec<Token>, AstPolyErr>
+fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -219,7 +219,7 @@ where
                 }
                 match temp.parse::<f64>() {
                     Ok(x) => tokens.push(Token::Number(x)),
-                    Err(_) => return Err(AstPolyErr::InvalidNumber { num: temp }),
+                    Err(_) => return Err(PolynomialError::InvalidNumber { num: temp }),
                 }
             }
             'a'..='z' | 'A'..='Z' => {
@@ -268,7 +268,7 @@ where
                     tokens.push(Token::Operator(op));
                     chars.next();
                 } else {
-                    return Err(AstPolyErr::UnexpectedChar { char: ch });
+                    return Err(PolynomialError::UnexpectedChar { char: ch });
                 }
             }
         }

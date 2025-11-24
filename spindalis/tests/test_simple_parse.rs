@@ -114,7 +114,10 @@ mod tests {
     fn test_invalid_polynomial() {
         let poly = "2x^ + 3x"; // invalid syntax
         let parsed = parse_simple_polynomial(poly);
-        assert!(matches!(parsed, Err(PolynomialError::InvalidExponent)));
+        assert!(matches!(
+            parsed,
+            Err(PolynomialError::InvalidExponent { pow: _ })
+        ));
     }
 
     #[test]

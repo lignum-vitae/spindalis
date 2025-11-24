@@ -1,18 +1,15 @@
+use crate::polynomials::PolynomialTraits;
 use crate::solvers::{Bounds, SolveMode, SolverError};
 
-pub fn bisection<F, G, T>(
-    polynomial: T,
-    derivative_func: F,
-    eval: G,
+pub fn bisection<P>(
+    polynomial: &P,
     bounds: Bounds,
     error_tol: f64,
     itermax: usize,
     mode: SolveMode,
 ) -> Result<f64, SolverError>
 where
-    F: Fn(&[f64]) -> Vec<f64>,
-    G: Fn(f64, &[f64]) -> f64,
-    T: AsRef<[f64]>,
+    P: PolynomialTraits,
 {
     let mut iter = 0;
     let mut approx_err = 100.0;
@@ -24,11 +21,10 @@ where
         return Err(SolverError::XInitOutOfBounds);
     }
 
-    let poly = polynomial.as_ref().to_vec();
-    let poly_vec = {
+    let polynomial = {
         match mode {
-            SolveMode::Root => poly,
-            SolveMode::Extrema => derivative_func(&poly),
+            SolveMode::Root => polynomial,
+            SolveMode::Extrema => &polynomial.derivate_univariate()?,
         }
     };
     loop {
@@ -40,7 +36,7 @@ where
                 (absv.abs() / x_curr) * 100_f64
             };
         }
-        let test = eval(lower_bound, &poly_vec) * eval(x_curr, &poly_vec);
+        let test = polynomial.eval_univariate(lower_bound)? * polynomial.eval_univariate(x_curr)?;
         if test < 0 as f64 {
             upper_bound = x_curr;
         } else if test > 0 as f64 {
@@ -57,7 +53,7 @@ where
         return Err(SolverError::MaxIterationsReached);
     }
 
-    let poss_sol = eval(x_curr, &poly_vec);
+    let poss_sol = polynomial.eval_univariate(x_curr)?;
     if poss_sol.abs() < 1e-4 {
         Ok(x_curr)
     } else {
@@ -68,8 +64,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::derivatives::simple_derivative;
-    use crate::polynomials::{eval_simple_polynomial, parse_simple_polynomial};
+    use crate::polynomials::{PolynomialExtended, SimplePolynomial};
 
     const ERROR_TOL: f64 = 0.00001;
 
@@ -80,11 +75,29 @@ mod tests {
     #[test]
     fn test_root_success() {
         let poly = "x^2 - 4";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
+            Bounds {
+                lower: 0.0,
+                init: 1.0,
+                upper: 3.0,
+            },
+            ERROR_TOL,
+            100,
+            SolveMode::Root,
+        );
+        assert!(result.is_ok());
+        let root = result.unwrap();
+        assert!(approx_eq(root, 2.0, ERROR_TOL));
+    }
+
+    #[test]
+    fn test_root_success_extended_poly() {
+        let poly = "x^2 - 4";
+        let parsed = PolynomialExtended::parse(poly).unwrap();
+        let result = bisection(
+            &parsed,
             Bounds {
                 lower: 0.0,
                 init: 1.0,
@@ -103,11 +116,9 @@ mod tests {
     fn test_extrema_success() {
         // f(x) = -x^2 + 4x + 1 has a maximum at x = 2
         let poly = "-1x^2 + 4x + 1";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: 0.0,
                 init: 2.0,
@@ -123,13 +134,32 @@ mod tests {
     }
 
     #[test]
-    fn test_no_convergence() {
-        let poly = "x^2 + 10";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+    fn test_extrema_success_extended_poly() {
+        // f(x) = -x^2 + 4x + 1 has a maximum at x = 2
+        let poly = "-1x^2 + 4x + 1";
+        let parsed = PolynomialExtended::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
+            Bounds {
+                lower: 0.0,
+                init: 2.0,
+                upper: 4.0,
+            },
+            ERROR_TOL,
+            100,
+            SolveMode::Extrema,
+        );
+        // assert!(result.is_ok());
+        let max_x = result.unwrap();
+        assert!(approx_eq(max_x, 2.0, ERROR_TOL));
+    }
+
+    #[test]
+    fn test_no_convergence() {
+        let poly = "x^2 + 10";
+        let parsed = SimplePolynomial::parse(poly).unwrap();
+        let result = bisection(
+            &parsed,
             Bounds {
                 lower: -1.0,
                 init: 0.0,
@@ -145,11 +175,9 @@ mod tests {
     #[test]
     fn test_no_convergence_2() {
         let poly = "x^2 + 5x + 10";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: -1.0,
                 init: 0.0,
@@ -165,11 +193,9 @@ mod tests {
     #[test]
     fn test_extrema_success_2() {
         let poly = "x^2 + 10";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: -1.0,
                 init: 0.0,
@@ -185,11 +211,9 @@ mod tests {
     #[test]
     fn test_extrema_success_3() {
         let poly = "x^2 - 5x + 10";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: -1.0,
                 init: 0.0,
@@ -206,11 +230,9 @@ mod tests {
     fn test_invalid_bounds() {
         // Minima is at 2.5, not between -1 and 1
         let poly = "x^2 - 5x + 10";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: -1.0,
                 init: 0.0,
@@ -227,11 +249,9 @@ mod tests {
     fn test_negative_bounds() {
         // f(x) = x^2 - 1 has root at x = -1
         let poly = "x^2 - 1";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: -2.0,
                 init: -1.0,
@@ -249,13 +269,11 @@ mod tests {
     #[test]
     fn test_known_maxima() {
         let poly = "-2x^6 - 1.6x^4 + 12x + 1";
-        let parsed = parse_simple_polynomial(poly).unwrap();
+        let parsed = SimplePolynomial::parse(poly).unwrap();
         let expected = 0.90449;
 
         let res = bisection(
             &parsed,
-            simple_derivative,
-            eval_simple_polynomial,
             Bounds {
                 lower: 0.0,
                 init: 0.6,
