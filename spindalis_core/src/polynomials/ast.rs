@@ -20,6 +20,7 @@ use std::str::FromStr;
 * // 1. `enum` declaration (with optionally specified visibility)
 *
 * #[derive(Foo,Bar)]
+* #[derive(This,Too)]
 * pub enum SomeEnum {
 *  Var1,
 *  Var2,
@@ -68,55 +69,49 @@ macro_rules! token_from_str {
     };
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Operators {
-    Add,
-    Sub,
-    Div,
-    Mul,
-    Rem,
-    Caret,
+// `token_from_char` is similar to `token_from_str`
+macro_rules! token_from_char {
+    // INPUT
+    (
+        // attribute(s) (optional) e.g. `#[Derive(Foo,Bar)]`
+        $(#[$attr:meta])*
+        // visibility and enum name e.g. `pub SomeEnum {...}`
+        $visb:vis $enum_name:ident {
+            // variants & their `char` values e.g. `Add => +`
+            $($var_name:ident => $var_char:literal),* $(,)*
+        }
+    ) =>
+    // OUTPUT
+    {
+        // 1. `enum` declaration
+        $(#[$attr])*
+        $visb enum $enum_name {
+            $($var_name),*
+        }
+        // 2. `fn from_char` with matching rules
+        impl $enum_name {
+            pub fn from_char(c: char) -> ::std::result::Result<Self, ()> {
+                match c {
+                    $($var_char => Ok($enum_name::$var_name),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    };
 }
 
-impl Operators {
-    pub fn from_char(c: char) -> Option<Self> {
-        match c {
-            '+' => Some(Operators::Add),
-            '-' => Some(Operators::Sub),
-            '*' => Some(Operators::Mul),
-            '/' => Some(Operators::Div),
-            '%' => Some(Operators::Rem),
-            '^' => Some(Operators::Caret),
-            _ => None,
-        }
+// declaring `Operators` with `token_from_char`
+token_from_char! {
+    #[derive(Debug, PartialEq)]
+    pub Operators {
+        Add   => '+',
+        Sub   => '-',
+        Div   => '/',
+        Mul   => '*',
+        Rem   => '%',
+        Caret => '^',
     }
 }
-
-// #[derive(Debug, PartialEq)]
-// pub enum Functions {
-//     Sin,
-//     Cos,
-//     Tan,
-//     Cot,
-//     Log,
-//     Ln,
-// }
-
-// impl FromStr for Functions {
-//     type Err = ();
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s.to_lowercase().as_str() {
-//             "sin" => Ok(Functions::Sin),
-//             "cos" => Ok(Functions::Cos),
-//             "tan" => Ok(Functions::Tan),
-//             "cot" => Ok(Functions::Cot),
-//             "log" => Ok(Functions::Log),
-//             "ln" => Ok(Functions::Ln),
-//             _ => Err(()),
-//         }
-//     }
-// }
 
 // declaring `Functions` with `token_from_str`
 token_from_str! {
@@ -130,28 +125,6 @@ token_from_str! {
         Ln => "ln",
     }
 }
-
-// #[derive(Debug, PartialEq)]
-// pub enum Constants {
-//     Pi,
-//     E,
-//     Tau,
-//     Phi,
-// }
-
-// impl FromStr for Constants {
-//     type Err = ();
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         match s.to_lowercase().as_str() {
-//             "pi" => Ok(Constants::Pi),
-//             "e" => Ok(Constants::E),
-//             "tau" => Ok(Constants::Tau),
-//             "phi" => Ok(Constants::Phi),
-//             _ => Err(()),
-//         }
-//     }
-// }
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
@@ -264,7 +237,7 @@ where
             }
 
             _ => {
-                if let Some(op) = Operators::from_char(ch) {
+                if let Ok(op) = Operators::from_char(ch) {
                     tokens.push(Token::Operator(op));
                     chars.next();
                 } else {
@@ -400,37 +373,90 @@ mod tests {
         }
     }
 
-    // ===== `token_from_str` unit tests =====
+    // ---------------------------
+    // token_from_str! tests
+    // ---------------------------
+    mod str_macro_tests {
+        use super::*;
 
-    // example `enum` created using `token_from_str`
-    token_from_str! {
-        #[derive(Debug, PartialEq)]
-        pub TestEnum {
-            Alpha => "alpha",
-            Beta  => "beta",
-            Gamma => "gamma",
+        token_from_str! {
+            #[derive(Debug, PartialEq)]
+            pub TestEnum {
+                Alpha => "alpha",
+                Beta  => "beta",
+                Gamma => "gamma",
+            }
+        }
+
+        #[test]
+        fn success() {
+            assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
+            assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
+            assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
+        }
+
+        #[test]
+        fn case_insensitive() {
+            assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
+            assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
+            assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
+        }
+
+        #[test]
+        fn invalid_str() {
+            assert!(TestEnum::from_str("not_an_option").is_err());
+            assert!(TestEnum::from_str("").is_err());
+        }
+
+        // edge case: empty enum
+        // compiles but returns `Err(())` on comparison
+        token_from_str! {
+            #[derive(Debug,PartialEq)]
+            pub EmptyEnum{}
+        }
+
+        #[test]
+        fn empty_enum_returns_err() {
+            assert_eq!(EmptyEnum::from_str("abc"), Err(()));
         }
     }
 
-    // test: all variants can be found and matched with `from_str`
-    #[test]
-    fn test_token_from_str_success() {
-        assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
-        assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
-        assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
-    }
+    // ---------------------------
+    // token_from_char! tests
+    // ---------------------------
+    mod char_macro_tests {
 
-    // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
-    #[test]
-    fn test_token_from_str_case_insensitive() {
-        assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
-        assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
-        assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
-    }
+        token_from_char! {
+            #[derive(Debug, PartialEq)]
+            pub TestOps {
+                Plus  => '+',
+                Minus => '-',
+            }
+        }
 
-    // test: invalid string goes unmatched, throws error
-    #[test]
-    fn test_token_from_str_invalid() {
-        assert!(TestEnum::from_str("not_an_option").is_err());
+        #[test]
+        fn success() {
+            assert_eq!(TestOps::from_char('+'), Ok(TestOps::Plus));
+            assert_eq!(TestOps::from_char('-'), Ok(TestOps::Minus));
+        }
+
+        #[test]
+        fn invalid_char() {
+            assert_eq!(TestOps::from_char('*'), Err(()));
+            assert_eq!(TestOps::from_char(' '), Err(()));
+            assert_eq!(TestOps::from_char('\n'), Err(()));
+        }
+
+        // edge case: empty enum
+        // compiles but always returns `Err(())`
+        token_from_char! {
+            #[derive(Debug, PartialEq)]
+            pub EmptyEnum {}
+        }
+
+        #[test]
+        fn empty_enum_returns_err() {
+            assert_eq!(EmptyEnum::from_char('x'), Err(()));
+        }
     }
 }
