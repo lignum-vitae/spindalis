@@ -294,7 +294,7 @@ where
             }
 
             _ => {
-                if let Some(op) = Operators::from_char(ch) {
+                if let Ok(op) = Operators::from_char(ch) {
                     tokens.push(Token::Operator(op));
                     chars.next();
                 } else {
@@ -430,37 +430,90 @@ mod tests {
         }
     }
 
-    // ===== `token_from_str` unit tests =====
+    // ---------------------------
+    // token_from_str! tests
+    // ---------------------------
+    mod str_macro_tests {
+        use super::*;
 
-    // example `enum` created using `token_from_str`
-    token_from_str! {
-        #[derive(Debug, PartialEq)]
-        pub TestEnum {
-            Alpha => "alpha",
-            Beta  => "beta",
-            Gamma => "gamma",
+        token_from_str! {
+            #[derive(Debug, PartialEq)]
+            pub TestEnum {
+                Alpha => "alpha",
+                Beta  => "beta",
+                Gamma => "gamma",
+            }
+        }
+
+        #[test]
+        fn success() {
+            assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
+            assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
+            assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
+        }
+
+        #[test]
+        fn case_insensitive() {
+            assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
+            assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
+            assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
+        }
+
+        #[test]
+        fn invalid_str() {
+            assert!(TestEnum::from_str("not_an_option").is_err());
+            assert!(TestEnum::from_str("").is_err());
+        }
+
+        // edge case: empty enum
+        // compiles but returns `Err(())` on comparison
+        token_from_str! {
+            #[derive(Debug,PartialEq)]
+            pub EmptyEnum{}
+        }
+
+        #[test]
+        fn empty_enum_returns_err() {
+            assert_eq!(EmptyEnum::from_str("abc"), Err(()));
         }
     }
 
-    // test: all variants can be found and matched with `from_str`
-    #[test]
-    fn test_token_from_str_success() {
-        assert_eq!(TestEnum::from_str("alpha").unwrap(), TestEnum::Alpha);
-        assert_eq!(TestEnum::from_str("beta").unwrap(), TestEnum::Beta);
-        assert_eq!(TestEnum::from_str("gamma").unwrap(), TestEnum::Gamma);
-    }
+    // ---------------------------
+    // token_from_char! tests
+    // ---------------------------
+    mod char_macro_tests {
 
-    // test: case insensitivity when matching (NOTE2 repeated: strings must be lowercase @ definition)
-    #[test]
-    fn test_token_from_str_case_insensitive() {
-        assert_eq!(TestEnum::from_str("AlPhA").unwrap(), TestEnum::Alpha);
-        assert_eq!(TestEnum::from_str("BETA").unwrap(), TestEnum::Beta);
-        assert_eq!(TestEnum::from_str("GaMmA").unwrap(), TestEnum::Gamma);
-    }
+        token_from_char! {
+            #[derive(Debug, PartialEq)]
+            pub TestOps {
+                Plus  => '+',
+                Minus => '-',
+            }
+        }
 
-    // test: invalid string goes unmatched, throws error
-    #[test]
-    fn test_token_from_str_invalid() {
-        assert!(TestEnum::from_str("not_an_option").is_err());
+        #[test]
+        fn success() {
+            assert_eq!(TestOps::from_char('+'), Ok(TestOps::Plus));
+            assert_eq!(TestOps::from_char('-'), Ok(TestOps::Minus));
+        }
+
+        #[test]
+        fn invalid_char() {
+            assert_eq!(TestOps::from_char('*'), Err(()));
+            assert_eq!(TestOps::from_char(' '), Err(()));
+            assert_eq!(TestOps::from_char('\n'), Err(()));
+        }
+
+        // edge case: empty enum
+        // compiles but always returns `Err(())`
+        token_from_char! {
+            #[derive(Debug, PartialEq)]
+            pub EmptyEnum {}
+        }
+
+        #[test]
+        fn empty_enum_returns_err() {
+            assert_eq!(EmptyEnum::from_char('x'), Err(()));
+        }
     }
 }
