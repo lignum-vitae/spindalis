@@ -68,6 +68,36 @@ macro_rules! token_from_str {
     };
 }
 
+macro_rules! token_from_char {
+    // INPUT
+    (
+        // attribute(s) (optional) e.g. `#[Derive(Foo,Bar)]`
+        $(#[$attr:meta])*
+        // visibility and enum name e.g. `pub SomeEnum {...}`
+        $visb:vis $enum_name:ident {
+            // variants & their `char` values e.g. `Add => +`
+            $($var_name:ident => $var_char:literal),* $(,)*
+        }
+    ) =>
+    // OUTPUT
+    {
+        // 1. `enum` declaration
+        $(#[$attr])*
+        $visb enum $enum_name {
+            $($var_name),*
+        }
+        // 2. `fn from_char` with matching rules
+        impl $enum_name {
+            pub fn from_char(c: char) -> ::std::result::Result<Self, ()> {
+                match c {
+                    $($var_char => Ok($enum_name::$var_name),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Operators {
     Add,
