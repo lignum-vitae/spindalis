@@ -58,19 +58,65 @@ Then run:
 
 `cargo build`
 
+## Polynomials and Matrices
+
+### Polynomials
+
+Spindalis makes handling polynomials easier through dedicated functions for parsing,
+evaluation, and derivation. Core functionality is implemented through structs for
+the three classes of polynomials:
+`SimplePolynomials`, `PolynomialsExtended`, and `PolynomialAST`. These structs are
+unified through their implementation of `PolynomialTraits`, where they have
+attached methods to parse, evaluate, and derivate univariate and multivariate polynomials.
+
+Simple Polynomial can handle univariate polynomials with integer exponents and
+only addition and subtraction.
+
+Polynomial Extended is an extension of Simple Polynomial that can handle multivariate
+polynomials. Polynomial extended can also handle fractional, decimal, and negative exponents.
+
+Polynomial AST is intended to handle all operations for a polynomial. This would include
+multivariate polynomials, functions such as sin or cos, constants such as pi, fractional exponents,
+negative exponents, and optimistically also polynomial expansion.
+
+### Arr2D
+
+The Arr2D struct provides a convenient way to use a two-dimensional matrix that is
+a one-dimensional vector under the hood.
+This allows for efficient memory usage while enabling standard matrix operations.
+
+Arr2D implements a wide range of methods and traits, including:
+
+- Linear Algebra: dot product, inverse, transpose.
+- Arithmetic: Implementations of multiplication by matrices, vectors, and scalars and division by scalars
+- Manipulation: shape, size, full, reshape, map
+- Conversion: from_flat, From, TryFrom
+- Utility: new, max, min, is_empty
+
 ## Project layout
 
-| Module                 | Description                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ |
-| `utils`                | Utility functions such as `Arr2D`, `Arr2DError`, forward substitution, and back substitution           |
-| `polynomials`          | Parsing and evaluating simple and extended polynomials                                                 |
-| `derivatives`          | Differentiating simple and extended polynomials                                                        |
-| `integrals`            | Integrating simple and extended polynomials                                                            |
-| `solvers`              | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
-| `solvers/eigen`        | Algorithms to solve eigenvalue and eigenvector problems                                                 |
-| `solvers/decomposition`| Decomposition algorithms including LU decomposition and LU decomposition with partial pivoting         |
-| `regressors`           | Linear and non-linear regression, including least-squares, Gaussian, and polynomial regression         |
-| `reduction`            | Linear and non-linear dimensionality reduction algorithms, including PCA                               |
+This repository is split into three crates. The tests for spindalis_core and
+spindalis_macros are located in the tests folder of spindalis.
+
+| Crate              | Description                                                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spindalis`        | The main library crate that provides high-level access to all mathematical, polynomial, and utility implementations                                      |
+| `spindalis_core`   | Fundamental data structures and core logic for polynomials, including polynomial structs, parsing, and methods for calculating derivatives and integrals |
+| `spindalis_macros` | Procedural macros to enhance usability with compile time evaluation of polynomials                                                                       |
+
+Within these crates, the following modules `spindalis::<module name>` are provided
+
+| Module          | Description                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| `utils`         | Utility functions such as `Arr2D`, `Arr2DError`, forward substitution, and back substitution           |
+| `polynomials`   | Parsing and evaluating simple and extended polynomials                                                 |
+| `derivatives`   | Differentiating simple and extended polynomials                                                        |
+| `integrals`     | Integrating simple and extended polynomials                                                            |
+| `solvers`       | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
+| `eigen`         | Algorithms to solve eigenvalue and eigenvector problems                                                |
+| `decomposition` | Decomposition algorithms including LU decomposition and LU decomposition with partial pivoting         |
+| `regressors`    | Linear and non-linear regression, including least-squares, Gaussian, and polynomial regression         |
+| `reduction`     | Linear and non-linear dimensionality reduction algorithms, including PCA                               |
 
 ### Running Examples
 
