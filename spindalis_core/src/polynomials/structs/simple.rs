@@ -4,16 +4,14 @@ use crate::polynomials::simple::{eval_simple_polynomial, parse_simple_polynomial
 use crate::polynomials::structs::PolynomialTraits;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct SimplePolynomial {
     pub coefficients: Vec<f64>,
 }
 
 impl PolynomialTraits for SimplePolynomial {
     fn parse(input: &str) -> Result<SimplePolynomial, PolynomialError> {
-        let parsed = parse_simple_polynomial(input)?;
-        Ok(SimplePolynomial {
-            coefficients: parsed,
-        })
+        parse_simple_polynomial(input)
     }
 
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
@@ -25,9 +23,7 @@ impl PolynomialTraits for SimplePolynomial {
 
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
         let derivative = simple_derivative(&self.coefficients);
-        Ok(Self {
-            coefficients: derivative,
-        })
+        Ok(derivative)
     }
 
     // Simple Polynomial can only handle univariate inputs
@@ -53,9 +49,19 @@ impl PolynomialTraits for SimplePolynomial {
 
     #[allow(unused_variables)]
     fn derivate_multivariate<S>(&self, var: S) -> Self {
-        let derivative = simple_derivative(&self.coefficients);
-        Self {
-            coefficients: derivative,
-        }
+        simple_derivative(&self.coefficients)
+    }
+}
+
+impl std::fmt::Display for SimplePolynomial {
+    // This trait requires the fmt method with this signature
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "(SimplePolynomial{{coefficients:{:?}}})",
+            self.coefficients
+        )?;
+        // Return Ok(()) on success, as required by fmt::Result
+        Ok(())
     }
 }

@@ -5,7 +5,9 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_simple() {
-        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
+        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4")
+            .unwrap()
+            .coefficients;
         let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4);
         let result = vec![
             4.0, // constant term
@@ -19,7 +21,9 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_negative_coeffs() {
-        let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1").unwrap();
+        let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1")
+            .unwrap()
+            .coefficients;
         let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1);
 
         let result = vec![
@@ -34,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_implicit_coeff() {
-        let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap();
+        let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap().coefficients;
         let coeffs_macro = parse_simple_polynomial!(x ^ 2 + x + 1);
 
         let result = vec![1.0, 1.0, 1.0];
@@ -44,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_missing_powers() {
-        let coeffs = parse_simple_polynomial("2x + 3").unwrap();
+        let coeffs = parse_simple_polynomial("2x + 3").unwrap().coefficients;
         let coeffs_macro = parse_simple_polynomial!(2 x + 3);
 
         let result = vec![3.0, 2.0];
@@ -54,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_multiple_terms_same_power() {
-        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap();
+        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap().coefficients;
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
         let result = vec![
@@ -68,7 +72,9 @@ mod tests {
 
     #[test]
     fn test_eval_polynomial_simple() {
-        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
+        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4")
+            .unwrap()
+            .coefficients;
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x + 4);
         assert_eq!(coeffs, coeffs_macro);
 
@@ -80,7 +86,9 @@ mod tests {
 
     #[test]
     fn test_eval_polynomial_negative() {
-        let coeffs = parse_simple_polynomial("-x^2 + 4x - 5").unwrap();
+        let coeffs = parse_simple_polynomial("-x^2 + 4x - 5")
+            .unwrap()
+            .coefficients;
         let coeffs_macro = parse_simple_polynomial!(-x ^ 2 + 4 x - 5);
         assert_eq!(coeffs, coeffs_macro);
 
@@ -92,13 +100,15 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_constant() {
-        let result = parse_simple_polynomial("7").unwrap();
+        let result = parse_simple_polynomial("7").unwrap().coefficients;
         assert_eq!(result, vec![7.0]);
     }
 
     #[test]
     fn test_parse_and_eval_combined() {
-        let coeffs = parse_simple_polynomial("x^3 - 2x + 1").unwrap();
+        let coeffs = parse_simple_polynomial("x^3 - 2x + 1")
+            .unwrap()
+            .coefficients;
         let coeffs_macro = parse_simple_polynomial!(x^3 - 2 x + 1);
         assert_eq!(coeffs, coeffs_macro);
 

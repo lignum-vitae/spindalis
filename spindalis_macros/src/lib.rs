@@ -17,7 +17,7 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
         };
 
     let mut tokens = String::from("vec![");
-    for coeff in output {
+    for coeff in output.coefficients {
         tokens.push_str(&format!("{coeff:?},"));
     }
     tokens.push(']');
@@ -39,7 +39,7 @@ pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
         };
 
     let mut tokens = String::from("vec![");
-    for term in output {
+    for term in output.terms {
         tokens.push_str(&format!(
             "::spindalis_core::polynomials::Term {{ coefficient: {:?}, variables: vec![",
             term.coefficient,

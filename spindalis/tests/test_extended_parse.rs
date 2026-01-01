@@ -9,7 +9,7 @@ mod tests {
     // test positive ints
     #[test]
     fn test_parse_single_variable() {
-        let terms = parse_polynomial_extended("3x^2").unwrap();
+        let terms = parse_polynomial_extended("3x^2").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(3x ^ 2);
 
         assert_eq!(terms.len(), 1);
@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_variables() {
-        let terms = parse_polynomial_extended("4x^2y^3").unwrap();
+        let terms = parse_polynomial_extended("4x^2y^3").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(4x ^ 2y ^ 3);
 
         let result = vec![Term {
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_parse_no_coefficient() {
-        let terms = parse_polynomial_extended("x^3").unwrap();
+        let terms = parse_polynomial_extended("x^3").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(x ^ 3);
 
         let result = vec![Term {
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_parse_negative_coefficient() {
-        let terms = parse_polynomial_extended("-2x^2").unwrap();
+        let terms = parse_polynomial_extended("-2x^2").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(-2x ^ 2);
 
         let result = vec![Term {
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_parse_negative_variable() {
-        let terms = parse_polynomial_extended("-x^2").unwrap();
+        let terms = parse_polynomial_extended("-x^2").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(-x ^ 2);
 
         let result = vec![Term {
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_terms() {
-        let terms = parse_polynomial_extended("2x^2+3y-4z^3").unwrap();
+        let terms = parse_polynomial_extended("2x^2+3y-4z^3").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(2x ^ 2 + 3y - 4z ^ 3);
 
         let result = vec![
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_parse_missing_power_defaults_to_one() {
-        let terms = parse_polynomial_extended("5x").unwrap();
+        let terms = parse_polynomial_extended("5x").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(5x);
 
         let result = vec![Term {
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_parse_pos_decimal() {
-        let terms = parse_polynomial_extended("5x^0.5").unwrap();
+        let terms = parse_polynomial_extended("5x^0.5").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(5x ^ 0.5);
 
         let result = vec![Term {
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_parse_neg_decimal() {
-        let terms = parse_polynomial_extended("5x^-0.5").unwrap();
+        let terms = parse_polynomial_extended("5x^-0.5").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(5x ^ -0.5);
 
         let result = vec![Term {
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_parse_fraction() {
-        let terms = parse_polynomial_extended("5x^1/2").unwrap();
+        let terms = parse_polynomial_extended("5x^1/2").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(5x ^ 1 / 2);
 
         let result = vec![Term {
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_parse_float_fraction() {
-        let terms = parse_polynomial_extended("5x^0.5/1").unwrap();
+        let terms = parse_polynomial_extended("5x^0.5/1").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(5x ^ 0.5 / 1);
 
         let result = vec![Term {

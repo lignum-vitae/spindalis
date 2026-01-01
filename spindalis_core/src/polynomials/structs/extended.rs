@@ -2,8 +2,6 @@ use crate::derivatives::extended::partial_derivative;
 use crate::polynomials::extended::{eval_polynomial_extended, parse_polynomial_extended};
 use crate::polynomials::structs::PolynomialTraits;
 use crate::polynomials::{PolynomialError, Term};
-use std::collections::HashSet;
-
 pub struct PolynomialExtended {
     pub terms: Vec<Term>,
     pub variables: Vec<String>,
@@ -11,17 +9,7 @@ pub struct PolynomialExtended {
 
 impl PolynomialTraits for PolynomialExtended {
     fn parse(input: &str) -> Result<PolynomialExtended, PolynomialError> {
-        let parsed = parse_polynomial_extended(input)?;
-        let unique_variables: HashSet<String> = parsed
-            .iter()
-            .flat_map(|term| term.variables.iter())
-            .map(|(var_name, _)| var_name.clone())
-            .collect();
-        let variables: Vec<String> = unique_variables.into_iter().collect();
-        Ok(PolynomialExtended {
-            terms: parsed,
-            variables,
-        })
+        parse_polynomial_extended(input)
     }
 
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
@@ -54,7 +42,7 @@ impl PolynomialTraits for PolynomialExtended {
             });
         }
         Ok(Self {
-            terms: partial_derivative(&self.terms, &self.variables[0]),
+            terms: partial_derivative(&self.terms, &self.variables[0]).terms,
             variables: self.variables.clone(),
         })
     }
@@ -62,7 +50,7 @@ impl PolynomialTraits for PolynomialExtended {
     where
         S: AsRef<str>,
     {
-        let derived = partial_derivative(&self.terms, var);
+        let derived = partial_derivative(&self.terms, var).terms;
         let variables = derived
             .iter()
             .flat_map(|term| term.variables.iter())
@@ -72,5 +60,18 @@ impl PolynomialTraits for PolynomialExtended {
             terms: derived,
             variables,
         }
+    }
+}
+impl std::fmt::Display for PolynomialExtended {
+    // This trait requires the fmt method with this signature
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "(PolynomialExtended{{terms:{:?}, variables:{:?}}})",
+            self.terms, self.variables
+        )?;
+
+        // Return Ok(()) on success, as required by fmt::Result
+        Ok(())
     }
 }
