@@ -53,3 +53,10 @@ pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
 
     TokenStream::from_str(&tokens).unwrap()
 }
+
+
+#[proc_macro]
+pub fn parse_definite_integral(input : TokenStream) -> TokenStream {
+    let output = parse_simple_polynomial!(input);
+    
+}
