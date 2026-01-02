@@ -7,6 +7,12 @@ pub struct PolynomialExtended {
     pub variables: Vec<String>,
 }
 
+impl PartialEq<Vec<Term>> for PolynomialExtended {
+    fn eq(&self, other: &Vec<Term>) -> bool {
+        self.terms == other.clone()
+    }
+}
+
 impl PolynomialTraits for PolynomialExtended {
     fn parse(input: &str) -> Result<PolynomialExtended, PolynomialError> {
         parse_polynomial_extended(input)

@@ -6,8 +6,7 @@ mod tests {
     #[test]
     fn test_parse_simple_polynomial_simple() {
         let coeffs = parse_simple_polynomial("2x^2 + 3x + 4")
-            .unwrap()
-            .coefficients;
+            .unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4);
         let result = vec![
             4.0, // constant term
@@ -22,8 +21,7 @@ mod tests {
     #[test]
     fn test_parse_simple_polynomial_negative_coeffs() {
         let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1")
-            .unwrap()
-            .coefficients;
+            .unwrap();
         let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1);
 
         let result = vec![
@@ -38,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_implicit_coeff() {
-        let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap().coefficients;
+        let coeffs = parse_simple_polynomial("x^2 + x + 1").unwrap();
         let coeffs_macro = parse_simple_polynomial!(x ^ 2 + x + 1);
 
         let result = vec![1.0, 1.0, 1.0];
@@ -48,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_missing_powers() {
-        let coeffs = parse_simple_polynomial("2x + 3").unwrap().coefficients;
+        let coeffs = parse_simple_polynomial("2x + 3").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x + 3);
 
         let result = vec![3.0, 2.0];
@@ -58,7 +56,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_multiple_terms_same_power() {
-        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap().coefficients;
+        let coeffs = parse_simple_polynomial("2x^2+3x^2").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x^2);
 
         let result = vec![
@@ -100,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_constant() {
-        let result = parse_simple_polynomial("7").unwrap().coefficients;
+        let result = parse_simple_polynomial("7").unwrap();
         assert_eq!(result, vec![7.0]);
     }
 
