@@ -64,9 +64,7 @@ impl std::fmt::Display for SimplePolynomial {
         let mut first = true;
         // Assume coefficients are ordered from highest degree to lowest
         for (i, &coeff) in self.coefficients.iter().enumerate().rev() {
-            if coeff == 0.0 {
-                continue;
-            }
+            if coeff == 0.0 { continue; }
 
             // Handle signs and spacing
             if !first && coeff > 0.0 {
@@ -77,12 +75,10 @@ impl std::fmt::Display for SimplePolynomial {
 
             let abs_coeff = coeff.abs();
 
+            
             // Print the coefficient if it's not 1 (or if it's the constant term)
-            if abs_coeff != 1.0 || i == 0 {
                 write!(f, "{}", abs_coeff)?;
-            }
 
-            // Print the variable and power
             match i {
                 0 => {} // Constant term
                 1 => write!(f, "x")?,
@@ -91,6 +87,7 @@ impl std::fmt::Display for SimplePolynomial {
             first = false;
         }
 
+        
         if first {
             write!(f, "0")?;
         }
