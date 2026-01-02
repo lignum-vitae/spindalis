@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
-use std::str::FromStr;
 use quote::quote;
-use syn::{parse_macro_input, LitStr, LitFloat, Token, parse::Parse, parse::ParseStream, Result};
+use std::str::FromStr;
+use syn::{LitFloat, LitStr, Result, Token, parse::Parse, parse::ParseStream, parse_macro_input};
 
 // Polynomial Parsing Macros
 
@@ -56,12 +56,6 @@ pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
     TokenStream::from_str(&tokens).unwrap()
 }
 
-
-
-
-
-
-
 struct IntegralArgs {
     poly_str: String,
     lower: f64,
@@ -76,7 +70,7 @@ impl Parse for IntegralArgs {
         let lower: LitFloat = input.parse()?;
         input.parse::<Token![,]>()?;
         let upper: LitFloat = input.parse()?;
-        
+
         Ok(IntegralArgs {
             poly_str: poly_str.value(),
             lower: lower.base10_parse()?,
@@ -90,20 +84,18 @@ pub fn definite_integral(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as IntegralArgs);
 
     //  Parse string to coefficients using your existing core logic
-    let coefficients = match spindalis_core::polynomials::simple::parse_simple_polynomial(args.poly_str) {
-        Ok(coeffs) => coeffs.coefficients,
-        Err(e) => {
-            let err = format!("Compile-time Polynomial Parse Error: {:?}", e);
-            return quote!(compile_error!(#err)).into();
-        }
-    };
+    let coefficients =
+        match spindalis_core::polynomials::simple::parse_simple_polynomial(args.poly_str) {
+            Ok(coeffs) => coeffs,
+            Err(e) => {
+                let err = format!("Compile-time Polynomial Parse Error: {:?}", e);
+                return quote!(compile_error!(#err)).into();
+            }
+        };
 
     //  Calculate the result using your analytical_integral function
-    let result = spindalis_core::integrals::analytical_integral(
-        &coefficients, 
-        args.lower, 
-        args.upper
-    );
+    let result =
+        spindalis_core::integrals::analytical_integral(&coefficients, args.lower, args.upper);
 
     //  Emit the final result as a float literal
     let expanded = quote! {
