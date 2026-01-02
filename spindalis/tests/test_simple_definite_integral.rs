@@ -70,7 +70,7 @@ mod tests {
     fn test_macro_vs_runtime_simple() {
         // Runtime calculation
         let poly = [1.0, 1.0, 1.0]; // x^2 + x + 1
-        let runtime_result = analytical_integral(&poly, 0.0, 1.0);
+        let runtime_result = analytical_integral(poly, 0.0, 1.0);
 
         // Macro calculation (evaluated at compile time)
         let macro_result = definite_integral!("x^2 + x + 1", 0.0, 1.0);
@@ -90,7 +90,7 @@ mod tests {
         let start = -3.0;
         let end = 5.0;
 
-        let runtime_result = analytical_integral(&poly, start, end);
+        let runtime_result = analytical_integral(poly, start, end);
         let macro_result = definite_integral!("64x^3 - 144x^2 + 108x - 27", -3.0, 5.0);
 
         // Using a small epsilon due to floating point precision in integration
