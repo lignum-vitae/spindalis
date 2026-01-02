@@ -2,6 +2,7 @@ use crate::derivatives::extended::partial_derivative;
 use crate::polynomials::extended::{eval_polynomial_extended, parse_polynomial_extended};
 use crate::polynomials::structs::PolynomialTraits;
 use crate::polynomials::{PolynomialError, Term};
+#[derive(Debug)]
 pub struct PolynomialExtended {
     pub terms: Vec<Term>,
     pub variables: Vec<String>,

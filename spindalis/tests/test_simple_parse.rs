@@ -5,8 +5,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_simple() {
-        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4")
-            .unwrap();
+        let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x ^ 2 + 3 x + 4);
         let result = vec![
             4.0, // constant term
@@ -20,8 +19,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_polynomial_negative_coeffs() {
-        let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1")
-            .unwrap();
+        let coeffs = parse_simple_polynomial("-2x^3 - 4x + 1").unwrap();
         let coeffs_macro = parse_simple_polynomial!(-2 x ^3 - 4 x + 1);
 
         let result = vec![
