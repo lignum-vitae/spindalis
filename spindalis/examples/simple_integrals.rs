@@ -26,8 +26,8 @@ fn main() {
 
     // Calculate the indefinite integral of a parsed simple polynomial
     let parsed = parse_simple_polynomial!(x ^ 3 - x);
-    let result = indefinite_integral(&parsed).coefficients;
-    let eval = eval_simple_polynomial(2.0, &result);
-    println!("The indefinite integral for 'x^3 - x' {parsed:?} is '1/4*x^4 - 1/2' {result:?}.");
+    let result = indefinite_integral(&parsed);
+    let eval = eval_simple_polynomial(2.0, &result.coefficients);
+    println!("The indefinite integral for 'x^3 - x' {parsed:?} is '1/4*x^4 - 1/2' {result}.");
     println!("The value of the integral evaluated at 2 is {eval}");
 }

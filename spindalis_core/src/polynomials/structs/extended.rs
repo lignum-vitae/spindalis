@@ -63,15 +63,41 @@ impl PolynomialTraits for PolynomialExtended {
     }
 }
 impl std::fmt::Display for PolynomialExtended {
-    // This trait requires the fmt method with this signature
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "(PolynomialExtended{{terms:{:?}, variables:{:?}}})",
-            self.terms, self.variables
-        )?;
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.terms.is_empty() {
+            return write!(f, "0");
+        }
 
-        // Return Ok(()) on success, as required by fmt::Result
+        for (i, term) in self.terms.iter().enumerate() {
+            // 1. Handle the operator (+ or -) between terms
+            if i > 0 {
+                if term.coefficient >= 0.0 {
+                    write!(f, " + ")?;
+                } else {
+                    write!(f, " - ")?;
+                }
+            } else if term.coefficient < 0.0 {
+                write!(f, "-")?;
+            }
+
+            // 2. Format the coefficient magnitude
+            let abs_coeff = term.coefficient.abs();
+            let has_vars = !term.variables.is_empty();
+
+            // Only print coefficient if it's not 1.0, or if it's a constant term
+            if abs_coeff != 1.0 || !has_vars {
+                write!(f, "{}", abs_coeff)?;
+            }
+
+            // 3. Format the variables for this specific term
+            for (var_name, exponent) in &term.variables {
+                write!(f, "{}", var_name)?;
+                if *exponent != 1.0 {
+                    write!(f, "^{}", exponent)?;
+                }
+            }
+        }
+
         Ok(())
     }
 }
