@@ -1,4 +1,7 @@
 use crate::polynomials::PolynomialError;
+use crate::polynomials::structs::ast::{Ast, TokenStream};
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::str::FromStr;
 
 /*
@@ -102,7 +105,7 @@ macro_rules! token_from_char {
 
 // declaring `Operators` with `token_from_char`
 token_from_char! {
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Hash, Eq,Copy,Clone)]
     pub Operators {
         Add   => '+',
         Sub   => '-',
@@ -250,9 +253,68 @@ where
     Ok(tokens)
 }
 
+static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
+    HashMap::from([
+        (Operators::Sub, 0.5),
+        (Operators::Add, 1.0),
+        (Operators::Mul, 2.0),
+        (Operators::Div, 2.0),
+        (Operators::Rem, 2.0),
+        (Operators::Caret, 3.0),
+    ])
+});
+
+#[allow(dead_code)]
+fn parser(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
+    // always consumes the token
+    let mut left: Ast = match token_stream.next() {
+        Some(Token::LParen) => {
+            let l = parser(token_stream, 0.0);
+            expect(token_stream, Token::RParen)?;
+            l?
+        }
+        Some(token) => Ast::new(token, None, None),
+        None => return Err(PolynomialError::PolynomialSyntaxError),
+    };
+    // iteratively looks for operators with lower binding than minimum binding power
+    loop {
+        if let Some(Token::Operator(op)) = token_stream.peek() {
+            let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
+            if cbind_pow < min_bind_pow {
+                break;
+            } else {
+                let op = Token::Operator(*op);
+                token_stream.next();
+                let right = parser(token_stream, cbind_pow)?;
+                left = Ast::new(op, Some(left), Some(right));
+                continue;
+            }
+        } else {
+            break;
+        }
+    }
+    return Ok(left);
+}
+
+fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
+    if let Some(token) = token_stream.peek()
+        && expected_token == *token
+    {
+        return Ok(());
+    }
+    Err(PolynomialError::MissingVariable)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_parser() {
+        let expr = "2*x+2";
+        let mut tok_str = lexer(expr).unwrap().into_iter().peekable();
+        let result = parser(&mut tok_str, 0.0);
+        println!("{:?}", result);
+    }
 
     #[test]
     fn test_number_token() {
