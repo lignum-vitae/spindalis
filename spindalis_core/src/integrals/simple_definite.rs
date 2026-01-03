@@ -131,8 +131,8 @@ pub fn analytical_integral(poly: impl AsRef<[f64]>, a: f64, b: f64) -> f64 {
 
     let poly = poly.as_ref();
     let integrated_polynomial = indefinite_integral(poly);
-    let fa = eval_simple_polynomial(a, &integrated_polynomial);
-    let fb = eval_simple_polynomial(b, &integrated_polynomial);
+    let fa = eval_simple_polynomial(a, &integrated_polynomial.coefficients);
+    let fb = eval_simple_polynomial(b, &integrated_polynomial.coefficients);
 
     fb - fa
 }

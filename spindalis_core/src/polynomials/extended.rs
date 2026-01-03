@@ -1,15 +1,33 @@
-use crate::polynomials::PolynomialError;
-use std::collections::HashMap;
+use crate::polynomials::{PolynomialError, structs::PolynomialExtended};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Term {
     pub coefficient: f64,
     pub variables: Vec<(String, f64)>,
 }
+impl std::fmt::Display for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 1. Print the coefficient if it's not 1.0 (unless there are no variables)
+        let has_vars = !self.variables.is_empty();
+        if self.coefficient != 1.0 || !has_vars {
+            write!(f, "{}", self.coefficient)?;
+        }
+
+        // 2. Print variables and their exponents
+        for (var, exp) in &self.variables {
+            write!(f, "{}", var)?;
+            if *exp != 1.0 {
+                write!(f, "^{}", exp)?;
+            }
+        }
+        Ok(())
+    }
+}
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_polynomial_extended<S>(expr: S) -> Result<Vec<Term>, PolynomialError>
+pub fn parse_polynomial_extended<S>(expr: S) -> Result<PolynomialExtended, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -102,7 +120,16 @@ where
             variables: vars.clone(),
         });
     }
-    Ok(parsed)
+    let unique_variables: HashSet<String> = parsed
+        .iter()
+        .flat_map(|term| term.variables.iter())
+        .map(|(var_name, _)| var_name.clone())
+        .collect();
+    let variables: Vec<String> = unique_variables.into_iter().collect();
+    Ok(PolynomialExtended {
+        terms: parsed,
+        variables,
+    })
 }
 
 pub fn eval_polynomial_extended<V, S, F>(terms: &[Term], vars: &V) -> Result<f64, PolynomialError>

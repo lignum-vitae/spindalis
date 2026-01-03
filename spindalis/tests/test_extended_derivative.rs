@@ -10,7 +10,7 @@ mod tests {
             variables: vec![("x".into(), 2.0)],
         }];
 
-        let result = partial_derivative(&poly, "x");
+        let result = partial_derivative(&poly, "x").terms;
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 6.0);
@@ -24,7 +24,7 @@ mod tests {
             variables: vec![("x".into(), 2.0), ("y".into(), 3.0)],
         }];
 
-        let result = partial_derivative(&poly, "x");
+        let result = partial_derivative(&poly, "x").terms;
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 8.0);
@@ -41,7 +41,7 @@ mod tests {
             variables: vec![("x".into(), 1.0)],
         }];
 
-        let result = partial_derivative(&poly, "x");
+        let result = partial_derivative(&poly, "x").terms;
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].coefficient, 5.0);
@@ -55,7 +55,7 @@ mod tests {
             variables: vec![("y".into(), 3.0)],
         }];
 
-        let result = partial_derivative(&poly, "x");
+        let result = partial_derivative(&poly, "x").terms;
 
         assert_eq!(result.len(), 0);
     }
@@ -77,7 +77,7 @@ mod tests {
             },
         ];
 
-        let result = partial_derivative(&poly, "x");
+        let result = partial_derivative(&poly, "x").terms;
 
         assert_eq!(result.len(), 2);
 

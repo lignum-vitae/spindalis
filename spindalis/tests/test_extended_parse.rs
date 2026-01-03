@@ -9,7 +9,7 @@ mod tests {
     // test positive ints
     #[test]
     fn test_parse_single_variable() {
-        let terms = parse_polynomial_extended("3x^2").unwrap();
+        let terms = parse_polynomial_extended("3x^2").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(3x ^ 2);
 
         assert_eq!(terms.len(), 1);
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_terms() {
-        let terms = parse_polynomial_extended("2x^2+3y-4z^3").unwrap();
+        let terms = parse_polynomial_extended("2x^2+3y-4z^3").unwrap().terms;
         let terms_macro = parse_polynomial_extended!(2x ^ 2 + 3y - 4z ^ 3);
 
         let result = vec![
