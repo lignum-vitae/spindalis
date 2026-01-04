@@ -6,6 +6,77 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 /*
+* ##### AST_FROM_TOKEN MACRO: USAGE EXAMPLE ####
+*
+* ### INPUT:
+*
+* GIVES A LEAF OR THE PARENT OF THE LEAF NODE OF THE AST
+*
+* ast_from_token!(Token::Number(4.0)) (4)
+* ast_from_token!(Token::Operator(Operators::Mul),Token::Number(4.0),Token::Number(4.0)) (4 * 4)
+*
+* GIVES A BRANCH NODE OF THE AST
+* ast_from_ast!(Token::Operator(Operators::Mul),Some(ast_from_token(Token::Number(4.0)),ast_from_token(2.0))) (4 * 2)
+*
+* ### OUTPUT GENERATED:
+*
+* ast_from_token!(token)=>
+*   Ast{
+*       cval: token,
+*       lval: None,
+*       rval: None,
+*   }
+*
+* ast_from_token!(TOKEN,LVAL,RVAL)=>
+*   Ast{
+*       cval: TOKEN,
+*       lval: Ast{cval:LVAL,lval:None,rval:None},
+*       rval: Ast{cval:RVAL,lval:None,rval:None},
+*   }
+*
+*/
+
+macro_rules! ast_from_token {
+    ($val: expr $(,)*) => {
+        Ast::new($val, None, None)
+    };
+    ($val: expr,$left: expr, $right: expr $(,)*) => {
+        Ast::new(
+            $val,
+            Some(Ast::new($left, None, None)),
+            Some(Ast::new($right, None, None)),
+        )
+    };
+}
+
+/*
+* ##### AST_FROM_AST MACRO: USAGE EXAMPLE ####
+*
+* ### INPUT:
+*
+* GIVES A BRANCH NODE OF THE AST
+*
+* ast_from_ast!(Token::Operator(Operators::Mul),Some(LVAL),Some(ast_from_token!(2.0))) (LVAL{May be an expression} * 2)
+*
+* ### OUTPUT GENERATED:
+*
+*
+* ast_from_ast!(TOKEN,LVAL,RVAL)=>{
+*   Ast{
+*       cval: TOKEN,
+*       lval: Some(LVAL),
+*       rval: Some(RVAL),
+*   }
+* }
+*/
+
+macro_rules! ast_from_ast {
+    ($val: expr,$left: expr, $right: expr $(,)*) => {
+        Ast::new($val, $left, $right)
+    };
+}
+
+/*
 * ##### TOKEN_FROM_STR MACRO: USAGE EXAMPLE ####
 *
 * ### INPUT:
@@ -45,24 +116,6 @@ use std::str::FromStr;
 * }
 *
 */
-
-macro_rules! ast_from_token {
-    ($val: expr) => {
-        Ast::new($val, None, None)
-    };
-    ($val: expr,$left: expr, $right: expr) => {
-        Ast::new(
-            $val,
-            Some(Ast::new($left, None, None)),
-            Some(Ast::new($right, None, None)),
-        )
-    };
-}
-macro_rules! ast_from_ast {
-    ($val: expr,$left: expr, $right: expr) => {
-        Ast::new($val, $left, $right)
-    };
-}
 
 macro_rules! token_from_str {
     (
@@ -472,7 +525,7 @@ mod tests {
 
     #[test]
     fn test_int_float_expression_parse() {
-        let expr = "4x^2 + 2.3x^3"
+        let expr = "4x^2 + 2.3x^3";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
         let l_child = ast_from_ast!(
@@ -571,28 +624,134 @@ mod tests {
         assert_eq!(result, expected);
     }
     #[test]
-    fn test_zero_x_parse(){
-        let expr = "0x"
+    fn test_zero_x_parse() {
+        let expr = "0x";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
         let expect = ast_from_token!(
             Token::Operator(Operators::Mul),
-            Token::Number(0),
+            Token::Number(0.0),
             Token::Variable("x".into())
         );
         assert_eq!(result, expect);
     }
 
     #[test]
-    fn test_zero_parse(){
-        let expr = "0"
+    fn test_zero_parse() {
+        let expr = "0";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(
-            Token::Number(0),
+        let expect = ast_from_token!(Token::Number(0.0));
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_multivariate_expression_parse() {
+
+        let expr = "4xy + 4x^2 - 2y + 4";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+
+        let term_4xy = ast_from_ast!(
+                Token::Operator(Operators::Mul),
+                Some(ast_from_token!(
+                    Token::Operator(Operators::Mul),
+                    Token::Number(4.0),
+                    Token::Variable("x".into())
+                )),
+                Some(ast_from_token!(Token::Variable("y".into())))
+            );
+
+        let term_4x2 = ast_from_ast!(
+                Token::Operator(Operators::Mul),
+                Some(ast_from_token!(Token::Number(4.0))),
+                Some(ast_from_token!(
+                        Token::Operator(Operators::Caret),
+                        Token::Variable("x".into()),
+                        Token::Number(2.0)
+                ))
+            );
+
+        let term_2y = ast_from_token!(
+                Token::Operator(Operators::Mul),
+                Token::Number(2.0),
+                Token::Variable("y".into())
+            );
+
+        let term_lleft = ast_from_ast!(
+            Token::Operator(Operators::Add),
+            Some(term_4xy),
+            Some(term_4x2)
+            );
+
+        let term_left = ast_from_ast!(
+            Token::Operator(Operators::Sub),
+            Some(term_lleft),
+            Some(ast_from_token!(
+                    Token::Operator(Operators::Mul),
+                    Token::Number(2.0),
+                    Token::Variable("y".into()))
+                )
+            );
+
+        let expect = ast_from_ast!(
+            Token::Operator(Operators::Add),
+            Some(term_left),
+            Some(ast_from_token!(Token::Number(4.0)))
         );
         assert_eq!(result, expect);
     }
+    #[test]
+    fn test_invalid_expression(){
+        let expr="4 +++ 3x";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+    #[test]
+    fn test_missing_right_hand(){
+        let expr="4x +";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+    #[test]
+    fn test_missing_left_hand(){
+        let expr="+ 3x";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+
+    #[test]
+    fn test_only_operator(){
+        let expr="+";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+
+    #[test]
+    fn test_invalid_multiple_exponents(){
+        let expr="4x^^^2";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+    
+    #[test]
+    fn test_multiple_exponents(){
+        let expr="4x^2^3";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}",result);
+        assert!(matches!(result,Err(_)));
+    }
+
     #[test]
     fn test_number_token() {
         let expr = "32";
