@@ -6,6 +6,9 @@ pub mod structs;
 
 pub use extended::Term;
 
+use ast::Token;
+
+
 // Error Enum
 
 #[derive(Debug)]
@@ -21,4 +24,6 @@ pub enum PolynomialError {
     TooFewVariables { variables: Vec<String> },
     UnexpectedChar { char: char },
     VariableNotFound { variable: String },
+    UnexpectedToken { token: Token },
+    UnexpectedEndOfTokens,
 }

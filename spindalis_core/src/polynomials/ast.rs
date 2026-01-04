@@ -338,11 +338,15 @@ static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
 
 fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
     if let Some(token) = token_stream.peek()
-        && expected_token == *token
     {
-        return Ok(());
+        if  expected_token == *token{
+            return Ok(());
+        }else{
+            return Err(PolynomialError::UnexpectedChar{token: token});
+        }
+    }else{
+        return Err(PolynomialError::UnexpectedEndOfTokens);
     }
-    Err(PolynomialError::MissingVariable)
 }
 
 fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
