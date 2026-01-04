@@ -4,11 +4,11 @@ use std::vec::IntoIter;
 
 pub type TokenStream = Peekable<IntoIter<Token>>;
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct Ast {
-    cval: Token,            // Value of the node
-    lval: Option<Box<Ast>>, // left node of AST
-    rval: Option<Box<Ast>>, // right node of AST
+    pub(crate) cval: Token,            // Value of the node
+    pub(crate) lval: Option<Box<Ast>>, // left node of AST
+    pub(crate) rval: Option<Box<Ast>>, // right node of AST
 }
 
 impl Ast {

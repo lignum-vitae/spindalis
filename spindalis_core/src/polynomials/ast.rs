@@ -1,6 +1,7 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::ast::{Ast, TokenStream};
 use once_cell::sync::Lazy;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -44,6 +45,24 @@ use std::str::FromStr;
 * }
 *
 */
+
+macro_rules! ast_from_token {
+    ($val: expr) => {
+        Ast::new($val, None, None)
+    };
+    ($val: expr,$left: expr, $right: expr) => {
+        Ast::new(
+            $val,
+            Some(Ast::new($left, None, None)),
+            Some(Ast::new($right, None, None)),
+        )
+    };
+}
+macro_rules! ast_from_ast {
+    ($val: expr,$left: expr, $right: expr) => {
+        Ast::new($val, $left, $right)
+    };
+}
 
 macro_rules! token_from_str {
     (
@@ -118,7 +137,7 @@ token_from_char! {
 
 // declaring `Functions` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq,Clone)]
     pub Functions {
         Sin => "sin",
         Cos => "cos",
@@ -131,7 +150,7 @@ token_from_str! {
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq,Clone)]
     pub Constants {
         Pi => "pi",
         E => "e",
@@ -140,7 +159,7 @@ token_from_str! {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Number(f64),
     Variable(String),
@@ -255,21 +274,95 @@ where
 
 static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
     HashMap::from([
-        (Operators::Sub, 0.5),
+        (Operators::Sub, 1.0),
         (Operators::Add, 1.0),
         (Operators::Mul, 2.0),
         (Operators::Div, 2.0),
-        (Operators::Rem, 2.0),
-        (Operators::Caret, 3.0),
+        (Operators::Rem, 3.0),
+        (Operators::Caret, 4.0),
     ])
 });
 
-#[allow(dead_code)]
-fn parser(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
-    // always consumes the token
+fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
+    if let Some(token) = token_stream.peek()
+        && expected_token == *token
+    {
+        return Ok(());
+    }
+    Err(PolynomialError::MissingVariable)
+}
+
+fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
+    // Pass to identify implied multiplication to insert Operators::Mul
+    // e.g. 4x = 4*x
+    // 4x^2 == 4*(x^2)
+    let mut idx = 0;
+    loop {
+        if idx >= token_stream.len() {
+            break;
+        }
+        match token_stream.get(idx) {
+            Some(Token::Number(_)) => match token_stream.get(idx + 1) {
+                Some(Token::Variable(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Function(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Constant(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::LParen) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                val => {}
+            },
+            Some(Token::Variable(_)) => match token_stream.get(idx + 1) {
+                Some(Token::Number(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Variable(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Function(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Constant(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::LParen) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                _ => {}
+            },
+            Some(Token::Constant(_)) => match token_stream.get(idx + 1) {
+                Some(Token::Number(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Variable(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Function(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::Constant(_)) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                Some(Token::LParen) => {
+                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+        idx += 1;
+    }
+}
+
+fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
     let mut left: Ast = match token_stream.next() {
         Some(Token::LParen) => {
-            let l = parser(token_stream, 0.0);
+            let l = parse_expr(token_stream, 0.0);
             expect(token_stream, Token::RParen)?;
             l?
         }
@@ -285,7 +378,7 @@ fn parser(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, Poly
             } else {
                 let op = Token::Operator(*op);
                 token_stream.next();
-                let right = parser(token_stream, cbind_pow)?;
+                let right = parse_expr(token_stream, cbind_pow + 1.0)?;
                 left = Ast::new(op, Some(left), Some(right));
                 continue;
             }
@@ -296,26 +389,210 @@ fn parser(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, Poly
     return Ok(left);
 }
 
-fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
-    if let Some(token) = token_stream.peek()
-        && expected_token == *token
-    {
-        return Ok(());
-    }
-    Err(PolynomialError::MissingVariable)
+#[allow(dead_code)]
+fn parser(token_stream: Vec<Token>, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
+    let mut tokens = token_stream;
+    implied_multiplication_pass(&mut tokens);
+    let mut token_stream = tokens.into_iter().peekable();
+    parse_expr(&mut token_stream, min_bind_pow)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn test_parser() {
-        let expr = "2*x+2";
-        let mut tok_str = lexer(expr).unwrap().into_iter().peekable();
-        let result = parser(&mut tok_str, 0.0);
-        println!("{:?}", result);
+    fn test_number_parse() {
+        let expr = "4";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(Token::Number(4.0));
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_variable_parse() {
+        let expr = "x";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(Token::Variable("x".into()));
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_exponents_parse() {
+        let expr = "x^2";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(
+            Token::Operator(Operators::Caret),
+            Token::Variable("x".into()),
+            Token::Number(2.0)
+        );
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_integer_coefficient_parse() {
+        let expr = "4x";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(
+            Token::Operator(Operators::Mul),
+            Token::Number(4.0),
+            Token::Variable("x".into())
+        );
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_float_coefficient_parse() {
+        let expr = "4.2x";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(
+            Token::Operator(Operators::Mul),
+            Token::Number(4.2),
+            Token::Variable("x".into())
+        );
+        assert_eq!(result, expect);
     }
 
+    #[test]
+    fn test_basic_expression_parse() {
+        let expr = "4x+2";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_ast!(
+            Token::Operator(Operators::Add),
+            Some(ast_from_token!(
+                Token::Operator(Operators::Mul),
+                Token::Number(4.0),
+                Token::Variable("x".into())
+            )),
+            Some(ast_from_token!(Token::Number(2.0)))
+        );
+        assert_eq!(result, expect);
+    }
+
+    #[test]
+    fn test_int_float_expression_parse() {
+        let expr = "4x^2 + 2.3x^3"
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let l_child = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(ast_from_token!(Token::Number(4.0))),
+            Some(ast_from_token!(
+                Token::Operator(Operators::Caret),
+                Token::Variable("x".into()),
+                Token::Number(2.0)
+            ))
+        );
+        let r_child = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(ast_from_token!(Token::Number(2.3))),
+            Some(ast_from_token!(
+                Token::Operator(Operators::Caret),
+                Token::Variable("x".into()),
+                Token::Number(3.0)
+            ))
+        );
+        let expect = ast_from_ast!(
+            Token::Operator(Operators::Add),
+            Some(l_child),
+            Some(r_child)
+        );
+        assert_eq!(result, expect);
+    }
+    #[test]
+    fn test_complex_expression_parse() {
+        let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+        let mut tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        // (x^2)
+        let term_x2 = ast_from_token!(
+            Token::Operator(Operators::Caret),
+            Token::Variable("x".into()),
+            Token::Number(2.0)
+        );
+        // (5*(x^2))
+        let term_5x2 = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(ast_from_token!(Token::Number(5.0))),
+            Some(term_x2)
+        );
+        // ((5*(x^2))*4)
+        let term_5x24 = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(term_5x2),
+            Some(ast_from_token!(Token::Number(4.0)))
+        );
+        // (x^4))
+        let term_x4 = ast_from_token!(
+            Token::Operator(Operators::Caret),
+            Token::Variable("x".into()),
+            Token::Number(4.0)
+        );
+        // (((5*(x^2))*4) * (x^4))
+        let term_5x24x4 = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(term_5x24),
+            Some(term_x4)
+        );
+
+        // (((5*(x^2))*4) * (x^4)) / 6
+        let mul_left = ast_from_ast!(
+            Token::Operator(Operators::Div),
+            Some(term_5x24x4),
+            Some(ast_from_token!(Token::Number(6.0)))
+        );
+        // (x^6)
+        let term_x6 = ast_from_token!(
+            Token::Operator(Operators::Caret),
+            Token::Variable("x".into()),
+            Token::Number(6.0)
+        );
+        // ((((5*(x^2))*4) * (x^4)) / 6)* (x^6))
+        let fmul_right = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(mul_left),
+            Some(term_x6)
+        );
+        let fmul_left = ast_from_ast!(
+            Token::Operator(Operators::Add),
+            Some(ast_from_token!(
+                Token::Operator(Operators::Mul),
+                Token::Number(4.0),
+                Token::Variable("x".into())
+            ),),
+            Some(ast_from_token!(Token::Number(2.0)))
+        );
+        let expected = ast_from_ast!(
+            Token::Operator(Operators::Sub),
+            Some(fmul_left),
+            Some(fmul_right)
+        );
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn test_zero_x_parse(){
+        let expr = "0x"
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(
+            Token::Operator(Operators::Mul),
+            Token::Number(0),
+            Token::Variable("x".into())
+        );
+        assert_eq!(result, expect);
+    }
+
+    #[test]
+    fn test_zero_parse(){
+        let expr = "0"
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0).unwrap();
+        let expect = ast_from_token!(
+            Token::Number(0),
+        );
+        assert_eq!(result, expect);
+    }
     #[test]
     fn test_number_token() {
         let expr = "32";
