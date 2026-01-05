@@ -1,10 +1,11 @@
 use crate::derivatives::simple::simple_derivative;
+use crate::integrals::simple_indefinite::indefinite_integral_simple;
 use crate::polynomials::PolynomialError;
 use crate::polynomials::simple::{eval_simple_polynomial, parse_simple_polynomial};
 use crate::polynomials::structs::PolynomialTraits;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SimplePolynomial {
     pub coefficients: Vec<f64>,
 }
@@ -28,8 +29,11 @@ impl PolynomialTraits for SimplePolynomial {
     }
 
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
-        let derivative = simple_derivative(&self.coefficients);
-        Ok(derivative)
+        Ok(simple_derivative(&self.coefficients))
+    }
+
+    fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError> {
+        Ok(indefinite_integral_simple(&self.coefficients))
     }
 
     // Simple Polynomial can only handle univariate inputs
@@ -78,7 +82,9 @@ impl std::fmt::Display for SimplePolynomial {
             let abs_coeff = coeff.abs();
 
             // Print the coefficient if it's not 1 (or if it's the constant term)
-            write!(f, "{}", abs_coeff)?;
+            if abs_coeff != 1.0 {
+                write!(f, "{}", abs_coeff)?;
+            }
 
             match i {
                 0 => {} // Constant term
