@@ -1,80 +1,9 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::ast::{Ast, TokenStream};
+use crate::polynomials::structs::ast::{PolynomialAst, TokenStream};
 use once_cell::sync::Lazy;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
-
-/*
-* ##### AST_FROM_TOKEN MACRO: USAGE EXAMPLE ####
-*
-* ### INPUT:
-*
-* GIVES A LEAF OR THE PARENT OF THE LEAF NODE OF THE AST
-*
-* ast_from_token!(Token::Number(4.0)) (4)
-* ast_from_token!(Token::Operator(Operators::Mul),Token::Number(4.0),Token::Number(4.0)) (4 * 4)
-*
-* GIVES A BRANCH NODE OF THE AST
-* ast_from_ast!(Token::Operator(Operators::Mul),Some(ast_from_token(Token::Number(4.0)),ast_from_token(2.0))) (4 * 2)
-*
-* ### OUTPUT GENERATED:
-*
-* ast_from_token!(token)=>
-*   Ast{
-*       cval: token,
-*       lval: None,
-*       rval: None,
-*   }
-*
-* ast_from_token!(TOKEN,LVAL,RVAL)=>
-*   Ast{
-*       cval: TOKEN,
-*       lval: Ast{cval:LVAL,lval:None,rval:None},
-*       rval: Ast{cval:RVAL,lval:None,rval:None},
-*   }
-*
-*/
-
-macro_rules! ast_from_token {
-    ($val: expr $(,)*) => {
-        Ast::new($val, None, None)
-    };
-    ($val: expr,$left: expr, $right: expr $(,)*) => {
-        Ast::new(
-            $val,
-            Some(Ast::new($left, None, None)),
-            Some(Ast::new($right, None, None)),
-        )
-    };
-}
-
-/*
-* ##### AST_FROM_AST MACRO: USAGE EXAMPLE ####
-*
-* ### INPUT:
-*
-* GIVES A BRANCH NODE OF THE AST
-*
-* ast_from_ast!(Token::Operator(Operators::Mul),Some(LVAL),Some(ast_from_token!(2.0))) (LVAL{May be an expression} * 2)
-*
-* ### OUTPUT GENERATED:
-*
-*
-* ast_from_ast!(TOKEN,LVAL,RVAL)=>{
-*   Ast{
-*       cval: TOKEN,
-*       lval: Some(LVAL),
-*       rval: Some(RVAL),
-*   }
-* }
-*/
-
-macro_rules! ast_from_ast {
-    ($val: expr,$left: expr, $right: expr $(,)*) => {
-        Ast::new($val, $left, $right)
-    };
-}
 
 /*
 * ##### TOKEN_FROM_STR MACRO: USAGE EXAMPLE ####
@@ -223,6 +152,7 @@ pub enum Token {
     RParen,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Number(f64),
     Variable(String),
@@ -417,16 +347,26 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     }
 }
 
-fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
-    let mut left: Ast = match token_stream.next() {
+fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr, PolynomialError> {
+    let mut left = match token_stream.next() {
+        Some(Token::Number(n)) => Ok(Expr::Number(n)),
+        Some(Token::Variable(n)) => Ok(Expr::Variable(n)),
+        Some(Token::Constant(n)) => Ok(Expr::Constant(n)),
         Some(Token::LParen) => {
-            let l = parse_expr(token_stream, 0.0);
+            let expr = parse_expr(token_stream, 0.0);
             expect(token_stream, Token::RParen)?;
-            l?
+            expr
         }
-        Some(token) => Ast::new(token, None, None),
-        None => return Err(PolynomialError::PolynomialSyntaxError),
-    };
+        Some(Token::Function(f)) => {
+            let func = f;
+            let inner = parse_expr(token_stream, 5.0)?;
+            return Ok(Expr::Function {
+                func,
+                inner: Box::new(inner),
+            });
+        }
+        _ => return Err(PolynomialError::PolynomialSyntaxError),
+    }?;
     // iteratively looks for operators with lower binding than minimum binding power
     loop {
         if let Some(Token::Operator(op)) = token_stream.peek() {
@@ -434,11 +374,15 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, 
             if cbind_pow < min_bind_pow {
                 break;
             } else {
-                let op = Token::Operator(*op);
+                let op = *op;
                 token_stream.next();
                 // right associativity of operators
                 let right = parse_expr(token_stream, cbind_pow + 1.0)?;
-                left = Ast::new(op, Some(left), Some(right));
+                left = Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(left),
+                    rhs: Box::new(right),
+                };
                 continue;
             }
         } else {
@@ -449,83 +393,91 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, 
 }
 
 #[allow(dead_code)]
-fn parser(token_stream: Vec<Token>, min_bind_pow: f64) -> Result<Ast, PolynomialError> {
+fn parser(token_stream: Vec<Token>, min_bind_pow: f64) -> Result<PolynomialAst, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
-    parse_expr(&mut token_stream, min_bind_pow)
+    Ok(PolynomialAst::new(parse_expr(
+        &mut token_stream,
+        min_bind_pow,
+    )?))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_number_parse() {
         let expr = "4";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(Token::Number(4.0));
+        let expect = PolynomialAst::new(Expr::Number(4.0));
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_variable_parse() {
         let expr = "x";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(Token::Variable("x".into()));
+        let expect = PolynomialAst::new(Expr::Variable("x".into()));
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_exponents_parse() {
         let expr = "x^2";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(
-            Token::Operator(Operators::Caret),
-            Token::Variable("x".into()),
-            Token::Number(2.0)
-        );
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs: Box::new(Expr::Variable("x".into())),
+            rhs: Box::new(Expr::Number(2.0)),
+        });
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_integer_coefficient_parse() {
         let expr = "4x";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(
-            Token::Operator(Operators::Mul),
-            Token::Number(4.0),
-            Token::Variable("x".into())
-        );
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(4.0)),
+            rhs: Box::new(Expr::Variable("x".into())),
+        });
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_float_coefficient_parse() {
         let expr = "4.2x";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(
-            Token::Operator(Operators::Mul),
-            Token::Number(4.2),
-            Token::Variable("x".into())
-        );
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(4.2)),
+            rhs: Box::new(Expr::Variable("x".into())),
+        });
         assert_eq!(result, expect);
     }
 
     #[test]
     fn test_basic_expression_parse() {
         let expr = "4x+2";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_ast!(
-            Token::Operator(Operators::Add),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Mul),
-                Token::Number(4.0),
-                Token::Variable("x".into())
-            )),
-            Some(ast_from_token!(Token::Number(2.0)))
-        );
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Add,
+            lhs: Box::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+            }),
+            rhs: Box::new(Expr::Number(2.0)),
+        });
         assert_eq!(result, expect);
     }
 
@@ -534,111 +486,127 @@ mod tests {
         let expr = "4x^2 + 2.3x^3";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let l_child = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(ast_from_token!(Token::Number(4.0))),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Caret),
-                Token::Variable("x".into()),
-                Token::Number(2.0)
-            ))
-        );
-        let r_child = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(ast_from_token!(Token::Number(2.3))),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Caret),
-                Token::Variable("x".into()),
-                Token::Number(3.0)
-            ))
-        );
-        let expect = ast_from_ast!(
-            Token::Operator(Operators::Add),
-            Some(l_child),
-            Some(r_child)
-        );
+
+        let l_child = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(4.0)),
+            rhs: Box::new(Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(2.0)),
+            }),
+        };
+
+        let r_child = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(2.3)),
+            rhs: Box::new(Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(3.0)),
+            }),
+        };
+
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Add,
+            lhs: Box::new(l_child),
+            rhs: Box::new(r_child),
+        });
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_complex_expression_parse() {
         let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
-        let mut tok_str = lexer(expr).unwrap();
+        let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        // (x^2)
-        let term_x2 = ast_from_token!(
-            Token::Operator(Operators::Caret),
-            Token::Variable("x".into()),
-            Token::Number(2.0)
-        );
-        // (5*(x^2))
-        let term_5x2 = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(ast_from_token!(Token::Number(5.0))),
-            Some(term_x2)
-        );
-        // ((5*(x^2))*4)
-        let term_5x24 = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(term_5x2),
-            Some(ast_from_token!(Token::Number(4.0)))
-        );
-        // (x^4))
-        let term_x4 = ast_from_token!(
-            Token::Operator(Operators::Caret),
-            Token::Variable("x".into()),
-            Token::Number(4.0)
-        );
-        // (((5*(x^2))*4) * (x^4))
-        let term_5x24x4 = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(term_5x24),
-            Some(term_x4)
-        );
 
-        // (((5*(x^2))*4) * (x^4)) / 6
-        let mul_left = ast_from_ast!(
-            Token::Operator(Operators::Div),
-            Some(term_5x24x4),
-            Some(ast_from_token!(Token::Number(6.0)))
-        );
-        // (x^6)
-        let term_x6 = ast_from_token!(
-            Token::Operator(Operators::Caret),
-            Token::Variable("x".into()),
-            Token::Number(6.0)
-        );
-        // ((((5*(x^2))*4) * (x^4)) / 6)* (x^6))
-        let fmul_right = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(mul_left),
-            Some(term_x6)
-        );
-        let fmul_left = ast_from_ast!(
-            Token::Operator(Operators::Add),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Mul),
-                Token::Number(4.0),
-                Token::Variable("x".into())
-            ),),
-            Some(ast_from_token!(Token::Number(2.0)))
-        );
-        let expected = ast_from_ast!(
-            Token::Operator(Operators::Sub),
-            Some(fmul_left),
-            Some(fmul_right)
-        );
+        // x^2
+        let term_x2 = Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs: Box::new(Expr::Variable("x".into())),
+            rhs: Box::new(Expr::Number(2.0)),
+        };
+
+        // 5 * x^2
+        let term_5x2 = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(5.0)),
+            rhs: Box::new(term_x2),
+        };
+
+        // (5 * x^2) * 4
+        let term_5x24 = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(term_5x2),
+            rhs: Box::new(Expr::Number(4.0)),
+        };
+
+        // x^4
+        let term_x4 = Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs: Box::new(Expr::Variable("x".into())),
+            rhs: Box::new(Expr::Number(4.0)),
+        };
+
+        // ((5 * x^2) * 4) * x^4
+        let term_5x24x4 = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(term_5x24),
+            rhs: Box::new(term_x4),
+        };
+
+        // (((5 * x^2) * 4) * x^4) / 6
+        let mul_left = Expr::BinaryOp {
+            op: Operators::Div,
+            lhs: Box::new(term_5x24x4),
+            rhs: Box::new(Expr::Number(6.0)),
+        };
+
+        // x^6
+        let term_x6 = Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs: Box::new(Expr::Variable("x".into())),
+            rhs: Box::new(Expr::Number(6.0)),
+        };
+
+        // ((((5 * x^2) * 4) * x^4) / 6) * x^6
+        let fmul_right = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(mul_left),
+            rhs: Box::new(term_x6),
+        };
+
+        // 4x + 2
+        let fmul_left = Expr::BinaryOp {
+            op: Operators::Add,
+            lhs: Box::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+            }),
+            rhs: Box::new(Expr::Number(2.0)),
+        };
+
+        // (4x + 2) - (...)
+        let expected = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Sub,
+            lhs: Box::new(fmul_left),
+            rhs: Box::new(fmul_right),
+        });
         assert_eq!(result, expected);
     }
+
     #[test]
     fn test_zero_x_parse() {
         let expr = "0x";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(
-            Token::Operator(Operators::Mul),
-            Token::Number(0.0),
-            Token::Variable("x".into())
-        );
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(0.0)),
+            rhs: Box::new(Expr::Variable("x".into())),
+        });
         assert_eq!(result, expect);
     }
 
@@ -647,64 +615,69 @@ mod tests {
         let expr = "0";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
-        let expect = ast_from_token!(Token::Number(0.0));
+        let expect = PolynomialAst::new(Expr::Number(0.0));
         assert_eq!(result, expect);
     }
+
     #[test]
     fn test_multivariate_expression_parse() {
         let expr = "4xy + 4x^2 - 2y + 4";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
 
-        let term_4xy = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Mul),
-                Token::Number(4.0),
-                Token::Variable("x".into())
-            )),
-            Some(ast_from_token!(Token::Variable("y".into())))
-        );
+        // 4xy = (4 * x) * y
+        let term_4xy = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+            }),
+            rhs: Box::new(Expr::Variable("y".into())),
+        };
 
-        let term_4x2 = ast_from_ast!(
-            Token::Operator(Operators::Mul),
-            Some(ast_from_token!(Token::Number(4.0))),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Caret),
-                Token::Variable("x".into()),
-                Token::Number(2.0)
-            ))
-        );
+        // 4x^2 = 4 * (x^2)
+        let term_4x2 = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(4.0)),
+            rhs: Box::new(Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(2.0)),
+            }),
+        };
 
-        let term_2y = ast_from_token!(
-            Token::Operator(Operators::Mul),
-            Token::Number(2.0),
-            Token::Variable("y".into())
-        );
+        // 2y
+        let term_2y = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(2.0)),
+            rhs: Box::new(Expr::Variable("y".into())),
+        };
 
-        let term_lleft = ast_from_ast!(
-            Token::Operator(Operators::Add),
-            Some(term_4xy),
-            Some(term_4x2)
-        );
+        // 4xy + 4x^2
+        let term_lleft = Expr::BinaryOp {
+            op: Operators::Add,
+            lhs: Box::new(term_4xy),
+            rhs: Box::new(term_4x2),
+        };
 
-        let term_left = ast_from_ast!(
-            Token::Operator(Operators::Sub),
-            Some(term_lleft),
-            Some(ast_from_token!(
-                Token::Operator(Operators::Mul),
-                Token::Number(2.0),
-                Token::Variable("y".into())
-            ))
-        );
+        // (4xy + 4x^2) - 2y
+        let term_left = Expr::BinaryOp {
+            op: Operators::Sub,
+            lhs: Box::new(term_lleft),
+            rhs: Box::new(term_2y),
+        };
 
-        let expect = ast_from_ast!(
-            Token::Operator(Operators::Add),
-            Some(term_left),
-            Some(ast_from_token!(Token::Number(4.0)))
-        );
+        // ((4xy + 4x^2) - 2y) + 4
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Add,
+            lhs: Box::new(term_left),
+            rhs: Box::new(Expr::Number(4.0)),
+        });
         assert_eq!(result, expect);
     }
+
+    // Error handling tests
     #[test]
     fn test_invalid_expression() {
         let expr = "4 +++ 3x";
@@ -713,6 +686,7 @@ mod tests {
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
+
     #[test]
     fn test_missing_right_hand() {
         let expr = "4x +";
@@ -721,6 +695,7 @@ mod tests {
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
+
     #[test]
     fn test_missing_left_hand() {
         let expr = "+ 3x";
