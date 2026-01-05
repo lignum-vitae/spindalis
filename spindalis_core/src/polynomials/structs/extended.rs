@@ -1,8 +1,10 @@
 use crate::derivatives::extended::partial_derivative;
+use crate::integrals::extended_indefinite::indefinite_integral_extended;
 use crate::polynomials::extended::{eval_polynomial_extended, parse_polynomial_extended};
 use crate::polynomials::structs::PolynomialTraits;
 use crate::polynomials::{PolynomialError, Term};
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq)]
 pub struct PolynomialExtended {
     pub terms: Vec<Term>,
     pub variables: Vec<String>,
@@ -23,7 +25,7 @@ impl PolynomialTraits for PolynomialExtended {
     where
         F: Into<f64> + std::clone::Clone + std::fmt::Debug,
     {
-        if self.variables.len() != 1 {
+        if self.variables.len() > 1 {
             return Err(PolynomialError::TooManyVariables {
                 variables: self.variables.clone(),
             });
@@ -43,7 +45,7 @@ impl PolynomialTraits for PolynomialExtended {
         Ok(evaluated)
     }
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
-        if self.variables.len() != 1 {
+        if self.variables.len() > 1 {
             return Err(PolynomialError::TooManyVariables {
                 variables: self.variables.clone(),
             });
@@ -51,6 +53,25 @@ impl PolynomialTraits for PolynomialExtended {
         Ok(Self {
             terms: partial_derivative(&self.terms, &self.variables[0]).terms,
             variables: self.variables.clone(),
+        })
+    }
+    fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError> {
+        if self.variables.len() > 1 {
+            return Err(PolynomialError::TooManyVariables {
+                variables: self.variables.clone(),
+            });
+        }
+        let var = if self.variables.is_empty() {
+            "x"
+        } else {
+            &self.variables[0]
+        };
+
+        let integrated_poly = indefinite_integral_extended(&self.terms, var);
+
+        Ok(Self {
+            terms: integrated_poly.terms,
+            variables: integrated_poly.variables,
         })
     }
     fn derivate_multivariate<S>(&self, var: S) -> Self

@@ -53,7 +53,7 @@ where
 
         // Extract coefficient
         while let Some(&ch) = chars.peek() {
-            if ch.is_numeric() || ch == '.' || (coeff.is_empty() && ch == '-') {
+            if ch.is_numeric() || ch == '.' || (coeff.is_empty() && ch == '-') || ch == '/' {
                 coeff.push(ch);
                 chars.next();
             } else {
@@ -64,6 +64,17 @@ where
         // If no explicit coefficient (e.g., "-x" instead of "-1x"), set it to 1 or -1
         let coeff = if coeff.is_empty() || coeff == "-" {
             if coeff == "-" { -1.0 } else { 1.0 }
+        } else if coeff.contains('/') {
+            let fraction: Vec<&str> = coeff.split('/').collect();
+            if fraction.len() != 2 {
+                return Err(PolynomialError::InvalidFraction { frac: coeff });
+            }
+            match (fraction[0].parse::<f64>(), fraction[1].parse::<f64>()) {
+                (Ok(x), Ok(y)) if y != 0.0 => x / y,
+                _ => {
+                    return Err(PolynomialError::InvalidFraction { frac: coeff });
+                }
+            }
         } else {
             let parsed = coeff.parse::<f64>();
             match parsed {
