@@ -16,6 +16,7 @@ pub enum PolynomialError {
     InvalidConstant,
     InvalidExponent { pow: String },
     InvalidFractionalExponent { pow: String },
+    InvalidFraction { frac: String },
     InvalidNumber { num: String },
     PolynomialSyntaxError,
     MissingVariable,

@@ -94,6 +94,7 @@ macro_rules! token_from_char {
         }
         // 2. `fn from_char` with matching rules
         impl $enum_name {
+            #[allow(clippy::result_unit_err)]
             pub fn from_char(c: char) -> ::std::result::Result<Self, ()> {
                 match c {
                     $($var_char => Ok($enum_name::$var_name),)*
