@@ -337,14 +337,15 @@ static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
 });
 
 fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
-    if let Some(token) = token_stream.peek()
-    {
-        if  expected_token == *token{
+    if let Some(token) = token_stream.peek() {
+        if expected_token == *token {
             return Ok(());
-        }else{
-            return Err(PolynomialError::UnexpectedChar{token: token});
+        } else {
+            return Err(PolynomialError::UnexpectedToken {
+                token: token.clone(),
+            });
         }
-    }else{
+    } else {
         return Err(PolynomialError::UnexpectedEndOfTokens);
     }
 }
@@ -435,6 +436,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Ast, 
             } else {
                 let op = Token::Operator(*op);
                 token_stream.next();
+                // right associativity of operators
                 let right = parse_expr(token_stream, cbind_pow + 1.0)?;
                 left = Ast::new(op, Some(left), Some(right));
                 continue;
@@ -650,52 +652,51 @@ mod tests {
     }
     #[test]
     fn test_multivariate_expression_parse() {
-
         let expr = "4xy + 4x^2 - 2y + 4";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0).unwrap();
 
         let term_4xy = ast_from_ast!(
+            Token::Operator(Operators::Mul),
+            Some(ast_from_token!(
                 Token::Operator(Operators::Mul),
-                Some(ast_from_token!(
-                    Token::Operator(Operators::Mul),
-                    Token::Number(4.0),
-                    Token::Variable("x".into())
-                )),
-                Some(ast_from_token!(Token::Variable("y".into())))
-            );
+                Token::Number(4.0),
+                Token::Variable("x".into())
+            )),
+            Some(ast_from_token!(Token::Variable("y".into())))
+        );
 
         let term_4x2 = ast_from_ast!(
-                Token::Operator(Operators::Mul),
-                Some(ast_from_token!(Token::Number(4.0))),
-                Some(ast_from_token!(
-                        Token::Operator(Operators::Caret),
-                        Token::Variable("x".into()),
-                        Token::Number(2.0)
-                ))
-            );
+            Token::Operator(Operators::Mul),
+            Some(ast_from_token!(Token::Number(4.0))),
+            Some(ast_from_token!(
+                Token::Operator(Operators::Caret),
+                Token::Variable("x".into()),
+                Token::Number(2.0)
+            ))
+        );
 
         let term_2y = ast_from_token!(
-                Token::Operator(Operators::Mul),
-                Token::Number(2.0),
-                Token::Variable("y".into())
-            );
+            Token::Operator(Operators::Mul),
+            Token::Number(2.0),
+            Token::Variable("y".into())
+        );
 
         let term_lleft = ast_from_ast!(
             Token::Operator(Operators::Add),
             Some(term_4xy),
             Some(term_4x2)
-            );
+        );
 
         let term_left = ast_from_ast!(
             Token::Operator(Operators::Sub),
             Some(term_lleft),
             Some(ast_from_token!(
-                    Token::Operator(Operators::Mul),
-                    Token::Number(2.0),
-                    Token::Variable("y".into()))
-                )
-            );
+                Token::Operator(Operators::Mul),
+                Token::Number(2.0),
+                Token::Variable("y".into())
+            ))
+        );
 
         let expect = ast_from_ast!(
             Token::Operator(Operators::Add),
@@ -705,55 +706,55 @@ mod tests {
         assert_eq!(result, expect);
     }
     #[test]
-    fn test_invalid_expression(){
-        let expr="4 +++ 3x";
+    fn test_invalid_expression() {
+        let expr = "4 +++ 3x";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
     }
     #[test]
-    fn test_missing_right_hand(){
-        let expr="4x +";
+    fn test_missing_right_hand() {
+        let expr = "4x +";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
     }
     #[test]
-    fn test_missing_left_hand(){
-        let expr="+ 3x";
+    fn test_missing_left_hand() {
+        let expr = "+ 3x";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
-    }
-
-    #[test]
-    fn test_only_operator(){
-        let expr="+";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
     }
 
     #[test]
-    fn test_invalid_multiple_exponents(){
-        let expr="4x^^^2";
+    fn test_only_operator() {
+        let expr = "+";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
     }
-    
+
     #[test]
-    fn test_multiple_exponents(){
-        let expr="4x^2^3";
+    fn test_invalid_multiple_exponents() {
+        let expr = "4x^^^2";
         let tok_str = lexer(expr).unwrap();
         let result = parser(tok_str, 0.0);
-        println!("{:?}",result);
-        assert!(matches!(result,Err(_)));
+        println!("{:?}", result);
+        assert!(matches!(result, Err(_)));
+    }
+
+    #[test]
+    fn test_valid_multiple_exponents() {
+        let expr = "4x^2^3";
+        let tok_str = lexer(expr).unwrap();
+        let result = parser(tok_str, 0.0);
+        println!("{:?}", result);
+        assert!(matches!(result, Ok(_)));
     }
 
     #[test]

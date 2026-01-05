@@ -8,7 +8,6 @@ pub use extended::Term;
 
 use ast::Token;
 
-
 // Error Enum
 
 #[derive(Debug)]
