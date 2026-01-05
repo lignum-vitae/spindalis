@@ -1,19 +1,24 @@
 use crate::derivatives::simple::simple_derivative;
+use crate::integrals::simple_indefinite::indefinite_integral_simple;
 use crate::polynomials::PolynomialError;
 use crate::polynomials::simple::{eval_simple_polynomial, parse_simple_polynomial};
 use crate::polynomials::structs::PolynomialTraits;
 use std::collections::HashMap;
 
+#[derive(Debug, PartialEq)]
 pub struct SimplePolynomial {
     pub coefficients: Vec<f64>,
 }
 
+impl PartialEq<Vec<f64>> for SimplePolynomial {
+    fn eq(&self, other: &Vec<f64>) -> bool {
+        &self.coefficients == other
+    }
+}
+
 impl PolynomialTraits for SimplePolynomial {
     fn parse(input: &str) -> Result<SimplePolynomial, PolynomialError> {
-        let parsed = parse_simple_polynomial(input)?;
-        Ok(SimplePolynomial {
-            coefficients: parsed,
-        })
+        parse_simple_polynomial(input)
     }
 
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
@@ -24,10 +29,11 @@ impl PolynomialTraits for SimplePolynomial {
     }
 
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
-        let derivative = simple_derivative(&self.coefficients);
-        Ok(Self {
-            coefficients: derivative,
-        })
+        Ok(simple_derivative(&self.coefficients))
+    }
+
+    fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError> {
+        Ok(indefinite_integral_simple(&self.coefficients))
     }
 
     // Simple Polynomial can only handle univariate inputs
@@ -53,9 +59,45 @@ impl PolynomialTraits for SimplePolynomial {
 
     #[allow(unused_variables)]
     fn derivate_multivariate<S>(&self, var: S) -> Self {
-        let derivative = simple_derivative(&self.coefficients);
-        Self {
-            coefficients: derivative,
+        simple_derivative(&self.coefficients)
+    }
+}
+
+impl std::fmt::Display for SimplePolynomial {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut first = true;
+        // Assume coefficients are ordered from highest degree to lowest
+        for (i, &coeff) in self.coefficients.iter().enumerate().rev() {
+            if coeff == 0.0 {
+                continue;
+            }
+
+            // Handle signs and spacing
+            if !first && coeff > 0.0 {
+                write!(f, " + ")?;
+            } else if coeff < 0.0 {
+                write!(f, " - ")?;
+            }
+
+            let abs_coeff = coeff.abs();
+
+            // Print the coefficient if it's not 1 (or if it's the constant term)
+            if abs_coeff != 1.0 {
+                write!(f, "{}", abs_coeff)?;
+            }
+
+            match i {
+                0 => {} // Constant term
+                1 => write!(f, "x")?,
+                _ => write!(f, "x^{}", i)?,
+            }
+            first = false;
         }
+
+        if first {
+            write!(f, "0")?;
+        }
+
+        Ok(())
     }
 }

@@ -19,7 +19,7 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
         };
 
     let mut tokens = String::from("vec![");
-    for coeff in output {
+    for coeff in output.coefficients {
         tokens.push_str(&format!("{coeff:?},"));
     }
     tokens.push(']');
@@ -41,7 +41,7 @@ pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
         };
 
     let mut tokens = String::from("vec![");
-    for term in output {
+    for term in output.terms {
         tokens.push_str(&format!(
             "::spindalis_core::polynomials::Term {{ coefficient: {:?}, variables: vec![",
             term.coefficient,
@@ -80,7 +80,7 @@ impl Parse for IntegralArgs {
 }
 
 #[proc_macro]
-pub fn definite_integral(input: TokenStream) -> TokenStream {
+pub fn analytical_integral(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as IntegralArgs);
 
     //  Parse string to coefficients using your existing core logic
@@ -95,7 +95,8 @@ pub fn definite_integral(input: TokenStream) -> TokenStream {
 
     //  Calculate the result using your analytical_integral function
     let result =
-        spindalis_core::integrals::analytical_integral(&coefficients, args.lower, args.upper);
+        spindalis_core::integrals::analytical_integral(&coefficients, args.lower, args.upper)
+            .unwrap_or_else(|e| panic!("Compile-time Integral Calculation Error: {:?}", e));
 
     //  Emit the final result as a float literal
     let expanded = quote! {

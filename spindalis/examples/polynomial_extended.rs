@@ -30,11 +30,11 @@ fn main() {
     // Calculative partial derivative
     println!("Partial derivatives of polynomials");
     let dx = partial_derivative(&parsed, "x");
-    println!("Derivative with respect to x: {dx:?}");
+    println!("Derivative with respect to x: {dx}");
 
     let dy = partial_derivative(&parsed, "y");
-    println!("Derivative with respect to y: {dy:?}");
+    println!("Derivative with respect to y: {dy}");
 
     let dz = partial_derivative(&parsed, "z".to_string());
-    println!("Derivative with respect to z: {dz:?}");
+    println!("Derivative with respect to z: {dz}");
 }

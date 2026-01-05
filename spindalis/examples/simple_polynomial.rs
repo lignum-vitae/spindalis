@@ -21,5 +21,5 @@ fn main() {
     // Derivative of parsed polynomial
     println!("Finding derivatives of polynomials");
     let dx = simple_derivative(&parsed);
-    println!("Derivative coefficients: {dx:?}");
+    println!("Derivative coefficients: {dx}");
 }

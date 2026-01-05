@@ -1,6 +1,6 @@
-use crate::polynomials::PolynomialError;
+use crate::polynomials::{PolynomialError, structs::SimplePolynomial};
 
-pub fn parse_simple_polynomial<S>(input: S) -> Result<Vec<f64>, PolynomialError>
+pub fn parse_simple_polynomial<S>(input: S) -> Result<SimplePolynomial, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -75,7 +75,9 @@ where
     for &(coeff, power) in terms {
         coeffs[power] += coeff;
     }
-    Ok(coeffs)
+    Ok(SimplePolynomial {
+        coefficients: coeffs,
+    })
 }
 
 pub fn eval_simple_polynomial<F>(x: F, coeffs: &[f64]) -> f64
