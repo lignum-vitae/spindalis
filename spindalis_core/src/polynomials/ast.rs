@@ -724,9 +724,21 @@ mod tests {
     fn test_valid_multiple_exponents() {
         let expr = "4x^2^3";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Ok(_)));
+        let result = parser(tok_str).unwrap();
+        let expect = PolynomialAst::new(Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(Expr::Number(4.0)),
+            rhs: Box::new(Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(2.0)),
+                }),
+                rhs: Box::new(Expr::Number(3.0)),
+            }),
+        });
+        assert_eq!(result, expect);
     }
 
     #[test]
