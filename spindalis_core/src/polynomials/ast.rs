@@ -393,14 +393,11 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
 }
 
 #[allow(dead_code)]
-fn parser(token_stream: Vec<Token>, min_bind_pow: f64) -> Result<PolynomialAst, PolynomialError> {
+fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
-    Ok(PolynomialAst::new(parse_expr(
-        &mut token_stream,
-        min_bind_pow,
-    )?))
+    Ok(PolynomialAst::new(parse_expr(&mut token_stream, 0.0)?))
 }
 
 #[cfg(test)]
@@ -411,7 +408,7 @@ mod tests {
     fn test_number_parse() {
         let expr = "4";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::Number(4.0));
         assert_eq!(result, expect);
     }
@@ -420,7 +417,7 @@ mod tests {
     fn test_variable_parse() {
         let expr = "x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::Variable("x".into()));
         assert_eq!(result, expect);
     }
@@ -429,7 +426,7 @@ mod tests {
     fn test_exponents_parse() {
         let expr = "x^2";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::BinaryOp {
             op: Operators::Caret,
             lhs: Box::new(Expr::Variable("x".into())),
@@ -442,7 +439,7 @@ mod tests {
     fn test_integer_coefficient_parse() {
         let expr = "4x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::BinaryOp {
             op: Operators::Mul,
             lhs: Box::new(Expr::Number(4.0)),
@@ -455,7 +452,7 @@ mod tests {
     fn test_float_coefficient_parse() {
         let expr = "4.2x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::BinaryOp {
             op: Operators::Mul,
             lhs: Box::new(Expr::Number(4.2)),
@@ -468,7 +465,7 @@ mod tests {
     fn test_basic_expression_parse() {
         let expr = "4x+2";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::BinaryOp {
             op: Operators::Add,
             lhs: Box::new(Expr::BinaryOp {
@@ -485,7 +482,7 @@ mod tests {
     fn test_int_float_expression_parse() {
         let expr = "4x^2 + 2.3x^3";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
 
         let l_child = Expr::BinaryOp {
             op: Operators::Mul,
@@ -519,7 +516,7 @@ mod tests {
     fn test_complex_expression_parse() {
         let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
 
         // x^2
         let term_x2 = Expr::BinaryOp {
@@ -601,7 +598,7 @@ mod tests {
     fn test_zero_x_parse() {
         let expr = "0x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::BinaryOp {
             op: Operators::Mul,
             lhs: Box::new(Expr::Number(0.0)),
@@ -614,7 +611,7 @@ mod tests {
     fn test_zero_parse() {
         let expr = "0";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
         let expect = PolynomialAst::new(Expr::Number(0.0));
         assert_eq!(result, expect);
     }
@@ -623,7 +620,7 @@ mod tests {
     fn test_multivariate_expression_parse() {
         let expr = "4xy + 4x^2 - 2y + 4";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0).unwrap();
+        let result = parser(tok_str).unwrap();
 
         // 4xy = (4 * x) * y
         let term_4xy = Expr::BinaryOp {
@@ -682,7 +679,7 @@ mod tests {
     fn test_invalid_expression() {
         let expr = "4 +++ 3x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
@@ -691,7 +688,7 @@ mod tests {
     fn test_missing_right_hand() {
         let expr = "4x +";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
@@ -700,7 +697,7 @@ mod tests {
     fn test_missing_left_hand() {
         let expr = "+ 3x";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
@@ -709,7 +706,7 @@ mod tests {
     fn test_only_operator() {
         let expr = "+";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
@@ -718,7 +715,7 @@ mod tests {
     fn test_invalid_multiple_exponents() {
         let expr = "4x^^^2";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Err(_)));
     }
@@ -727,7 +724,7 @@ mod tests {
     fn test_valid_multiple_exponents() {
         let expr = "4x^2^3";
         let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str, 0.0);
+        let result = parser(tok_str);
         println!("{:?}", result);
         assert!(matches!(result, Ok(_)));
     }
