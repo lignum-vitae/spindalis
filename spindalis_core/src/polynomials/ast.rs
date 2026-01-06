@@ -1,7 +1,6 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::ast::{PolynomialAst, TokenStream};
 use once_cell::sync::Lazy;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -304,7 +303,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
                 Some(Token::LParen) => {
                     token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
                 }
-                val => {}
+                _ => {}
             },
             Some(Token::Variable(_)) => match token_stream.get(idx + 1) {
                 Some(Token::Number(_)) => {
