@@ -2,7 +2,46 @@
 
 ## Polynomials
 
+### PolynomialTraits
+
+The two polynomial structs (simple, and extended) implement the `PolynomialTraits`
+trait.
+
+```rust
+pub trait PolynomialTraits {
+    fn parse(input: &str) -> Result<Self, PolynomialError>
+    where
+        Self: std::marker::Sized;
+    fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
+    where
+        F: Into<f64> + std::clone::Clone + std::fmt::Debug;
+    fn eval_multivariate<V, S, F>(&self, vars: &V) -> Result<f64, PolynomialError>
+    where
+        V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
+        S: AsRef<str>,
+        F: Into<f64>;
+    fn derivate_univariate(&self) -> Result<Self, PolynomialError>
+    where
+        Self: std::marker::Sized;
+    fn derivate_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>;
+    fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError>
+    where
+        Self: std::marker::Sized;
+}
+```
+
+The PolynomialAst struct will have this trait implemented in the future.
+
 ### Parse and evaluate Simple Polynomials
+
+```rust
+#[derive(Debug, PartialEq)]
+pub struct SimplePolynomial {
+    pub coefficients: Vec<f64>,
+}
+```
 
 Parse a univariate polynomial string with positive integer exponents
 and evaluate it at a given point:
@@ -19,6 +58,14 @@ This function can handle addition and subtraction.
 
 ### Parse and evaluate Polynomials Extended
 
+```rust
+#[derive(Debug, PartialEq)]
+pub struct PolynomialExtended {
+    pub terms: Vec<Term>,
+    pub variables: Vec<String>,
+}
+```
+
 The basic functionality of the simple polynomial extended.
 This extended function can additionally handle fractional exponents, decimal
 exponents, multivariate polynomials, and negative exponents.
@@ -32,6 +79,19 @@ pub struct Term {
 }
 ```
 
+### Parse polynomials with an AST
+
+```rust
+#[derive(Debug, PartialEq)]
+pub struct PolynomialAst {
+    expr: Expr,
+}
+```
+
+This method is slowest to parse, but is intended to parse, evaluate, integrate, and
+derivate any polynomial given to it. The `PolynomialAst` struct implements Pratt
+parsing to parse polynomials into an abstract syntax tree.
+
 ### Find Derivates
 
 - Derivatives
@@ -41,12 +101,13 @@ pub struct Term {
 ### Find Integrals
 
 - Definite Integrals
-  - Simple Definite Integral
+  - Univariate Definite Integral
   - Romberg integration
   - Analytical method
 
 - Indefinite Integrals
   - Simple Indefinite Integral
+  - Extended Indefinite Integral
 
 ## Math
 

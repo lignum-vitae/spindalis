@@ -10,6 +10,12 @@ pub struct SimplePolynomial {
     pub coefficients: Vec<f64>,
 }
 
+impl SimplePolynomial {
+    pub fn is_empty(&self) -> bool {
+        self.coefficients.is_empty()
+    }
+}
+
 impl PartialEq<Vec<f64>> for SimplePolynomial {
     fn eq(&self, other: &Vec<f64>) -> bool {
         &self.coefficients == other
@@ -82,7 +88,7 @@ impl std::fmt::Display for SimplePolynomial {
             let abs_coeff = coeff.abs();
 
             // Print the coefficient if it's not 1 (or if it's the constant term)
-            if abs_coeff != 1.0 {
+            if abs_coeff != 1.0 || i == 0 {
                 write!(f, "{}", abs_coeff)?;
             }
 

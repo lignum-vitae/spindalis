@@ -5,11 +5,11 @@ use std::vec::IntoIter;
 pub type TokenStream = Peekable<IntoIter<Token>>;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct PolynomialAst {
+pub struct PolynomialAst {
     expr: Expr,
 }
 impl PolynomialAst {
-    pub(crate) fn new(expr: Expr) -> Self {
-        return Self { expr };
+    pub fn new(expr: Expr) -> Self {
+        Self { expr }
     }
 }

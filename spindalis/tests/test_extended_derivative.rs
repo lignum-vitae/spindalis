@@ -55,9 +55,9 @@ mod tests {
             variables: vec![("y".into(), 3.0)],
         }];
 
-        let result = partial_derivative(&poly, "x").terms;
+        let result = partial_derivative(&poly, "x");
 
-        assert_eq!(result.len(), 0);
+        assert!(result.is_empty());
     }
 
     #[test]
