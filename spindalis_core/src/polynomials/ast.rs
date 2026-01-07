@@ -266,17 +266,11 @@ static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
     ])
 });
 
-fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
-    if let Some(token) = token_stream.peek() {
-        if expected_token == *token {
-            return Ok(());
-        } else {
-            return Err(PolynomialError::UnexpectedToken {
-                token: token.clone(),
-            });
-        }
-    } else {
-        return Err(PolynomialError::UnexpectedEndOfTokens);
+fn ensure(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
+    match token_stream.next() {
+        Some(token) if token == expected_token => Ok(()),
+        Some(token) => Err(PolynomialError::UnexpectedToken { token }),
+        None => Err(PolynomialError::UnexpectedEndOfTokens),
     }
 }
 
@@ -353,9 +347,14 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         Some(Token::Variable(n)) => Ok(Expr::Variable(n)),
         Some(Token::Constant(n)) => Ok(Expr::Constant(n)),
         Some(Token::LParen) => {
-            let expr = parse_expr(token_stream, 0.0);
-            expect(token_stream, Token::RParen)?;
-            expr
+            let expr = parse_expr(token_stream, 0.0)?;
+            ensure(token_stream, Token::RParen)?;
+            Ok(expr)
+        }
+        Some(Token::RParen) => {
+            return Err(PolynomialError::UnexpectedToken {
+                token: Token::RParen,
+            });
         }
         Some(Token::Function(f)) => {
             let func = f;
@@ -368,28 +367,24 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         _ => return Err(PolynomialError::PolynomialSyntaxError),
     }?;
     // iteratively looks for operators with lower binding than minimum binding power
-    loop {
-        if let Some(Token::Operator(op)) = token_stream.peek() {
-            let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
-            if cbind_pow < min_bind_pow {
-                break;
-            } else {
-                let op = *op;
-                token_stream.next();
-                // right associativity of operators
-                let right = parse_expr(token_stream, cbind_pow + 1.0)?;
-                left = Expr::BinaryOp {
-                    op,
-                    lhs: Box::new(left),
-                    rhs: Box::new(right),
-                };
-                continue;
-            }
-        } else {
+    while let Some(Token::Operator(op)) = token_stream.peek() {
+        let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
+        if cbind_pow < min_bind_pow {
             break;
+        } else {
+            let op = *op;
+            token_stream.next();
+            // right associativity of operators
+            let right = parse_expr(token_stream, cbind_pow + 1.0)?;
+            left = Expr::BinaryOp {
+                op,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+            };
+            continue;
         }
     }
-    return Ok(left);
+    Ok(left)
 }
 
 #[allow(dead_code)]
@@ -397,469 +392,577 @@ fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
-    Ok(PolynomialAst::new(parse_expr(&mut token_stream, 0.0)?))
+
+    // Parse valid polynomial until end or invalid token
+    let ast_node = parse_expr(&mut token_stream, 0.0)?;
+
+    // Returns error if there are remaining tokens after parsing
+    if let Some(token) = token_stream.next() {
+        return Err(PolynomialError::UnexpectedToken { token });
+    };
+
+    Ok(PolynomialAst::new(ast_node))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_number_parse() {
-        let expr = "4";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::Number(4.0));
-        assert_eq!(result, expect);
+    // ---------------------------
+    // Tokenising tests
+    // ---------------------------
+    mod lexer_tests {
+        use super::*;
+
+        #[test]
+        fn test_number_token() {
+            let expr = "32";
+            let result = lexer(expr).unwrap();
+            let expected = Token::Number(32.0);
+
+            assert_eq!(result[0], expected);
+        }
+
+        #[test]
+        fn test_decimal_number_token() {
+            let expr = "32.0";
+            let result = lexer(expr).unwrap();
+            let expected = Token::Number(32.0);
+
+            assert_eq!(result[0], expected);
+        }
+
+        #[test]
+        fn test_float_token() {
+            let expr = "0.32";
+            let result = lexer(expr).unwrap();
+            let expected = Token::Number(0.32);
+
+            assert_eq!(result[0], expected);
+        }
+
+        #[test]
+        fn test_decimal_only_float() {
+            let expr = ".32";
+            let result = lexer(expr).unwrap();
+            let expected = Token::Number(0.32);
+
+            assert_eq!(result[0], expected);
+        }
+
+        #[test]
+        fn test_variable_only() {
+            let expr = "x";
+            let result = lexer(expr).unwrap();
+            let expected = Token::Variable("x".to_string());
+
+            assert_eq!(result[0], expected);
+        }
+
+        #[test]
+        fn test_num_and_variable() {
+            let expr = "32x";
+            let result = lexer(expr).unwrap();
+            let expected = [Token::Number(32.0), Token::Variable("x".to_string())];
+
+            for i in 0..expected.len() {
+                assert_eq!(result[i], expected[i]);
+            }
+        }
+
+        #[test]
+        fn test_expression() {
+            let expr = "3x^2 + 1.43";
+            let result = lexer(expr).unwrap();
+            let expected = [
+                Token::Number(3.0),
+                Token::Variable("x".to_string()),
+                Token::Operator(Operators::Caret),
+                Token::Number(2.0),
+                Token::Operator(Operators::Add),
+                Token::Number(1.43),
+            ];
+
+            for i in 0..expected.len() {
+                assert_eq!(result[i], expected[i]);
+            }
+        }
+
+        #[test]
+        fn test_expression_with_constant() {
+            let expr = "3x^2 + 1.43xy - pi^3";
+            let result = lexer(expr).unwrap();
+            let expected = [
+                Token::Number(3.0),
+                Token::Variable("x".to_string()),
+                Token::Operator(Operators::Caret),
+                Token::Number(2.0),
+                Token::Operator(Operators::Add),
+                Token::Number(1.43),
+                Token::Variable("x".to_string()),
+                Token::Variable("y".to_string()),
+                Token::Operator(Operators::Sub),
+                Token::Constant(Constants::Pi),
+                Token::Operator(Operators::Caret),
+                Token::Number(3.0),
+            ];
+
+            for i in 0..expected.len() {
+                println!("{:?} {:?}", result[i], expected[i]);
+                assert_eq!(result[i], expected[i]);
+            }
+        }
+
+        #[test]
+        fn test_tokenizing_parens() {
+            let expr = "(3*2) / 4";
+            let result = lexer(expr).unwrap();
+            let expected = [
+                Token::LParen,
+                Token::Number(3.0),
+                Token::Operator(Operators::Mul),
+                Token::Number(2.0),
+                Token::RParen,
+                Token::Operator(Operators::Div),
+                Token::Number(4.0),
+            ];
+
+            for i in 0..expected.len() {
+                println!("{:?} {:?}", result[i], expected[i]);
+                assert_eq!(result[i], expected[i]);
+            }
+        }
     }
 
-    #[test]
-    fn test_variable_parse() {
-        let expr = "x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::Variable("x".into()));
-        assert_eq!(result, expect);
-    }
+    // ---------------------------
+    // Parsing tests
+    // ---------------------------
+    mod parser_tests {
+        use super::*;
 
-    #[test]
-    fn test_exponents_parse() {
-        let expr = "x^2";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Caret,
-            lhs: Box::new(Expr::Variable("x".into())),
-            rhs: Box::new(Expr::Number(2.0)),
-        });
-        assert_eq!(result, expect);
-    }
+        #[test]
+        fn test_number_parse() {
+            let expr = "4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::Number(4.0));
+            assert_eq!(result, expected);
+        }
 
-    #[test]
-    fn test_integer_coefficient_parse() {
-        let expr = "4x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(4.0)),
-            rhs: Box::new(Expr::Variable("x".into())),
-        });
-        assert_eq!(result, expect);
-    }
+        #[test]
+        fn test_variable_parse() {
+            let expr = "x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::Variable("x".into()));
+            assert_eq!(result, expected);
+        }
 
-    #[test]
-    fn test_float_coefficient_parse() {
-        let expr = "4.2x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(4.2)),
-            rhs: Box::new(Expr::Variable("x".into())),
-        });
-        assert_eq!(result, expect);
-    }
-
-    #[test]
-    fn test_basic_expression_parse() {
-        let expr = "4x+2";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Add,
-            lhs: Box::new(Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(Expr::Number(4.0)),
-                rhs: Box::new(Expr::Variable("x".into())),
-            }),
-            rhs: Box::new(Expr::Number(2.0)),
-        });
-        assert_eq!(result, expect);
-    }
-
-    #[test]
-    fn test_int_float_expression_parse() {
-        let expr = "4x^2 + 2.3x^3";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-
-        let l_child = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(4.0)),
-            rhs: Box::new(Expr::BinaryOp {
+        #[test]
+        fn test_exponents_parse() {
+            let expr = "x^2";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
-            }),
-        };
+            });
+            assert_eq!(result, expected);
+        }
 
-        let r_child = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(2.3)),
-            rhs: Box::new(Expr::BinaryOp {
-                op: Operators::Caret,
-                lhs: Box::new(Expr::Variable("x".into())),
-                rhs: Box::new(Expr::Number(3.0)),
-            }),
-        };
-
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Add,
-            lhs: Box::new(l_child),
-            rhs: Box::new(r_child),
-        });
-        assert_eq!(result, expect);
-    }
-
-    #[test]
-    fn test_complex_expression_parse() {
-        let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-
-        // x^2
-        let term_x2 = Expr::BinaryOp {
-            op: Operators::Caret,
-            lhs: Box::new(Expr::Variable("x".into())),
-            rhs: Box::new(Expr::Number(2.0)),
-        };
-
-        // 5 * x^2
-        let term_5x2 = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(5.0)),
-            rhs: Box::new(term_x2),
-        };
-
-        // (5 * x^2) * 4
-        let term_5x24 = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(term_5x2),
-            rhs: Box::new(Expr::Number(4.0)),
-        };
-
-        // x^4
-        let term_x4 = Expr::BinaryOp {
-            op: Operators::Caret,
-            lhs: Box::new(Expr::Variable("x".into())),
-            rhs: Box::new(Expr::Number(4.0)),
-        };
-
-        // ((5 * x^2) * 4) * x^4
-        let term_5x24x4 = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(term_5x24),
-            rhs: Box::new(term_x4),
-        };
-
-        // (((5 * x^2) * 4) * x^4) / 6
-        let mul_left = Expr::BinaryOp {
-            op: Operators::Div,
-            lhs: Box::new(term_5x24x4),
-            rhs: Box::new(Expr::Number(6.0)),
-        };
-
-        // x^6
-        let term_x6 = Expr::BinaryOp {
-            op: Operators::Caret,
-            lhs: Box::new(Expr::Variable("x".into())),
-            rhs: Box::new(Expr::Number(6.0)),
-        };
-
-        // ((((5 * x^2) * 4) * x^4) / 6) * x^6
-        let fmul_right = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(mul_left),
-            rhs: Box::new(term_x6),
-        };
-
-        // 4x + 2
-        let fmul_left = Expr::BinaryOp {
-            op: Operators::Add,
-            lhs: Box::new(Expr::BinaryOp {
+        #[test]
+        fn test_integer_coefficient_parse() {
+            let expr = "4x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
-            }),
-            rhs: Box::new(Expr::Number(2.0)),
-        };
+            });
+            assert_eq!(result, expected);
+        }
 
-        // (4x + 2) - (...)
-        let expected = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Sub,
-            lhs: Box::new(fmul_left),
-            rhs: Box::new(fmul_right),
-        });
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_zero_x_parse() {
-        let expr = "0x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(0.0)),
-            rhs: Box::new(Expr::Variable("x".into())),
-        });
-        assert_eq!(result, expect);
-    }
-
-    #[test]
-    fn test_zero_parse() {
-        let expr = "0";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::Number(0.0));
-        assert_eq!(result, expect);
-    }
-
-    #[test]
-    fn test_multivariate_expression_parse() {
-        let expr = "4xy + 4x^2 - 2y + 4";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-
-        // 4xy = (4 * x) * y
-        let term_4xy = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::BinaryOp {
+        #[test]
+        fn test_float_coefficient_parse() {
+            let expr = "4.2x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Mul,
-                lhs: Box::new(Expr::Number(4.0)),
+                lhs: Box::new(Expr::Number(4.2)),
                 rhs: Box::new(Expr::Variable("x".into())),
-            }),
-            rhs: Box::new(Expr::Variable("y".into())),
-        };
+            });
+            assert_eq!(result, expected);
+        }
 
-        // 4x^2 = 4 * (x^2)
-        let term_4x2 = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(4.0)),
-            rhs: Box::new(Expr::BinaryOp {
-                op: Operators::Caret,
-                lhs: Box::new(Expr::Variable("x".into())),
-                rhs: Box::new(Expr::Number(2.0)),
-            }),
-        };
-
-        // 2y
-        let term_2y = Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(2.0)),
-            rhs: Box::new(Expr::Variable("y".into())),
-        };
-
-        // 4xy + 4x^2
-        let term_lleft = Expr::BinaryOp {
-            op: Operators::Add,
-            lhs: Box::new(term_4xy),
-            rhs: Box::new(term_4x2),
-        };
-
-        // (4xy + 4x^2) - 2y
-        let term_left = Expr::BinaryOp {
-            op: Operators::Sub,
-            lhs: Box::new(term_lleft),
-            rhs: Box::new(term_2y),
-        };
-
-        // ((4xy + 4x^2) - 2y) + 4
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Add,
-            lhs: Box::new(term_left),
-            rhs: Box::new(Expr::Number(4.0)),
-        });
-        assert_eq!(result, expect);
-    }
-
-    // Error handling tests
-    #[test]
-    fn test_invalid_expression() {
-        let expr = "4 +++ 3x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Err(_)));
-    }
-
-    #[test]
-    fn test_missing_right_hand() {
-        let expr = "4x +";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Err(_)));
-    }
-
-    #[test]
-    fn test_missing_left_hand() {
-        let expr = "+ 3x";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Err(_)));
-    }
-
-    #[test]
-    fn test_only_operator() {
-        let expr = "+";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Err(_)));
-    }
-
-    #[test]
-    fn test_invalid_multiple_exponents() {
-        let expr = "4x^^^2";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str);
-        println!("{:?}", result);
-        assert!(matches!(result, Err(_)));
-    }
-
-    #[test]
-    fn test_valid_multiple_exponents() {
-        let expr = "4x^2^3";
-        let tok_str = lexer(expr).unwrap();
-        let result = parser(tok_str).unwrap();
-        let expect = PolynomialAst::new(Expr::BinaryOp {
-            op: Operators::Mul,
-            lhs: Box::new(Expr::Number(4.0)),
-            rhs: Box::new(Expr::BinaryOp {
-                op: Operators::Caret,
+        #[test]
+        fn test_basic_expression_parse() {
+            let expr = "4x+2";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
                 lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                }),
+                rhs: Box::new(Expr::Number(2.0)),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_int_float_expression_parse() {
+            let expr = "4x^2 + 2.3x^3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+
+            let l_child = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::BinaryOp {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
                 }),
-                rhs: Box::new(Expr::Number(3.0)),
-            }),
-        });
-        assert_eq!(result, expect);
-    }
+            };
 
-    #[test]
-    fn test_number_token() {
-        let expr = "32";
-        let result = lexer(expr).unwrap();
-        let expected = Token::Number(32.0);
+            let r_child = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(2.3)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(3.0)),
+                }),
+            };
 
-        assert_eq!(result[0], expected);
-    }
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(l_child),
+                rhs: Box::new(r_child),
+            });
+            assert_eq!(result, expected);
+        }
 
-    #[test]
-    fn test_decimal_number_token() {
-        let expr = "32.0";
-        let result = lexer(expr).unwrap();
-        let expected = Token::Number(32.0);
+        #[test]
+        fn test_complex_expression_parse() {
+            let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
 
-        assert_eq!(result[0], expected);
-    }
+            // x^2
+            let term_x2 = Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(2.0)),
+            };
 
-    #[test]
-    fn test_float_token() {
-        let expr = "0.32";
-        let result = lexer(expr).unwrap();
-        let expected = Token::Number(0.32);
+            // 5 * x^2
+            let term_5x2 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(5.0)),
+                rhs: Box::new(term_x2),
+            };
 
-        assert_eq!(result[0], expected);
-    }
+            // (5 * x^2) * 4
+            let term_5x24 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(term_5x2),
+                rhs: Box::new(Expr::Number(4.0)),
+            };
 
-    #[test]
-    fn test_decimal_only_float() {
-        let expr = ".32";
-        let result = lexer(expr).unwrap();
-        let expected = Token::Number(0.32);
+            // x^4
+            let term_x4 = Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(4.0)),
+            };
 
-        assert_eq!(result[0], expected);
-    }
+            // ((5 * x^2) * 4) * x^4
+            let term_5x24x4 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(term_5x24),
+                rhs: Box::new(term_x4),
+            };
 
-    #[test]
-    fn test_variable_only() {
-        let expr = "x";
-        let result = lexer(expr).unwrap();
-        let expected = Token::Variable("x".to_string());
+            // (((5 * x^2) * 4) * x^4) / 6
+            let mul_left = Expr::BinaryOp {
+                op: Operators::Div,
+                lhs: Box::new(term_5x24x4),
+                rhs: Box::new(Expr::Number(6.0)),
+            };
 
-        assert_eq!(result[0], expected);
-    }
+            // x^6
+            let term_x6 = Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new(Expr::Number(6.0)),
+            };
 
-    #[test]
-    fn test_num_and_variable() {
-        let expr = "32x";
-        let result = lexer(expr).unwrap();
-        let expected = [Token::Number(32.0), Token::Variable("x".to_string())];
+            // ((((5 * x^2) * 4) * x^4) / 6) * x^6
+            let fmul_right = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(mul_left),
+                rhs: Box::new(term_x6),
+            };
 
-        for i in 0..expected.len() {
-            assert_eq!(result[i], expected[i]);
+            // 4x + 2
+            let fmul_left = Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                }),
+                rhs: Box::new(Expr::Number(2.0)),
+            };
+
+            // (4x + 2) - (...)
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Sub,
+                lhs: Box::new(fmul_left),
+                rhs: Box::new(fmul_right),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_zero_x_parse() {
+            let expr = "0x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(0.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_zero_parse() {
+            let expr = "0";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::Number(0.0));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_multivariate_expression_parse() {
+            let expr = "4xy + 4x^2 - 2y + 4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+
+            // 4xy = (4 * x) * y
+            let term_4xy = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                }),
+                rhs: Box::new(Expr::Variable("y".into())),
+            };
+
+            // 4x^2 = 4 * (x^2)
+            let term_4x2 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(2.0)),
+                }),
+            };
+
+            // 2y
+            let term_2y = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(2.0)),
+                rhs: Box::new(Expr::Variable("y".into())),
+            };
+
+            // 4xy + 4x^2
+            let term_lleft = Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(term_4xy),
+                rhs: Box::new(term_4x2),
+            };
+
+            // (4xy + 4x^2) - 2y
+            let term_left = Expr::BinaryOp {
+                op: Operators::Sub,
+                lhs: Box::new(term_lleft),
+                rhs: Box::new(term_2y),
+            };
+
+            // ((4xy + 4x^2) - 2y) + 4
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(term_left),
+                rhs: Box::new(Expr::Number(4.0)),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_valid_multiple_exponents() {
+            let expr = "4x^2^3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Caret,
+                        lhs: Box::new(Expr::Variable("x".into())),
+                        rhs: Box::new(Expr::Number(2.0)),
+                    }),
+                    rhs: Box::new(Expr::Number(3.0)),
+                }),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_parsing_parents() {
+            let expr = "(3+2) / 4";
+            let tkn_str = lexer(expr).unwrap();
+            let result = parser(tkn_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Div,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Add,
+                    lhs: Box::new(Expr::Number(3.0)),
+                    rhs: Box::new(Expr::Number(2.0)),
+                }),
+                rhs: Box::new(Expr::Number(4.0)),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_parsing_no_parents() {
+            let expr = "3 + 2 / 4";
+            let tkn_str = lexer(expr).unwrap();
+            let result = parser(tkn_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(3.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Div,
+                    lhs: Box::new(Expr::Number(2.0)),
+                    rhs: Box::new(Expr::Number(4.0)),
+                }),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_nested_parens() {
+            let expr = "(3 + (4+2)) * 5x";
+            let tkn_str = lexer(expr).unwrap();
+            let result = parser(tkn_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Add,
+                        lhs: Box::new(Expr::Number(3.0)),
+                        rhs: Box::new(Expr::BinaryOp {
+                            op: Operators::Add,
+                            lhs: Box::new(Expr::Number(4.0)),
+                            rhs: Box::new(Expr::Number(2.0)),
+                        }),
+                    }),
+                    rhs: Box::new(Expr::Number(5.0)),
+                }),
+                rhs: Box::new(Expr::Variable("x".to_string())),
+            });
+            assert_eq!(result, expected);
+        }
+
+        // Error handling tests
+        #[test]
+        fn test_invalid_expression() {
+            let expr = "4 +++ 3x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_right_hand() {
+            let expr = "4x +";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_left_hand() {
+            let expr = "+ 3x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_only_operator() {
+            let expr = "+";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_invalid_multiple_exponents() {
+            let expr = "4x^^^2";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_closing_paren() {
+            let expr = "(4x + 2 / 4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_opening_paren() {
+            let expr = "4x + 2) / 4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_opening_paren_end_with_closing_paren() {
+            let expr = "4x + 2)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            println!("{:?}", result);
+            assert!(result.is_err());
         }
     }
-
-    #[test]
-    fn test_expression() {
-        let expr = "3x^2 + 1.43";
-        let result = lexer(expr).unwrap();
-        let expected = [
-            Token::Number(3.0),
-            Token::Variable("x".to_string()),
-            Token::Operator(Operators::Caret),
-            Token::Number(2.0),
-            Token::Operator(Operators::Add),
-            Token::Number(1.43),
-        ];
-
-        for i in 0..expected.len() {
-            assert_eq!(result[i], expected[i]);
-        }
-    }
-
-    #[test]
-    fn test_expression_with_constant() {
-        let expr = "3x^2 + 1.43xy - pi^3";
-        let result = lexer(expr).unwrap();
-        let expected = [
-            Token::Number(3.0),
-            Token::Variable("x".to_string()),
-            Token::Operator(Operators::Caret),
-            Token::Number(2.0),
-            Token::Operator(Operators::Add),
-            Token::Number(1.43),
-            Token::Variable("x".to_string()),
-            Token::Variable("y".to_string()),
-            Token::Operator(Operators::Sub),
-            Token::Constant(Constants::Pi),
-            Token::Operator(Operators::Caret),
-            Token::Number(3.0),
-        ];
-
-        for i in 0..expected.len() {
-            println!("{:?} {:?}", result[i], expected[i]);
-            assert_eq!(result[i], expected[i]);
-        }
-    }
-
-    #[test]
-    fn test_parens() {
-        let expr = "(3*2) / 4";
-        let result = lexer(expr).unwrap();
-        let expected = [
-            Token::LParen,
-            Token::Number(3.0),
-            Token::Operator(Operators::Mul),
-            Token::Number(2.0),
-            Token::RParen,
-            Token::Operator(Operators::Div),
-            Token::Number(4.0),
-        ];
-
-        for i in 0..expected.len() {
-            println!("{:?} {:?}", result[i], expected[i]);
-            assert_eq!(result[i], expected[i]);
-        }
-    }
-
     // ---------------------------
     // token_from_str! tests
     // ---------------------------

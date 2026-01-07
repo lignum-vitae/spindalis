@@ -65,19 +65,22 @@ Then run:
 Spindalis makes handling polynomials easier through dedicated functions for parsing,
 evaluation, and derivation. Core functionality is implemented through structs for
 the three classes of polynomials:
-`SimplePolynomials`, `PolynomialsExtended`, and `PolynomialAST`. These structs are
+`SimplePolynomials`, `PolynomialsExtended`, and `PolynomialAst`. These structs are
 unified through their implementation of `PolynomialTraits`, where they have
-attached methods to parse, evaluate, and derivate univariate and multivariate polynomials.
+attached methods to parse, evaluate, integrate, and derivate
+univariate and multivariate polynomials.
 
 Simple Polynomial can handle univariate polynomials with integer exponents and
 only addition and subtraction.
 
 Polynomial Extended is an extension of Simple Polynomial that can handle multivariate
-polynomials. Polynomial extended can also handle fractional, decimal, and negative exponents.
+polynomials. Polynomial extended can also handle fractional, decimal, and
+negative exponents.
 
-Polynomial AST is intended to handle all operations for a polynomial. This would include
-multivariate polynomials, functions such as sin or cos, constants such as pi, fractional exponents,
-negative exponents, and optimistically also polynomial expansion.
+Polynomial Ast is intended to handle all operations for a polynomial. This would
+include multivariate polynomials, functions such as sin or cos, constants such as
+pi, fractional exponents, negative exponents, and optimistically also polynomial
+expansion.
 
 ### Arr2D
 

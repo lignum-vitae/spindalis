@@ -10,6 +10,6 @@ pub(crate) struct PolynomialAst {
 }
 impl PolynomialAst {
     pub(crate) fn new(expr: Expr) -> Self {
-        return Self { expr };
+        Self { expr }
     }
 }

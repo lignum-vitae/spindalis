@@ -14,7 +14,7 @@ mod tests {
     #[test]
     fn test_derivative_constant() {
         let poly = vec![5.0]; // 5
-        let deriv = simple_derivative(&poly).coefficients;
+        let deriv = simple_derivative(&poly);
 
         assert!(deriv.is_empty()); // simple_derivative of constant is zero-length
     }
@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn test_derivative_zero_poly() {
         let poly = vec![];
-        let deriv = simple_derivative(&poly).coefficients;
+        let deriv = simple_derivative(&poly);
 
         assert!(deriv.is_empty());
     }

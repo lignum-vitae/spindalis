@@ -10,6 +10,12 @@ pub struct PolynomialExtended {
     pub variables: Vec<String>,
 }
 
+impl PolynomialExtended {
+    pub fn is_empty(&self) -> bool {
+        self.terms.is_empty()
+    }
+}
+
 impl PartialEq<Vec<Term>> for PolynomialExtended {
     fn eq(&self, other: &Vec<Term>) -> bool {
         self.terms == other.clone()

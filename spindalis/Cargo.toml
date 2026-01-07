@@ -1,6 +1,6 @@
 [package]
 name = "spindalis"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 
 description = "A bioinformatics-focused library for numerical modeling, optimisation, and simulation written in Rust"
@@ -15,5 +15,5 @@ name = "spindalis"
 path = "src/lib.rs"
 
 [dependencies]
-spindalis_core = { path = "../spindalis_core", version = "0.2.0" }
+spindalis_core = { path = "../spindalis_core", version = ">=0.2.0" }
 spindalis_macros = { path = "../spindalis_macros", version = "0.1.0" }
