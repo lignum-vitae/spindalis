@@ -83,7 +83,7 @@ pub struct Term {
 
 ```rust
 #[derive(Debug, PartialEq)]
-pub(crate) struct PolynomialAst {
+pub struct PolynomialAst {
     expr: Expr,
 }
 ```
