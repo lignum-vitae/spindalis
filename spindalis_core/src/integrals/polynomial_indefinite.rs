@@ -1,9 +1,9 @@
 use crate::polynomials::Term;
-use crate::polynomials::structs::PolynomialExtended;
+use crate::polynomials::structs::polynomial::Polynomial;
 use std::collections::HashSet;
 
 // Uses Chain Rule to find integral
-pub fn indefinite_integral_extended<S>(poly: &[Term], var: S) -> PolynomialExtended
+pub fn indefinite_integral_polynomial<S>(poly: &[Term], var: S) -> Polynomial
 where
     S: AsRef<str>,
 {
@@ -31,7 +31,7 @@ where
         .flat_map(|term| term.variables.iter())
         .map(|(var_name, _)| var_name.clone())
         .collect();
-    PolynomialExtended {
+    Polynomial {
         terms: integrated,
         variables: unique_variables.into_iter().collect(),
     }
