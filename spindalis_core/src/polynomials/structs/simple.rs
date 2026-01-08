@@ -5,9 +5,10 @@ use crate::polynomials::simple::{eval_simple_polynomial, parse_simple_polynomial
 use crate::polynomials::structs::PolynomialTraits;
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SimplePolynomial {
     pub coefficients: Vec<f64>,
+    pub variable: Option<char>,
 }
 
 impl SimplePolynomial {
@@ -31,15 +32,15 @@ impl PolynomialTraits for SimplePolynomial {
     where
         F: Into<f64> + std::clone::Clone + std::fmt::Debug,
     {
-        Ok(eval_simple_polynomial(point, &self.coefficients))
+        Ok(eval_simple_polynomial(point, self))
     }
 
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
-        Ok(simple_derivative(&self.coefficients))
+        Ok(simple_derivative(self))
     }
 
     fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError> {
-        Ok(indefinite_integral_simple(&self.coefficients))
+        Ok(indefinite_integral_simple(self))
     }
 
     // Simple Polynomial can only handle univariate inputs
@@ -60,12 +61,35 @@ impl PolynomialTraits for SimplePolynomial {
             return Err(PolynomialError::TooManyVariables { variables: vars });
         }
         let point: f64 = *vars_map.values().next().unwrap_or(&0_f64);
-        Ok(eval_simple_polynomial(point, &self.coefficients))
+        Ok(eval_simple_polynomial(point, self))
     }
 
-    #[allow(unused_variables)]
-    fn derivate_multivariate<S>(&self, var: S) -> Self {
-        simple_derivative(&self.coefficients)
+    fn derivate_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        let var = var.as_ref();
+        if var.chars().next() == self.variable {
+            simple_derivative(self)
+        } else {
+            // Returns original poly because SimplePolynomial cannot handle multivariate
+            // polynomials
+            self.clone()
+        }
+    }
+
+    fn indefinite_integral_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        let var = var.as_ref();
+        if var.chars().next() == self.variable {
+            indefinite_integral_simple(self)
+        } else {
+            // Returns original poly because SimplePolynomial cannot handle multivariate
+            // polynomials
+            self.clone()
+        }
     }
 }
 
@@ -89,13 +113,21 @@ impl std::fmt::Display for SimplePolynomial {
 
             // Print the coefficient if it's not 1 (or if it's the constant term)
             if abs_coeff != 1.0 || i == 0 {
-                write!(f, "{}", abs_coeff)?;
+                match f.precision() {
+                    Some(p) => {
+                        let formatted = format!("{:.*}", p, abs_coeff);
+                        let trimmed = formatted.trim_end_matches('0').trim_end_matches('.');
+                        write!(f, "{}", trimmed)?;
+                    }
+                    None => write!(f, "{}", abs_coeff)?,
+                }
             }
 
+            let var = self.variable.unwrap_or('x');
             match i {
                 0 => {} // Constant term
-                1 => write!(f, "x")?,
-                _ => write!(f, "x^{}", i)?,
+                1 => write!(f, "{}", var)?,
+                _ => write!(f, "{}^{}", var, i)?,
             }
             first = false;
         }

@@ -57,10 +57,13 @@ fn main() {
     println!("Derivative with respect to z: {dz}\n");
 
     // Calculate indefinite integral
-    println!("Indefinite integral with struct:");
+    println!("Multivariate indefinite integral with struct:");
+    let anti_dx = struct_parsed.indefinite_integral_multivariate("x");
+    println!("Original polynomial: {polynomial}\nX integration of multivariate: {anti_dx:.2}\n");
+
+    println!("Univariate indefinite integral with struct:");
     let polynomial = "5x^3 + 4x^4 - 5x^2 + 1";
     let struct_parsed = PolynomialExtended::parse(polynomial).unwrap();
     let anti_dx = struct_parsed.indefinite_integral_univariate().unwrap();
-    println!("Original polynomial: {polynomial}\nUnivariate integration: {anti_dx}");
-
+    println!("Original polynomial: {polynomial}\nUnivariate integration: {anti_dx:.2}");
 }
