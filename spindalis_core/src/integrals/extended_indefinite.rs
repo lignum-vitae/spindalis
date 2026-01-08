@@ -31,8 +31,10 @@ where
         .flat_map(|term| term.variables.iter())
         .map(|(var_name, _)| var_name.clone())
         .collect();
-    PolynomialExtended {
+    let mut res_poly = PolynomialExtended {
         terms: integrated,
         variables: unique_variables.into_iter().collect(),
-    }
+    };
+    res_poly.sort_poly();
+    res_poly
 }

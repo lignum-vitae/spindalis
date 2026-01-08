@@ -16,6 +16,17 @@ impl PolynomialExtended {
     }
 }
 
+impl PolynomialExtended {
+    pub fn sort_poly(&mut self) {
+        // Sort variables inside each individual term
+        for term in &mut self.terms {
+            term.variables.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        // Sort the variables list
+        self.variables.sort();
+    }
+}
+
 impl PartialEq<Vec<Term>> for PolynomialExtended {
     fn eq(&self, other: &Vec<Term>) -> bool {
         self.terms == other.clone()
@@ -50,6 +61,7 @@ impl PolynomialTraits for PolynomialExtended {
         let evaluated = eval_polynomial_extended(&self.terms, vars)?;
         Ok(evaluated)
     }
+
     fn derivate_univariate(&self) -> Result<Self, PolynomialError> {
         if self.variables.len() > 1 {
             return Err(PolynomialError::TooManyVariables {
@@ -61,6 +73,7 @@ impl PolynomialTraits for PolynomialExtended {
             variables: self.variables.clone(),
         })
     }
+
     fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError> {
         if self.variables.len() > 1 {
             return Err(PolynomialError::TooManyVariables {
@@ -80,6 +93,7 @@ impl PolynomialTraits for PolynomialExtended {
             variables: integrated_poly.variables,
         })
     }
+
     fn derivate_multivariate<S>(&self, var: S) -> Self
     where
         S: AsRef<str>,
@@ -93,6 +107,17 @@ impl PolynomialTraits for PolynomialExtended {
         Self {
             terms: derived,
             variables,
+        }
+    }
+
+    fn indefinite_integral_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        let integrated_poly = indefinite_integral_extended(&self.terms, var);
+        Self {
+            terms: integrated_poly.terms,
+            variables: integrated_poly.variables,
         }
     }
 }
@@ -120,14 +145,28 @@ impl std::fmt::Display for PolynomialExtended {
 
             // Only print coefficient if it's not 1.0, or if it's a constant term
             if abs_coeff != 1.0 || !has_vars {
-                write!(f, "{}", abs_coeff)?;
+                match f.precision() {
+                    Some(p) => {
+                        let formatted = format!("{:.*}", p, abs_coeff);
+                        let trimmed = formatted.trim_end_matches('0').trim_end_matches('.');
+                        write!(f, "{}", trimmed)?
+                    }
+                    None => write!(f, "{}", abs_coeff)?,
+                }
             }
 
             // 3. Format the variables for this specific term
             for (var_name, exponent) in &term.variables {
                 write!(f, "{}", var_name)?;
                 if *exponent != 1.0 {
-                    write!(f, "^{}", exponent)?;
+                    match f.precision() {
+                        Some(p) => {
+                            let formatted = format!("^{:.*}", p, exponent);
+                            let trimmed = formatted.trim_end_matches('0').trim_end_matches('.');
+                            write!(f, "{}", trimmed)?
+                        }
+                        None => write!(f, "^{}", exponent)?,
+                    }
                 }
             }
         }

@@ -126,6 +126,7 @@ where
                 vars.push((var, power));
             }
         }
+        vars.sort_by(|a, b| a.0.cmp(&b.0));
         parsed.push(Term {
             coefficient: coeff,
             variables: vars.clone(),
@@ -136,7 +137,8 @@ where
         .flat_map(|term| term.variables.iter())
         .map(|(var_name, _)| var_name.clone())
         .collect();
-    let variables: Vec<String> = unique_variables.into_iter().collect();
+    let mut variables: Vec<String> = unique_variables.into_iter().collect();
+    variables.sort();
     Ok(PolynomialExtended {
         terms: parsed,
         variables,

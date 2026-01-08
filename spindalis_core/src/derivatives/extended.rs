@@ -12,11 +12,12 @@ where
         let mut new_part = part.clone();
         for i in 0..part.variables.len() {
             let (v, pow) = &part.variables[i];
-            if v == var && *pow > 0.0 {
+            if v == var {
                 // Power rule
                 new_part.coefficient = part.coefficient * (*pow);
                 let new_power = pow - 1.0;
                 if new_power == 0.0 {
+                    // Remove variable portion of Term (coefficient remains)
                     new_part.variables.remove(i);
                 } else {
                     new_part.variables[i].1 = new_power;
@@ -33,8 +34,10 @@ where
         .map(|(var_name, _)| var_name.clone())
         .collect();
     let variables: Vec<String> = unique_variables.into_iter().collect();
-    PolynomialExtended {
+    let mut res_poly = PolynomialExtended {
         terms: parsed_deriv,
         variables,
-    }
+    };
+    res_poly.sort_poly();
+    res_poly
 }

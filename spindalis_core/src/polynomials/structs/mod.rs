@@ -28,4 +28,7 @@ pub trait PolynomialTraits {
     fn indefinite_integral_univariate(&self) -> Result<Self, PolynomialError>
     where
         Self: std::marker::Sized;
+    fn indefinite_integral_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>;
 }
