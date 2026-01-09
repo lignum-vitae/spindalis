@@ -26,9 +26,9 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
+pub fn parse_polynomial(input: TokenStream) -> TokenStream {
     let output =
-        match spindalis_core::polynomials::extended::parse_polynomial_extended(input.to_string()) {
+        match spindalis_core::polynomials::polynomial::parse_polynomial(input.to_string()) {
             Ok(terms) => terms,
             Err(e) => {
                 let error_msg = format!("{:?}", e);

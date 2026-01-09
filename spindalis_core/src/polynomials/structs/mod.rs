@@ -4,6 +4,7 @@ pub mod simple;
 
 pub use extended::ExtendedPolynomial;
 pub use simple::SimplePolynomial;
+pub use polynomial::Polynomial;
 
 pub use crate::polynomials::PolynomialError; // import Polynomial Error
 
