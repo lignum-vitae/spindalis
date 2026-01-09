@@ -35,7 +35,7 @@ where
         .collect();
 
     let variables: Vec<String> = unique_variables.into_iter().collect();
-    let mut res_poly = Polynomial{
+    let mut res_poly = Polynomial {
         terms: parsed_deriv,
         variables,
     };

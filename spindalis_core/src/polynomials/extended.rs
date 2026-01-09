@@ -269,14 +269,14 @@ static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
 fn expect(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
     if let Some(token) = token_stream.peek() {
         if expected_token == *token {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(PolynomialError::UnexpectedToken {
+            Err(PolynomialError::UnexpectedToken {
                 token: token.clone(),
-            });
+            })
         }
     } else {
-        return Err(PolynomialError::UnexpectedEndOfTokens);
+        Err(PolynomialError::UnexpectedEndOfTokens)
     }
 }
 
@@ -368,6 +368,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         _ => return Err(PolynomialError::PolynomialSyntaxError),
     }?;
     // iteratively looks for operators with lower binding than minimum binding power
+    #[allow(clippy::while_let_loop)]
     loop {
         if let Some(Token::Operator(op)) = token_stream.peek() {
             let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
@@ -389,7 +390,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
             break;
         }
     }
-    return Ok(left);
+    Ok(left)
 }
 
 #[allow(dead_code)]

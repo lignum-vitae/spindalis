@@ -10,6 +10,6 @@ pub struct ExtendedPolynomial {
 }
 impl ExtendedPolynomial {
     pub fn new(expr: Expr) -> Self {
-        return Self { expr };
+        Self { expr }
     }
 }
