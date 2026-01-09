@@ -10,6 +10,17 @@ pub struct Polynomial {
     pub variables: Vec<String>,
 }
 
+impl Polynomial {
+    pub fn sort_poly(&mut self) {
+        // Sort variables inside each individual term
+        for term in &mut self.terms {
+            term.variables.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        // Sort the variables list
+        self.variables.sort();
+    }
+}
+
 impl PartialEq<Vec<Term>> for Polynomial {
     fn eq(&self, other: &Vec<Term>) -> bool {
         self.terms == other.clone()
@@ -86,6 +97,17 @@ impl PolynomialTraits for Polynomial {
         Self {
             terms: derived,
             variables,
+        }
+    }
+
+    fn indefinite_integral_multivariate<S>(&self, var: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        let integrated_poly = indefinite_integral_polynomial(&self.terms, var);
+        Self {
+            terms: integrated_poly.terms,
+            variables: integrated_poly.variables,
         }
     }
 }

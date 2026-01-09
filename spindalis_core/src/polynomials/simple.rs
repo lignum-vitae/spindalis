@@ -19,7 +19,6 @@ where
         return Err(PolynomialError::PolynomialSyntaxError);
     }
 
-    // Allowing parsing just a constant in case someone wants to integral a constant
     let variable = normalized.chars().find(|&c| c.is_alphabetic());
 
     let mut terms: Vec<(f64, usize)> = Vec::new();
@@ -77,15 +76,17 @@ where
     }
     Ok(SimplePolynomial {
         coefficients: coeffs,
+        variable,
     })
 }
 
-pub fn eval_simple_polynomial<F>(x: F, coeffs: &[f64]) -> f64
+pub fn eval_simple_polynomial<F>(x: F, coeffs: &SimplePolynomial) -> f64
 where
     F: Into<f64>,
 {
     let x: f64 = x.into();
     coeffs
+        .coefficients
         .iter()
         .enumerate()
         .map(|(i, &c)| c * x.powi(i as i32))

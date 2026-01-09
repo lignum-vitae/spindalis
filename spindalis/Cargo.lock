@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "once_cell"
+version = "1.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -22,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "spindalis"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "spindalis_core",
  "spindalis_macros",
@@ -30,11 +36,14 @@ dependencies = [
 
 [[package]]
 name = "spindalis_core"
-version = "0.2.2"
+version = "0.3.0"
+dependencies = [
+ "once_cell",
+]
 
 [[package]]
 name = "spindalis_macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "quote",
  "spindalis_core",
