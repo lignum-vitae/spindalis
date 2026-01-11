@@ -139,6 +139,11 @@ We welcome contributions! Please read our:
 - [Code of Conduct](https://github.com/lignum-vitae/spindalis/blob/main/docs/CODE_OF_CONDUCT.md)
 - [Contribution Guidelines](https://github.com/lignum-vitae/spindalis/blob/main/docs/CONTRIBUTING.md)
 
+> [!NOTE]
+> Before submitting a PR, install [just](https://github.com/casey/just) and run `just check`
+> to pull the latest changes from the main branch as well as to format, test, and lint your code.
+> Just can be installed using `cargo install just`, curl, or your favourite package manager.
+
 ## Stability
 
 This project is in the alpha stage. APIs may change without warning until version
