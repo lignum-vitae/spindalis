@@ -11,7 +11,7 @@ fn main() {
     // Parsing macro
     let parsed = parse_polynomial_extended!(4x ^ 2y ^ 3 + 4x - 2y + z ^ 1.0 / 2.0);
 
-    println!("Parising polynomials");
+    println!("Parsing polynomials");
     println!("Original polynomial: {polynomial}");
     println!("Polynomial parsed with macro: {parsed:?}");
     println!("Polynomial parsed with struct: {struct_parsed}\n");

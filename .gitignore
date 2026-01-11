@@ -10,3 +10,7 @@ __pycache__/
 # PyPI files
 build/
 dist/
+
+# IDEs and editors
+.vscode/
+*.code-workspace

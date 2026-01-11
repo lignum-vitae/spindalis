@@ -114,6 +114,22 @@ token_from_char! {
         Mul   => '*',
         Rem   => '%',
         Caret => '^',
+        Fac => '!',
+    }
+}
+
+impl std::fmt::Display for Operators {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: &str = match self {
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Div => "/",
+            Self::Mul => "*",
+            Self::Rem => "%",
+            Self::Caret => "^",
+            Self::Fac => "!",
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -130,6 +146,20 @@ token_from_str! {
     }
 }
 
+impl std::fmt::Display for Functions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Sin => "sin",
+            Self::Cos => "cos",
+            Self::Tan => "tan",
+            Self::Cot => "cot",
+            Self::Log => "log",
+            Self::Ln => "ln",
+        };
+        write!(f, "{s}")
+    }
+}
+
 // declaring `Constants` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone)]
@@ -138,6 +168,18 @@ token_from_str! {
         E => "e",
         Tau => "tau",
         Phi => "phi",
+    }
+}
+
+impl std::fmt::Display for Constants {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Pi => "π",
+            Self::E => "e",
+            Self::Tau => "τ",
+            Self::Phi => "ϕ",
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -161,15 +203,79 @@ pub enum Expr {
         func: Functions,
         inner: Box<Expr>,
     },
-    UnaryOp {
+    UnaryOpPrefix {
         op: Operators,
-        node: Box<Expr>,
+        value: Box<Expr>,
+    },
+    UnaryOpPostfix {
+        op: Operators,
+        value: Box<Expr>,
     },
     BinaryOp {
         op: Operators,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
+        paren: bool,
     },
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number(n) => write!(f, "{n}"),
+            Self::Variable(v) => write!(f, "{v}"),
+            Self::Constant(c) => write!(f, "{c}"),
+            Self::Function { func, inner } => write!(f, "{func}({inner})"),
+            Self::UnaryOpPrefix { op, value } => write!(f, "{op}{value}"),
+            Self::UnaryOpPostfix { op, value } => write!(f, "{value}{op}"),
+            Self::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => {
+                // 4 * x   -> 4x
+                // 5 * x^2 -> 5x^2
+                // 2 * π   -> 2π
+                let mut implied: Option<String> = None;
+
+                if *op == Operators::Mul {
+                    implied = match (&**lhs, &**rhs) {
+                        (Self::Number(n), Self::Variable(v)) => Some(format!("{n}{v}")),
+                        (Self::Number(n), Self::Constant(c)) => Some(format!("{n}{c}")),
+                        (
+                            Self::Number(n),
+                            Self::BinaryOp {
+                                op: Operators::Caret,
+                                ..
+                            },
+                        ) => Some(format!("{n}{rhs}")),
+                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}{n}")),
+                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}{n}")),
+                        _ => None,
+                    };
+                } else if *op == Operators::Caret {
+                    implied = match (&**lhs, &**rhs) {
+                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}^{n}")),
+                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}^{n}")),
+                        _ => None,
+                    };
+                }
+
+                if let Some(s) = implied {
+                    if *paren {
+                        return write!(f, "({s})");
+                    }
+                    return write!(f, "{s}");
+                }
+                if *paren {
+                    write!(f, "({lhs} {op} {rhs})")
+                } else {
+                    write!(f, "{lhs} {op} {rhs}")
+                }
+            }
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -347,8 +453,11 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         Some(Token::Variable(n)) => Ok(Expr::Variable(n)),
         Some(Token::Constant(n)) => Ok(Expr::Constant(n)),
         Some(Token::LParen) => {
-            let expr = parse_expr(token_stream, 0.0)?;
+            let mut expr = parse_expr(token_stream, 0.0)?;
             ensure(token_stream, Token::RParen)?;
+            if let Expr::BinaryOp { ref mut paren, .. } = expr {
+                *paren = true
+            }
             Ok(expr)
         }
         Some(Token::RParen) => {
@@ -380,6 +489,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
                 op,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
+                paren: false,
             };
             continue;
         }
@@ -399,7 +509,7 @@ fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
     // Returns error if there are remaining tokens after parsing
     if let Some(token) = token_stream.next() {
         return Err(PolynomialError::UnexpectedToken { token });
-    };
+    }
 
     Ok(PolynomialAst::new(ast_node))
 }
@@ -567,6 +677,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -580,6 +691,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -593,6 +705,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.2)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -608,8 +721,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -627,7 +742,9 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             let r_child = Expr::BinaryOp {
@@ -637,13 +754,16 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(3.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(l_child),
                 rhs: Box::new(r_child),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -659,6 +779,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             };
 
             // 5 * x^2
@@ -666,6 +787,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(5.0)),
                 rhs: Box::new(term_x2),
+                paren: false,
             };
 
             // (5 * x^2) * 4
@@ -673,6 +795,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(term_5x2),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             };
 
             // x^4
@@ -680,6 +803,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             };
 
             // ((5 * x^2) * 4) * x^4
@@ -687,6 +811,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(term_5x24),
                 rhs: Box::new(term_x4),
+                paren: false,
             };
 
             // (((5 * x^2) * 4) * x^4) / 6
@@ -694,6 +819,7 @@ mod tests {
                 op: Operators::Div,
                 lhs: Box::new(term_5x24x4),
                 rhs: Box::new(Expr::Number(6.0)),
+                paren: false,
             };
 
             // x^6
@@ -701,6 +827,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(6.0)),
+                paren: false,
             };
 
             // ((((5 * x^2) * 4) * x^4) / 6) * x^6
@@ -708,6 +835,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(mul_left),
                 rhs: Box::new(term_x6),
+                paren: false,
             };
 
             // 4x + 2
@@ -717,8 +845,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             };
 
             // (4x + 2) - (...)
@@ -726,6 +856,7 @@ mod tests {
                 op: Operators::Sub,
                 lhs: Box::new(fmul_left),
                 rhs: Box::new(fmul_right),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -739,6 +870,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(0.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -765,8 +897,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Variable("y".into())),
+                paren: false,
             };
 
             // 4x^2 = 4 * (x^2)
@@ -777,7 +911,9 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             // 2y
@@ -785,6 +921,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(2.0)),
                 rhs: Box::new(Expr::Variable("y".into())),
+                paren: false,
             };
 
             // 4xy + 4x^2
@@ -792,6 +929,7 @@ mod tests {
                 op: Operators::Add,
                 lhs: Box::new(term_4xy),
                 rhs: Box::new(term_4x2),
+                paren: false,
             };
 
             // (4xy + 4x^2) - 2y
@@ -799,6 +937,7 @@ mod tests {
                 op: Operators::Sub,
                 lhs: Box::new(term_lleft),
                 rhs: Box::new(term_2y),
+                paren: false,
             };
 
             // ((4xy + 4x^2) - 2y) + 4
@@ -806,6 +945,7 @@ mod tests {
                 op: Operators::Add,
                 lhs: Box::new(term_left),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -824,15 +964,18 @@ mod tests {
                         op: Operators::Caret,
                         lhs: Box::new(Expr::Variable("x".into())),
                         rhs: Box::new(Expr::Number(2.0)),
+                        paren: false,
                     }),
                     rhs: Box::new(Expr::Number(3.0)),
+                    paren: false,
                 }),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
 
         #[test]
-        fn test_parsing_parents() {
+        fn test_parsing_parentheses() {
             let expr = "(3+2) / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
@@ -842,8 +985,10 @@ mod tests {
                     op: Operators::Add,
                     lhs: Box::new(Expr::Number(3.0)),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: true,
                 }),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -860,7 +1005,9 @@ mod tests {
                     op: Operators::Div,
                     lhs: Box::new(Expr::Number(2.0)),
                     rhs: Box::new(Expr::Number(4.0)),
+                    paren: false,
                 }),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -881,11 +1028,15 @@ mod tests {
                             op: Operators::Add,
                             lhs: Box::new(Expr::Number(4.0)),
                             rhs: Box::new(Expr::Number(2.0)),
+                            paren: true,
                         }),
+                        paren: true,
                     }),
                     rhs: Box::new(Expr::Number(5.0)),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Variable("x".to_string())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -961,6 +1112,142 @@ mod tests {
             let result = parser(tok_str);
             println!("{:?}", result);
             assert!(result.is_err());
+        }
+    }
+
+    // ---------------------------
+    // Test Display
+    // ---------------------------
+    mod display_tests {
+        use super::*;
+
+        #[test]
+        fn test_display_format() {
+            let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let tok_str = lexer(expr).unwrap();
+            let parsed = parser(tok_str).unwrap();
+            let display_str = format!("{parsed}");
+            let expected_str = "4x + 2 - 5x^2 * 4 * x^4 / 6 * x^6";
+            assert_eq!(display_str, expected_str);
+        }
+
+        #[allow(clippy::approx_constant)]
+        #[test]
+        fn test_display_number() {
+            let e = Expr::Number(3.14);
+            assert_eq!(format!("{e}"), "3.14");
+        }
+
+        #[test]
+        fn test_display_variable() {
+            let e = Expr::Variable("x".into());
+            assert_eq!(format!("{e}"), "x");
+        }
+
+        #[test]
+        fn test_display_constant() {
+            let e = Expr::Constant(Constants::Pi);
+            assert_eq!(format!("{e}"), "π");
+        }
+
+        #[test]
+        fn test_display_function() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::Variable("x".into())),
+            };
+            assert_eq!(format!("{e}"), "sin(x)");
+        }
+
+        #[test]
+        fn test_display_unary_op() {
+            let e = Expr::UnaryOpPrefix {
+                op: Operators::Sub,
+                value: Box::new(Expr::Number(3.0)),
+            };
+            assert_eq!(format!("{e}"), "-3");
+        }
+
+        #[test]
+        fn test_display_binary_op() {
+            let e = Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(1.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
+            };
+            assert_eq!(format!("{e}"), "1 + x");
+        }
+
+        #[test]
+        fn test_display_nested_binary() {
+            let e = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
+                }),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
+                }),
+                paren: false,
+            };
+            assert_eq!(format!("{e}"), "4x * x^2");
+        }
+
+        #[test]
+        fn test_display_function_nested() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::Function {
+                    func: Functions::Cos,
+                    inner: Box::new(Expr::Variable("x".into())),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(cos(x))");
+        }
+
+        #[test]
+        fn test_display_function_with_expr() {
+            let e = Expr::Function {
+                func: Functions::Log,
+                inner: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
+                }),
+            };
+            assert_eq!(format!("{e}"), "log(4x)");
+        }
+
+        #[test]
+        fn test_display_function_constant_unary_prefix() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::UnaryOpPrefix {
+                    op: Operators::Sub,
+                    value: Box::new(Expr::Constant(Constants::Pi)),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(-π)");
+        }
+
+        #[test]
+        fn test_display_function_number_unary_postfix() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::UnaryOpPostfix {
+                    op: Operators::Fac,
+                    value: Box::new(Expr::Number(4.0)),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(4!)");
         }
     }
     // ---------------------------
