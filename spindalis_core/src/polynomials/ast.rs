@@ -117,6 +117,20 @@ token_from_char! {
     }
 }
 
+impl std::fmt::Display for Operators {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: &str = match self {
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Div => "/",
+            Self::Mul => "*",
+            Self::Rem => "%",
+            Self::Caret => "^",
+        };
+        write!(f, "{s}")
+    }
+}
+
 // declaring `Functions` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone)]
@@ -130,6 +144,20 @@ token_from_str! {
     }
 }
 
+impl std::fmt::Display for Functions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Sin => "sin",
+            Self::Cos => "cos",
+            Self::Tan => "tan",
+            Self::Cot => "cot",
+            Self::Log => "log",
+            Self::Ln => "ln",
+        };
+        write!(f, "{s}")
+    }
+}
+
 // declaring `Constants` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone)]
@@ -138,6 +166,18 @@ token_from_str! {
         E => "e",
         Tau => "tau",
         Phi => "phi",
+    }
+}
+
+impl std::fmt::Display for Constants {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Pi => "pi",
+            Self::E => "e",
+            Self::Tau => "tau",
+            Self::Phi => "phi",
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -170,6 +210,19 @@ pub enum Expr {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number(n) => write!(f, "{n}"),
+            Self::Variable(v) => write!(f, "{v}"),
+            Self::Constant(c) => write!(f, "{c}"),
+            Self::Function { func, inner } => write!(f, "{func}({inner})"),
+            Self::UnaryOp { op, node } => write!(f, "{op}{node}"),
+            Self::BinaryOp { op, lhs, rhs } => write!(f, "({lhs} {op} {rhs})"),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -399,7 +452,7 @@ fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
     // Returns error if there are remaining tokens after parsing
     if let Some(token) = token_stream.next() {
         return Err(PolynomialError::UnexpectedToken { token });
-    };
+    }
 
     Ok(PolynomialAst::new(ast_node))
 }
@@ -961,6 +1014,118 @@ mod tests {
             let result = parser(tok_str);
             println!("{:?}", result);
             assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_display_format() {
+            let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let tok_str = lexer(expr).unwrap();
+            let parsed = parser(tok_str).unwrap();
+            let display_str = format!("{parsed}");
+            let expected_str =
+                "(((4 * x) + 2) - (((((5 * (x ^ 2)) * 4) * (x ^ 4)) / 6) * (x ^ 6)))";
+            assert_eq!(display_str, expected_str);
+        }
+
+        #[test]
+        fn test_display_number() {
+            let e = Expr::Number(3.14);
+            assert_eq!(format!("{e}"), "3.14");
+        }
+
+        #[test]
+        fn test_display_variable() {
+            let e = Expr::Variable("x".into());
+            assert_eq!(format!("{e}"), "x");
+        }
+
+        #[test]
+        fn test_display_constant() {
+            let e = Expr::Constant(Constants::Pi);
+            assert_eq!(format!("{e}"), "pi");
+        }
+
+        #[test]
+        fn test_display_function() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::Variable("x".into())),
+            };
+            assert_eq!(format!("{e}"), "sin(x)");
+        }
+
+        #[test]
+        fn test_display_unary_op() {
+            let e = Expr::UnaryOp {
+                op: Operators::Sub,
+                node: Box::new(Expr::Number(3.0)),
+            };
+            assert_eq!(format!("{e}"), "-3");
+        }
+
+        #[test]
+        fn test_display_binary_op() {
+            let e = Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(1.0)),
+                rhs: Box::new(Expr::Variable("x".into())),
+            };
+            assert_eq!(format!("{e}"), "(1 + x)");
+        }
+
+        #[test]
+        fn test_display_nested_binary() {
+            let e = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                }),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(2.0)),
+                }),
+            };
+            assert_eq!(format!("{e}"), "((4 * x) * (x ^ 2))");
+        }
+
+        #[test]
+        fn test_display_function_nested() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::Function {
+                    func: Functions::Cos,
+                    inner: Box::new(Expr::Variable("x".into())),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(cos(x))");
+        }
+
+        #[test]
+        fn test_display_function_with_expr() {
+            let e = Expr::Function {
+                func: Functions::Log,
+                inner: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
+                }),
+            };
+            assert_eq!(format!("{e}"), "log((4 * x))");
+        }
+
+        #[test]
+        fn test_display_function_constant_unary() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::UnaryOp {
+                    op: Operators::Sub,
+                    node: Box::new(Expr::Constant(Constants::Pi)),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(-pi)");
         }
     }
     // ---------------------------
