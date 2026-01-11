@@ -114,6 +114,7 @@ token_from_char! {
         Mul   => '*',
         Rem   => '%',
         Caret => '^',
+        Fac => '!',
     }
 }
 
@@ -126,6 +127,7 @@ impl std::fmt::Display for Operators {
             Self::Mul => "*",
             Self::Rem => "%",
             Self::Caret => "^",
+            Self::Fac => "!",
         };
         write!(f, "{s}")
     }
@@ -172,10 +174,10 @@ token_from_str! {
 impl std::fmt::Display for Constants {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::Pi => "pi",
+            Self::Pi => "π",
             Self::E => "e",
-            Self::Tau => "tau",
-            Self::Phi => "phi",
+            Self::Tau => "τ",
+            Self::Phi => "ϕ",
         };
         write!(f, "{s}")
     }
@@ -201,14 +203,19 @@ pub enum Expr {
         func: Functions,
         inner: Box<Expr>,
     },
-    UnaryOp {
+    UnaryOpPrefix {
         op: Operators,
-        node: Box<Expr>,
+        value: Box<Expr>,
+    },
+    UnaryOpPostfix {
+        op: Operators,
+        value: Box<Expr>,
     },
     BinaryOp {
         op: Operators,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
+        paren: bool,
     },
 }
 
@@ -219,8 +226,20 @@ impl std::fmt::Display for Expr {
             Self::Variable(v) => write!(f, "{v}"),
             Self::Constant(c) => write!(f, "{c}"),
             Self::Function { func, inner } => write!(f, "{func}({inner})"),
-            Self::UnaryOp { op, node } => write!(f, "{op}{node}"),
-            Self::BinaryOp { op, lhs, rhs } => write!(f, "({lhs} {op} {rhs})"),
+            Self::UnaryOpPrefix { op, value } => write!(f, "{op}{value}"),
+            Self::UnaryOpPostfix { op, value } => write!(f, "{value}{op}"),
+            Self::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => {
+                if *paren {
+                    write!(f, "({lhs} {op} {rhs})")
+                } else {
+                    write!(f, "{lhs} {op} {rhs}")
+                }
+            }
         }
     }
 }
@@ -400,8 +419,11 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         Some(Token::Variable(n)) => Ok(Expr::Variable(n)),
         Some(Token::Constant(n)) => Ok(Expr::Constant(n)),
         Some(Token::LParen) => {
-            let expr = parse_expr(token_stream, 0.0)?;
+            let mut expr = parse_expr(token_stream, 0.0)?;
             ensure(token_stream, Token::RParen)?;
+            if let Expr::BinaryOp { ref mut paren, .. } = expr {
+                *paren = true
+            }
             Ok(expr)
         }
         Some(Token::RParen) => {
@@ -433,6 +455,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
                 op,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
+                paren: false,
             };
             continue;
         }
@@ -620,6 +643,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -633,6 +657,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -646,6 +671,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.2)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -661,8 +687,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -680,7 +708,9 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             let r_child = Expr::BinaryOp {
@@ -690,13 +720,16 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(3.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(l_child),
                 rhs: Box::new(r_child),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -712,6 +745,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             };
 
             // 5 * x^2
@@ -719,6 +753,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(5.0)),
                 rhs: Box::new(term_x2),
+                paren: false,
             };
 
             // (5 * x^2) * 4
@@ -726,6 +761,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(term_5x2),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             };
 
             // x^4
@@ -733,6 +769,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             };
 
             // ((5 * x^2) * 4) * x^4
@@ -740,6 +777,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(term_5x24),
                 rhs: Box::new(term_x4),
+                paren: false,
             };
 
             // (((5 * x^2) * 4) * x^4) / 6
@@ -747,6 +785,7 @@ mod tests {
                 op: Operators::Div,
                 lhs: Box::new(term_5x24x4),
                 rhs: Box::new(Expr::Number(6.0)),
+                paren: false,
             };
 
             // x^6
@@ -754,6 +793,7 @@ mod tests {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(6.0)),
+                paren: false,
             };
 
             // ((((5 * x^2) * 4) * x^4) / 6) * x^6
@@ -761,6 +801,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(mul_left),
                 rhs: Box::new(term_x6),
+                paren: false,
             };
 
             // 4x + 2
@@ -770,8 +811,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
             };
 
             // (4x + 2) - (...)
@@ -779,6 +822,7 @@ mod tests {
                 op: Operators::Sub,
                 lhs: Box::new(fmul_left),
                 rhs: Box::new(fmul_right),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -792,6 +836,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(0.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -818,8 +863,10 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Variable("y".into())),
+                paren: false,
             };
 
             // 4x^2 = 4 * (x^2)
@@ -830,7 +877,9 @@ mod tests {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
 
             // 2y
@@ -838,6 +887,7 @@ mod tests {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(2.0)),
                 rhs: Box::new(Expr::Variable("y".into())),
+                paren: false,
             };
 
             // 4xy + 4x^2
@@ -845,6 +895,7 @@ mod tests {
                 op: Operators::Add,
                 lhs: Box::new(term_4xy),
                 rhs: Box::new(term_4x2),
+                paren: false,
             };
 
             // (4xy + 4x^2) - 2y
@@ -852,6 +903,7 @@ mod tests {
                 op: Operators::Sub,
                 lhs: Box::new(term_lleft),
                 rhs: Box::new(term_2y),
+                paren: false,
             };
 
             // ((4xy + 4x^2) - 2y) + 4
@@ -859,6 +911,7 @@ mod tests {
                 op: Operators::Add,
                 lhs: Box::new(term_left),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -877,15 +930,18 @@ mod tests {
                         op: Operators::Caret,
                         lhs: Box::new(Expr::Variable("x".into())),
                         rhs: Box::new(Expr::Number(2.0)),
+                        paren: false,
                     }),
                     rhs: Box::new(Expr::Number(3.0)),
+                    paren: false,
                 }),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
 
         #[test]
-        fn test_parsing_parents() {
+        fn test_parsing_parentheses() {
             let expr = "(3+2) / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
@@ -895,8 +951,10 @@ mod tests {
                     op: Operators::Add,
                     lhs: Box::new(Expr::Number(3.0)),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: true,
                 }),
                 rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -913,7 +971,9 @@ mod tests {
                     op: Operators::Div,
                     lhs: Box::new(Expr::Number(2.0)),
                     rhs: Box::new(Expr::Number(4.0)),
+                    paren: false,
                 }),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -934,11 +994,15 @@ mod tests {
                             op: Operators::Add,
                             lhs: Box::new(Expr::Number(4.0)),
                             rhs: Box::new(Expr::Number(2.0)),
+                            paren: true,
                         }),
+                        paren: true,
                     }),
                     rhs: Box::new(Expr::Number(5.0)),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::Variable("x".to_string())),
+                paren: false,
             });
             assert_eq!(result, expected);
         }
@@ -1015,6 +1079,13 @@ mod tests {
             println!("{:?}", result);
             assert!(result.is_err());
         }
+    }
+
+    // ---------------------------
+    // Test Display
+    // ---------------------------
+    mod display_tests {
+        use super::*;
 
         #[test]
         fn test_display_format() {
@@ -1022,11 +1093,11 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let parsed = parser(tok_str).unwrap();
             let display_str = format!("{parsed}");
-            let expected_str =
-                "(((4 * x) + 2) - (((((5 * (x ^ 2)) * 4) * (x ^ 4)) / 6) * (x ^ 6)))";
+            let expected_str = "4 * x + 2 - 5 * x ^ 2 * 4 * x ^ 4 / 6 * x ^ 6";
             assert_eq!(display_str, expected_str);
         }
 
+        #[allow(clippy::approx_constant)]
         #[test]
         fn test_display_number() {
             let e = Expr::Number(3.14);
@@ -1042,7 +1113,7 @@ mod tests {
         #[test]
         fn test_display_constant() {
             let e = Expr::Constant(Constants::Pi);
-            assert_eq!(format!("{e}"), "pi");
+            assert_eq!(format!("{e}"), "π");
         }
 
         #[test]
@@ -1056,9 +1127,9 @@ mod tests {
 
         #[test]
         fn test_display_unary_op() {
-            let e = Expr::UnaryOp {
+            let e = Expr::UnaryOpPrefix {
                 op: Operators::Sub,
-                node: Box::new(Expr::Number(3.0)),
+                value: Box::new(Expr::Number(3.0)),
             };
             assert_eq!(format!("{e}"), "-3");
         }
@@ -1069,8 +1140,9 @@ mod tests {
                 op: Operators::Add,
                 lhs: Box::new(Expr::Number(1.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
+                paren: false,
             };
-            assert_eq!(format!("{e}"), "(1 + x)");
+            assert_eq!(format!("{e}"), "1 + x");
         }
 
         #[test]
@@ -1081,14 +1153,17 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
                 rhs: Box::new(Expr::BinaryOp {
                     op: Operators::Caret,
                     lhs: Box::new(Expr::Variable("x".into())),
                     rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
                 }),
+                paren: false,
             };
-            assert_eq!(format!("{e}"), "((4 * x) * (x ^ 2))");
+            assert_eq!(format!("{e}"), "4 * x * x ^ 2");
         }
 
         #[test]
@@ -1111,21 +1186,34 @@ mod tests {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
                     rhs: Box::new(Expr::Variable("x".into())),
+                    paren: false,
                 }),
             };
-            assert_eq!(format!("{e}"), "log((4 * x))");
+            assert_eq!(format!("{e}"), "log(4 * x)");
         }
 
         #[test]
-        fn test_display_function_constant_unary() {
+        fn test_display_function_constant_unary_prefix() {
             let e = Expr::Function {
                 func: Functions::Sin,
-                inner: Box::new(Expr::UnaryOp {
+                inner: Box::new(Expr::UnaryOpPrefix {
                     op: Operators::Sub,
-                    node: Box::new(Expr::Constant(Constants::Pi)),
+                    value: Box::new(Expr::Constant(Constants::Pi)),
                 }),
             };
-            assert_eq!(format!("{e}"), "sin(-pi)");
+            assert_eq!(format!("{e}"), "sin(-π)");
+        }
+
+        #[test]
+        fn test_display_function_number_unary_postfix() {
+            let e = Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::UnaryOpPostfix {
+                    op: Operators::Fac,
+                    value: Box::new(Expr::Number(4.0)),
+                }),
+            };
+            assert_eq!(format!("{e}"), "sin(4!)");
         }
     }
     // ---------------------------
