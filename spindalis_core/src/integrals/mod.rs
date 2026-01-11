@@ -1,4 +1,4 @@
-pub mod extended_indefinite;
+pub mod polynomial_indefinite;
 pub mod simple_indefinite;
 pub mod univariate_definite;
 

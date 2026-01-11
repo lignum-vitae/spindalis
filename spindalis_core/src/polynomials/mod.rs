@@ -1,12 +1,12 @@
-pub mod ast;
 pub mod extended;
+pub mod polynomial;
 pub mod simple;
 
 pub mod structs;
 
-pub use extended::Term;
+pub use polynomial::Term;
 
-use ast::Token;
+use extended::Token;
 
 // Error Enum
 

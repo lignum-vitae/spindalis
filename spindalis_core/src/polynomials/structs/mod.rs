@@ -1,9 +1,10 @@
-pub mod ast;
 pub mod extended;
+pub mod polynomial;
 pub mod simple;
 
-pub use extended::PolynomialExtended;
+pub use extended::ExtendedPolynomial;
 pub use simple::SimplePolynomial;
+pub use polynomial::Polynomial;
 
 pub use crate::polynomials::PolynomialError; // import Polynomial Error
 

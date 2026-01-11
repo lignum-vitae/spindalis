@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use crate::polynomials::{Term, structs::PolynomialExtended};
+use crate::polynomials::{Term, structs::polynomial::Polynomial};
 
-pub fn partial_derivative<S>(poly: &[Term], var: S) -> PolynomialExtended
+pub fn partial_derivative<S>(poly: &[Term], var: S) -> Polynomial
 where
     S: AsRef<str>,
 {
@@ -33,11 +33,13 @@ where
         .flat_map(|term| term.variables.iter())
         .map(|(var_name, _)| var_name.clone())
         .collect();
+
     let variables: Vec<String> = unique_variables.into_iter().collect();
-    let mut res_poly = PolynomialExtended {
+    let mut res_poly = Polynomial {
         terms: parsed_deriv,
         variables,
     };
+
     res_poly.sort_poly();
     res_poly
 }
