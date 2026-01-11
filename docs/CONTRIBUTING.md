@@ -95,10 +95,20 @@ git checkout feature-name
 
 ```nginx
 # Make sure latest changes are taken from main BEFORE making changes
-git pull
+git pull origin main
 ```
 
 #### 7. Run your changes in your local environment
+
+This step can be achieved using [just](https://github.com/casey/just).
+`Just` can be installed using `cargo install just`,
+by using any of their listed package managers, or by `curl`.
+
+Ensure that `just` is working correctly by running `just` in the shell from the
+project directory. Windows users may need to check that `just` is in their `PATH`.
+
+After installing `just`, all appropriate checks can be run using the command
+`just check`.
 
 ```nginx
 # Format your changes
@@ -136,36 +146,18 @@ messy commits. Consider using it only when:
 - You've checked git status first
 - Your .gitignore is properly configured
 
-#### 9. Rebase Your Development Branch on the Latest Upstream
-
-```nginx
-# Make sure all is committed (or stashed) as necessary on this branch
-git rebase -i upstream/main feature-name
-```
-
-You may need to resolve conflicts that occur when both a file on the development
-trunk and one of the files in your branch have been changed.
-Edit each conflicting file to resolve the differences, then continue the rebase.
-Each file will need to be "added" to mark the conflict as resolved:
-
-```nginx
-# Resolve conflicts in each file, then:
-git add <resolved-filename>
-git rebase --continue
-```
-
-#### 10. Push your branch to your fork on GitHub:
+#### 9. Push your branch to your fork on GitHub:
 
 ```nginx
 git push -f origin feature-name
 ```
 
-#### 11. Open a Pull Request (PR) from your branch to the main branch of the original Spindalis repository on GitHub
+#### 10. Open a Pull Request (PR) from your branch to the main branch of the original Spindalis repository on GitHub
 
 - You may need to click the `compare across forks` link under the `Compare changes`
 header that populates when you click `New pull request` to see your local repo fork.
 
-#### 12. In your PR description, include:
+#### 11. In your PR description, include:
 
 - A summary of the changes.
 - Any relevant issue numbers (e.g., fixes #123).
