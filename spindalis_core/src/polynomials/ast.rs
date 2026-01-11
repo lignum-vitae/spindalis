@@ -234,6 +234,40 @@ impl std::fmt::Display for Expr {
                 rhs,
                 paren,
             } => {
+                // 4 * x   -> 4x
+                // 5 * x^2 -> 5x^2
+                // 2 * π   -> 2π
+                let mut implied: Option<String> = None;
+
+                if *op == Operators::Mul {
+                    implied = match (&**lhs, &**rhs) {
+                        (Self::Number(n), Self::Variable(v)) => Some(format!("{n}{v}")),
+                        (Self::Number(n), Self::Constant(c)) => Some(format!("{n}{c}")),
+                        (
+                            Self::Number(n),
+                            Self::BinaryOp {
+                                op: Operators::Caret,
+                                ..
+                            },
+                        ) => Some(format!("{n}{rhs}")),
+                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}{n}")),
+                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}{n}")),
+                        _ => None,
+                    };
+                } else if *op == Operators::Caret {
+                    implied = match (&**lhs, &**rhs) {
+                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}^{n}")),
+                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}^{n}")),
+                        _ => None,
+                    };
+                }
+
+                if let Some(s) = implied {
+                    if *paren {
+                        return write!(f, "({s})");
+                    }
+                    return write!(f, "{s}");
+                }
                 if *paren {
                     write!(f, "({lhs} {op} {rhs})")
                 } else {
@@ -1093,7 +1127,7 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let parsed = parser(tok_str).unwrap();
             let display_str = format!("{parsed}");
-            let expected_str = "4 * x + 2 - 5 * x ^ 2 * 4 * x ^ 4 / 6 * x ^ 6";
+            let expected_str = "4x + 2 - 5x^2 * 4 * x^4 / 6 * x^6";
             assert_eq!(display_str, expected_str);
         }
 
@@ -1163,7 +1197,7 @@ mod tests {
                 }),
                 paren: false,
             };
-            assert_eq!(format!("{e}"), "4 * x * x ^ 2");
+            assert_eq!(format!("{e}"), "4x * x^2");
         }
 
         #[test]
@@ -1189,7 +1223,7 @@ mod tests {
                     paren: false,
                 }),
             };
-            assert_eq!(format!("{e}"), "log(4 * x)");
+            assert_eq!(format!("{e}"), "log(4x)");
         }
 
         #[test]
