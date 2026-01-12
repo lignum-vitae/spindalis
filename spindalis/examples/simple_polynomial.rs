@@ -9,7 +9,7 @@ fn main() {
     // Parsing macro
     let parsed = parse_simple_polynomial!(5x ^ 3 + 4x ^ 4 - 5x ^ 2 + 1);
 
-    println!("Parising polynomials");
+    println!("Parsing polynomials");
     println!("Original polynomial: {polynomial}");
     println!("Polynomial parsed with macro: {parsed:?}");
     println!("Polynomial parsed with struct: {struct_parsed}\n");
