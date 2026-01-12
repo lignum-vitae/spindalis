@@ -1,8 +1,8 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::ast::{PolynomialAst, TokenStream};
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 /*
 * ##### TOKEN_FROM_STR MACRO: USAGE EXAMPLE ####
@@ -135,7 +135,7 @@ impl std::fmt::Display for Operators {
 
 // declaring `Functions` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq,Clone)]
+    #[derive(Debug, PartialEq, Eq,Clone)]
     pub Functions {
         Sin => "sin",
         Cos => "cos",
@@ -162,7 +162,7 @@ impl std::fmt::Display for Functions {
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq,Clone)]
+    #[derive(Debug, PartialEq, Eq,Clone)]
     pub Constants {
         Pi => "pi",
         E => "e",
@@ -201,20 +201,20 @@ pub enum Expr {
     Constant(Constants),
     Function {
         func: Functions,
-        inner: Box<Expr>,
+        inner: Box<Self>,
     },
     UnaryOpPrefix {
         op: Operators,
-        value: Box<Expr>,
+        value: Box<Self>,
     },
     UnaryOpPostfix {
         op: Operators,
-        value: Box<Expr>,
+        value: Box<Self>,
     },
     BinaryOp {
         op: Operators,
-        lhs: Box<Expr>,
-        rhs: Box<Expr>,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
         paren: bool,
     },
 }
@@ -286,7 +286,7 @@ where
     let input = input.as_ref();
     let mut tokens: Vec<Token> = Vec::new();
     let mut temp = String::new();
-    let chars = input.replace(" ", "");
+    let chars = input.replace(' ', "");
 
     let mut chars = chars.chars().peekable();
     while let Some(&ch) = chars.peek() {
@@ -318,16 +318,16 @@ where
                 match temp.len() {
                     1 => {
                         if let Ok(x) = Constants::from_str(&temp) {
-                            tokens.push(Token::Constant(x))
+                            tokens.push(Token::Constant(x));
                         } else {
-                            tokens.push(Token::Variable(temp.clone()))
+                            tokens.push(Token::Variable(temp.clone()));
                         }
                     }
                     _ => {
                         if let Ok(x) = Functions::from_str(&temp) {
-                            tokens.push(Token::Function(x))
+                            tokens.push(Token::Function(x));
                         } else if let Ok(x) = Constants::from_str(&temp) {
-                            tokens.push(Token::Constant(x))
+                            tokens.push(Token::Constant(x));
                         } else {
                             for char in temp.chars() {
                                 tokens.push(Token::Variable(char.to_string()));
@@ -361,7 +361,7 @@ where
     Ok(tokens)
 }
 
-static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
+static BINDING_POW: LazyLock<HashMap<Operators, f64>> = LazyLock::new(|| {
     HashMap::from([
         (Operators::Sub, 1.0),
         (Operators::Add, 1.0),
@@ -372,9 +372,9 @@ static BINDING_POW: Lazy<HashMap<Operators, f64>> = Lazy::new(|| {
     ])
 });
 
-fn ensure(token_stream: &mut TokenStream, expected_token: Token) -> Result<(), PolynomialError> {
+fn ensure(token_stream: &mut TokenStream, expected_token: &Token) -> Result<(), PolynomialError> {
     match token_stream.next() {
-        Some(token) if token == expected_token => Ok(()),
+        Some(token) if token == *expected_token => Ok(()),
         Some(token) => Err(PolynomialError::UnexpectedToken { token }),
         None => Err(PolynomialError::UnexpectedEndOfTokens),
     }
@@ -390,57 +390,26 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
             break;
         }
         match token_stream.get(idx) {
-            Some(Token::Number(_)) => match token_stream.get(idx + 1) {
-                Some(Token::Variable(_)) => {
+            Some(Token::Number(_)) => {
+                if let Some(
+                    Token::Variable(_) | Token::Function(_) | Token::Constant(_) | Token::LParen,
+                ) = token_stream.get(idx + 1)
+                {
                     token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
                 }
-                Some(Token::Function(_)) => {
+            }
+            Some(Token::Variable(_) | Token::Constant(_)) => {
+                if let Some(
+                    Token::Number(_)
+                    | Token::Variable(_)
+                    | Token::Function(_)
+                    | Token::Constant(_)
+                    | Token::LParen,
+                ) = token_stream.get(idx + 1)
+                {
                     token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
                 }
-                Some(Token::Constant(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::LParen) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                _ => {}
-            },
-            Some(Token::Variable(_)) => match token_stream.get(idx + 1) {
-                Some(Token::Number(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Variable(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Function(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Constant(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::LParen) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                _ => {}
-            },
-            Some(Token::Constant(_)) => match token_stream.get(idx + 1) {
-                Some(Token::Number(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Variable(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Function(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::Constant(_)) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                Some(Token::LParen) => {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
-                }
-                _ => {}
-            },
+            }
             _ => {}
         }
         idx += 1;
@@ -454,9 +423,9 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         Some(Token::Constant(n)) => Ok(Expr::Constant(n)),
         Some(Token::LParen) => {
             let mut expr = parse_expr(token_stream, 0.0)?;
-            ensure(token_stream, Token::RParen)?;
+            ensure(token_stream, &Token::RParen)?;
             if let Expr::BinaryOp { ref mut paren, .. } = expr {
-                *paren = true
+                *paren = true;
             }
             Ok(expr)
         }
@@ -480,19 +449,18 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
         if cbind_pow < min_bind_pow {
             break;
-        } else {
-            let op = *op;
-            token_stream.next();
-            // right associativity of operators
-            let right = parse_expr(token_stream, cbind_pow + 1.0)?;
-            left = Expr::BinaryOp {
-                op,
-                lhs: Box::new(left),
-                rhs: Box::new(right),
-                paren: false,
-            };
-            continue;
         }
+
+        let op = *op;
+        token_stream.next();
+        // right associativity of operators
+        let right = parse_expr(token_stream, cbind_pow + 1.0)?;
+        left = Expr::BinaryOp {
+            op,
+            lhs: Box::new(left),
+            rhs: Box::new(right),
+            paren: false,
+        };
     }
     Ok(left)
 }
@@ -519,7 +487,7 @@ mod tests {
     use super::*;
 
     // ---------------------------
-    // Tokenising tests
+    // Tokenizing tests
     // ---------------------------
     mod lexer_tests {
         use super::*;
@@ -1047,7 +1015,7 @@ mod tests {
             let expr = "4 +++ 3x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1056,7 +1024,7 @@ mod tests {
             let expr = "4x +";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1065,7 +1033,7 @@ mod tests {
             let expr = "+ 3x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1074,7 +1042,7 @@ mod tests {
             let expr = "+";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1083,7 +1051,7 @@ mod tests {
             let expr = "4x^^^2";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1092,7 +1060,7 @@ mod tests {
             let expr = "(4x + 2 / 4";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1101,7 +1069,7 @@ mod tests {
             let expr = "4x + 2) / 4";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1110,7 +1078,7 @@ mod tests {
             let expr = "4x + 2)";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_err());
         }
     }
@@ -1257,7 +1225,7 @@ mod tests {
         use super::*;
 
         token_from_str! {
-            #[derive(Debug, PartialEq)]
+            #[derive(Debug, PartialEq, Eq)]
             pub TestEnum {
                 Alpha => "alpha",
                 Beta  => "beta",
@@ -1288,7 +1256,7 @@ mod tests {
         // edge case: empty enum
         // compiles but returns `Err(())` on comparison
         token_from_str! {
-            #[derive(Debug,PartialEq)]
+            #[derive(Debug,PartialEq, Eq)]
             pub EmptyEnum{}
         }
 
@@ -1304,7 +1272,7 @@ mod tests {
     mod char_macro_tests {
 
         token_from_char! {
-            #[derive(Debug, PartialEq)]
+            #[derive(Debug, PartialEq, Eq)]
             pub TestOps {
                 Plus  => '+',
                 Minus => '-',
@@ -1327,7 +1295,7 @@ mod tests {
         // edge case: empty enum
         // compiles but always returns `Err(())`
         token_from_char! {
-            #[derive(Debug, PartialEq)]
+            #[derive(Debug, PartialEq, Eq)]
             pub EmptyEnum {}
         }
 
