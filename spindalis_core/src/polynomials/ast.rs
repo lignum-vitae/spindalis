@@ -434,16 +434,36 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
                 token: Token::RParen,
             });
         }
-        Some(Token::Function(f)) => {
-            let func = f;
+        Some(Token::Function(func)) => {
             let inner = parse_expr(token_stream, 5.0)?;
-            return Ok(Expr::Function {
+            Ok(Expr::Function {
                 func,
                 inner: Box::new(inner),
-            });
+            })
+        }
+        Some(Token::Operator(operator)) => {
+            if operator != Operators::Sub {
+                return Err(PolynomialError::UnexpectedToken {
+                    token: Token::Operator(operator),
+                });
+            }
+            let next_expr = parse_expr(token_stream, 2.0)?;
+            Ok(Expr::UnaryOpPrefix {
+                op: operator,
+                value: Box::new(next_expr),
+            })
         }
         _ => return Err(PolynomialError::PolynomialSyntaxError),
     }?;
+
+    while matches!(token_stream.peek(), Some(Token::Operator(op)) if *op == Operators::Fac) {
+        token_stream.next();
+        left = Expr::UnaryOpPostfix {
+            op: Operators::Fac,
+            value: Box::new(left),
+        };
+    }
+
     // iteratively looks for operators with lower binding than minimum binding power
     while let Some(Token::Operator(op)) = token_stream.peek() {
         let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
@@ -462,6 +482,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
             paren: false,
         };
     }
+
     Ok(left)
 }
 
@@ -1009,6 +1030,102 @@ mod tests {
             assert_eq!(result, expected);
         }
 
+        #[test]
+        fn test_unary_prefix() {
+            let expr = "-3x + 4";
+            let tkn_str = lexer(expr).unwrap();
+            let result = parser(tkn_str).unwrap();
+
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::UnaryOpPrefix {
+                    op: Operators::Sub,
+                    value: Box::new(Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(Expr::Number(3.0)),
+                        rhs: Box::new(Expr::Variable("x".into())),
+                        paren: false,
+                    }),
+                }),
+                rhs: Box::new(Expr::Number(4.0)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_unary_simple() {
+            let expr = "4!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+                op: Operators::Fac,
+                value: Box::new(Expr::Number(4.0)),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_unary_variable() {
+            let expr = "x!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+                op: Operators::Fac,
+                value: Box::new(Expr::Variable("x".into())),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_unary_chained() {
+            let expr = "4!!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+                op: Operators::Fac,
+                value: Box::new(Expr::UnaryOpPostfix {
+                    op: Operators::Fac,
+                    value: Box::new(Expr::Number(4.0)),
+                }),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_unary_with_binary() {
+            let expr = "3! + 2";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::UnaryOpPostfix {
+                    op: Operators::Fac,
+                    value: Box::new(Expr::Number(3.0)),
+                }),
+                rhs: Box::new(Expr::Number(2.0)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_unary_with_parens() {
+            let expr = "(2+1)!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+                op: Operators::Fac,
+                value: Box::new(Expr::BinaryOp {
+                    op: Operators::Add,
+                    lhs: Box::new(Expr::Number(2.0)),
+                    rhs: Box::new(Expr::Number(1.0)),
+                    paren: true,
+                }),
+            });
+            assert_eq!(result, expected);
+        }
+
         // Error handling tests
         #[test]
         fn test_invalid_expression() {
@@ -1079,6 +1196,142 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
             println!("{result:?}");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_only_minus_is_allowed() {
+            let expr = "+3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_invalid_operator_mul() {
+            let expr = "*3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_invalid_operator_div() {
+            let expr = "/3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_invalid_operator_caret() {
+            let expr = "^3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_invalid_operator_rem() {
+            let expr = "%3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_missing_rhs() {
+            let expr = "-";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_cannot_be_followed_by_rparen() {
+            let expr = "-)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_cannot_be_followed_by_binary_operator() {
+            let expr = "-+3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_cannot_start_expression() {
+            let expr = "!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_cannot_follow_binary_operator() {
+            let expr = "3+!2";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_cannot_follow_lparen() {
+            let expr = "(!2)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_cannot_follow_prefix_minus() {
+            let expr = "-!3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_cannot_apply_to_empty_parens() {
+            let expr = "()!";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_extra_token_after_factorial() {
+            let expr = "3!x";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_unary_invalid_following_token_lparen() {
+            let expr = "3!(";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_inside_parens_missing_rhs() {
+            let expr = "(-)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_unary_prefix_after_binary_operator_missing_rhs() {
+            let expr = "3*-";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
             assert!(result.is_err());
         }
     }
