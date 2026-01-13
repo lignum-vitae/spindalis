@@ -112,6 +112,7 @@ token_from_char! {
         Sub   => '-',
         Div   => '/',
         Mul   => '*',
+        CDot   => '·',
         Rem   => '%',
         Caret => '^',
         Fac => '!',
@@ -125,6 +126,7 @@ impl std::fmt::Display for Operators {
             Self::Sub => "-",
             Self::Div => "/",
             Self::Mul => "*",
+            Self::CDot => "·",
             Self::Rem => "%",
             Self::Caret => "^",
             Self::Fac => "!",
@@ -368,7 +370,8 @@ static BINDING_POW: LazyLock<HashMap<Operators, f64>> = LazyLock::new(|| {
         (Operators::Mul, 2.0),
         (Operators::Div, 2.0),
         (Operators::Rem, 3.0),
-        (Operators::Caret, 4.0),
+        (Operators::CDot, 4.0),
+        (Operators::Caret, 5.0),
     ])
 });
 
@@ -382,8 +385,11 @@ fn ensure(token_stream: &mut TokenStream, expected_token: &Token) -> Result<(), 
 
 fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     // Pass to identify implied multiplication to insert Operators::Mul
-    // e.g. 4x = 4*x
-    // 4x^2 == 4*(x^2)
+    // e.g. 4x = (4·x)
+    // 4x^2 == (4·x^2)
+    // The CDot Operator is a special temporary token with a unique binding power
+    // to ensure that 4x^2 is treated as a single unit.
+    // This is later replaced with the Mul operator in the parser function.
     let mut idx = 0;
     loop {
         if idx >= token_stream.len() {
@@ -395,7 +401,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
                     Token::Variable(_) | Token::Function(_) | Token::Constant(_) | Token::LParen,
                 ) = token_stream.get(idx + 1)
                 {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                    token_stream.insert(idx + 1, Token::Operator(Operators::CDot));
                 }
             }
             Some(Token::Variable(_) | Token::Constant(_)) => {
@@ -407,7 +413,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
                     | Token::LParen,
                 ) = token_stream.get(idx + 1)
                 {
-                    token_stream.insert(idx + 1, Token::Operator(Operators::Mul));
+                    token_stream.insert(idx + 1, Token::Operator(Operators::CDot));
                 }
             }
             _ => {}
@@ -435,6 +441,15 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
             });
         }
         Some(Token::Function(func)) => {
+            // Functions should always be followed by parentheses
+            if token_stream.peek() != Some(&Token::LParen) {
+                match token_stream.next() {
+                    Some(t) => {
+                        return Err(PolynomialError::UnexpectedToken { token: t });
+                    }
+                    None => return Err(PolynomialError::UnexpectedEndOfTokens),
+                }
+            }
             let inner = parse_expr(token_stream, 5.0)?;
             Ok(Expr::Function {
                 func,
@@ -471,7 +486,10 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
             break;
         }
 
-        let op = *op;
+        let mut op = *op;
+        if op == Operators::CDot {
+            op = Operators::Mul;
+        };
         token_stream.next();
         // right associativity of operators
         let right = parse_expr(token_stream, cbind_pow + 1.0)?;
@@ -719,6 +737,18 @@ mod tests {
         }
 
         #[test]
+        fn test_function_parsing() {
+            let expr = "sin(4)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = PolynomialAst::new(Expr::Function {
+                func: Functions::Sin,
+                inner: Box::new(Expr::Number(4.0)),
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
         fn test_int_float_expression_parse() {
             let expr = "4x^2 + 2.3x^3";
             let tok_str = lexer(expr).unwrap();
@@ -763,71 +793,7 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
 
-            // x^2
-            let term_x2 = Expr::BinaryOp {
-                op: Operators::Caret,
-                lhs: Box::new(Expr::Variable("x".into())),
-                rhs: Box::new(Expr::Number(2.0)),
-                paren: false,
-            };
-
-            // 5 * x^2
-            let term_5x2 = Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(Expr::Number(5.0)),
-                rhs: Box::new(term_x2),
-                paren: false,
-            };
-
-            // (5 * x^2) * 4
-            let term_5x24 = Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(term_5x2),
-                rhs: Box::new(Expr::Number(4.0)),
-                paren: false,
-            };
-
-            // x^4
-            let term_x4 = Expr::BinaryOp {
-                op: Operators::Caret,
-                lhs: Box::new(Expr::Variable("x".into())),
-                rhs: Box::new(Expr::Number(4.0)),
-                paren: false,
-            };
-
-            // ((5 * x^2) * 4) * x^4
-            let term_5x24x4 = Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(term_5x24),
-                rhs: Box::new(term_x4),
-                paren: false,
-            };
-
-            // (((5 * x^2) * 4) * x^4) / 6
-            let mul_left = Expr::BinaryOp {
-                op: Operators::Div,
-                lhs: Box::new(term_5x24x4),
-                rhs: Box::new(Expr::Number(6.0)),
-                paren: false,
-            };
-
-            // x^6
-            let term_x6 = Expr::BinaryOp {
-                op: Operators::Caret,
-                lhs: Box::new(Expr::Variable("x".into())),
-                rhs: Box::new(Expr::Number(6.0)),
-                paren: false,
-            };
-
-            // ((((5 * x^2) * 4) * x^4) / 6) * x^6
-            let fmul_right = Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(mul_left),
-                rhs: Box::new(term_x6),
-                paren: false,
-            };
-
-            // 4x + 2
+            /* --- Left side of subtraction: (4 * x) + 2 --- */
             let fmul_left = Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::BinaryOp {
@@ -840,13 +806,70 @@ mod tests {
                 paren: false,
             };
 
-            // (4x + 2) - (...)
+            /* --- Right side of subtraction: ((5 * x^2) * (4 * x^4)) / (6 * x^6) --- */
+            // 5 * x^2
+            let term_5x2 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(5.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(2.0)),
+                    paren: false,
+                }),
+                paren: false,
+            };
+
+            // (4 * x^4)
+            let term_4x4 = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(4.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(4.0)),
+                    paren: false,
+                }),
+                paren: false,
+            };
+
+            // (5 * x^2) * (4 * x^4)
+            let numerator = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(term_5x2),
+                rhs: Box::new(term_4x4),
+                paren: false,
+            };
+
+            // 6 * x^6
+            let denominator = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(6.0)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new(Expr::Number(6.0)),
+                    paren: false,
+                }),
+                paren: false,
+            };
+
+            // ((5 * x^2) * (4 * x^4)) / (6 * x^6)
+            let fmul_right = Expr::BinaryOp {
+                op: Operators::Div,
+                lhs: Box::new(numerator),
+                rhs: Box::new(denominator),
+                paren: false,
+            };
+
+            // ((4 * x) + 2) - ((5 * x^2) * (4 * x^4)) / (6 * x^6)
             let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Sub,
                 lhs: Box::new(fmul_left),
                 rhs: Box::new(fmul_right),
                 paren: false,
             });
+
             assert_eq!(result, expected);
         }
 
@@ -1009,22 +1032,22 @@ mod tests {
             let expected = PolynomialAst::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::BinaryOp {
-                    op: Operators::Mul,
-                    lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Add,
+                    lhs: Box::new(Expr::Number(3.0)),
+                    rhs: Box::new(Expr::BinaryOp {
                         op: Operators::Add,
-                        lhs: Box::new(Expr::Number(3.0)),
-                        rhs: Box::new(Expr::BinaryOp {
-                            op: Operators::Add,
-                            lhs: Box::new(Expr::Number(4.0)),
-                            rhs: Box::new(Expr::Number(2.0)),
-                            paren: true,
-                        }),
+                        lhs: Box::new(Expr::Number(4.0)),
+                        rhs: Box::new(Expr::Number(2.0)),
                         paren: true,
                     }),
-                    rhs: Box::new(Expr::Number(5.0)),
+                    paren: true,
+                }),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(5.0)),
+                    rhs: Box::new(Expr::Variable("x".into())),
                     paren: false,
                 }),
-                rhs: Box::new(Expr::Variable("x".to_string())),
                 paren: false,
             });
             assert_eq!(result, expected);
@@ -1200,6 +1223,22 @@ mod tests {
         }
 
         #[test]
+        fn test_missing_func_paren() {
+            let expr = "sin 4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_missing_func_closing_paren() {
+            let expr = "sin(4";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str);
+            assert!(result.is_err());
+        }
+
+        #[test]
         fn test_unary_prefix_only_minus_is_allowed() {
             let expr = "+3";
             let tok_str = lexer(expr).unwrap();
@@ -1348,7 +1387,17 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let parsed = parser(tok_str).unwrap();
             let display_str = format!("{parsed}");
-            let expected_str = "4x + 2 - 5x^2 * 4 * x^4 / 6 * x^6";
+            let expected_str = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            assert_eq!(display_str, expected_str);
+        }
+
+        #[test]
+        fn test_display_with_parentheses() {
+            let expr = "4x + (2 - 5x^2) * 4x^4 / 6x^6";
+            let tok_str = lexer(expr).unwrap();
+            let parsed = parser(tok_str).unwrap();
+            let display_str = format!("{parsed}");
+            let expected_str = "4x + (2 - 5x^2) * 4x^4 / 6x^6";
             assert_eq!(display_str, expected_str);
         }
 
