@@ -1,4 +1,4 @@
-name: Build and test Rust
+name: Build and test Spinalis
 
 on:
   push:
