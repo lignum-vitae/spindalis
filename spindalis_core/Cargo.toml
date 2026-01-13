@@ -6,6 +6,3 @@ edition = "2024"
 description = "Core polynomial logic for Spindalis package"
 repository = "https://github.com/lignum-vitae/spindalis"
 license = "MIT"
-
-[dependencies]
-once_cell = "1.21.3"

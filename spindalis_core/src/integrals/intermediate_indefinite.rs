@@ -1,9 +1,9 @@
 use crate::polynomials::Term;
-use crate::polynomials::structs::PolynomialExtended;
+use crate::polynomials::structs::IntermediatePolynomial;
 use std::collections::HashSet;
 
 // Uses Chain Rule to find integral
-pub fn indefinite_integral_extended<S>(poly: &[Term], var: S) -> PolynomialExtended
+pub fn indefinite_integral_intermediate<S>(poly: &[Term], var: S) -> IntermediatePolynomial
 where
     S: AsRef<str>,
 {
@@ -31,7 +31,7 @@ where
         .flat_map(|term| term.variables.iter())
         .map(|(var_name, _)| var_name.clone())
         .collect();
-    let mut res_poly = PolynomialExtended {
+    let mut res_poly = IntermediatePolynomial {
         terms: integrated,
         variables: unique_variables.into_iter().collect(),
     };

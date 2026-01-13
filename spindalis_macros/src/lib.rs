@@ -26,17 +26,17 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn parse_polynomial_extended(input: TokenStream) -> TokenStream {
-    let output =
-        match spindalis_core::polynomials::extended::parse_polynomial_extended(input.to_string()) {
-            Ok(terms) => terms,
-            Err(e) => {
-                let error_msg = format!("{:?}", e);
-                let error_tokens =
-                    format!("compile_error!(\"{}\")", error_msg.replace("\"", "\\\""));
-                return TokenStream::from_str(&error_tokens).unwrap();
-            }
-        };
+pub fn parse_intermediate_polynomial(input: TokenStream) -> TokenStream {
+    let output = match spindalis_core::polynomials::intermediate::parse_intermediate_polynomial(
+        input.to_string(),
+    ) {
+        Ok(terms) => terms,
+        Err(e) => {
+            let error_msg = format!("{:?}", e);
+            let error_tokens = format!("compile_error!(\"{}\")", error_msg.replace("\"", "\\\""));
+            return TokenStream::from_str(&error_tokens).unwrap();
+        }
+    };
 
     let mut tokens = String::from("vec![");
     for term in output.terms {

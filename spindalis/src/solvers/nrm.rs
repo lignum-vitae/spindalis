@@ -42,7 +42,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::polynomials::{PolynomialExtended, SimplePolynomial};
+    use crate::polynomials::{IntermediatePolynomial, SimplePolynomial};
 
     const ERROR_TOL: f64 = 0.0001;
 
@@ -57,9 +57,9 @@ mod tests {
     }
 
     #[test]
-    fn test_root_success_extended_poly() {
+    fn test_root_success_intermediate_poly() {
         let poly = "x^2 - 4";
-        let parsed = PolynomialExtended::parse(poly).unwrap();
+        let parsed = IntermediatePolynomial::parse(poly).unwrap();
         let result = newton_raphson_method(&parsed, 2.0, 100, ERROR_TOL, SolveMode::Root);
         assert!(result.is_ok());
         let root = result.unwrap();

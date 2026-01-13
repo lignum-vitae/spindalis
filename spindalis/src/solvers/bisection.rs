@@ -64,7 +64,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::polynomials::{PolynomialExtended, SimplePolynomial};
+    use crate::polynomials::{IntermediatePolynomial, SimplePolynomial};
 
     const ERROR_TOL: f64 = 0.00001;
 
@@ -93,9 +93,9 @@ mod tests {
     }
 
     #[test]
-    fn test_root_success_extended_poly() {
+    fn test_root_success_intermediate_poly() {
         let poly = "x^2 - 4";
-        let parsed = PolynomialExtended::parse(poly).unwrap();
+        let parsed = IntermediatePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
             Bounds {
@@ -134,10 +134,10 @@ mod tests {
     }
 
     #[test]
-    fn test_extrema_success_extended_poly() {
+    fn test_extrema_success_intermediate_poly() {
         // f(x) = -x^2 + 4x + 1 has a maximum at x = 2
         let poly = "-1x^2 + 4x + 1";
-        let parsed = PolynomialExtended::parse(poly).unwrap();
+        let parsed = IntermediatePolynomial::parse(poly).unwrap();
         let result = bisection(
             &parsed,
             Bounds {

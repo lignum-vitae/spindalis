@@ -1,2 +1,2 @@
-pub mod extended;
+pub mod intermediate;
 pub mod simple;

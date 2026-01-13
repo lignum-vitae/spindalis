@@ -1,4 +1,4 @@
-name: Clippy check - lint Spindalis
+name: Clippy check - lint
 
 on:
   push:

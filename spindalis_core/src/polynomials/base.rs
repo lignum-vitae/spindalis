@@ -1,5 +1,5 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::ast::{PolynomialAst, TokenStream};
+use crate::polynomials::structs::base::{Polynomial, TokenStream};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -505,7 +505,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
 }
 
 #[allow(dead_code)]
-fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
+fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
@@ -518,7 +518,7 @@ fn parser(token_stream: Vec<Token>) -> Result<PolynomialAst, PolynomialError> {
         return Err(PolynomialError::UnexpectedToken { token });
     }
 
-    Ok(PolynomialAst::new(ast_node))
+    Ok(Polynomial::new(ast_node))
 }
 
 #[cfg(test)]
@@ -662,7 +662,7 @@ mod tests {
             let expr = "4";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::Number(4.0));
+            let expected = Polynomial::new(Expr::Number(4.0));
             assert_eq!(result, expected);
         }
 
@@ -671,7 +671,7 @@ mod tests {
             let expr = "x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::Variable("x".into()));
+            let expected = Polynomial::new(Expr::Variable("x".into()));
             assert_eq!(result, expected);
         }
 
@@ -680,7 +680,7 @@ mod tests {
             let expr = "x^2";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
                 rhs: Box::new(Expr::Number(2.0)),
@@ -694,7 +694,7 @@ mod tests {
             let expr = "4x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
@@ -708,7 +708,7 @@ mod tests {
             let expr = "4.2x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.2)),
                 rhs: Box::new(Expr::Variable("x".into())),
@@ -722,7 +722,7 @@ mod tests {
             let expr = "4x+2";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::BinaryOp {
                     op: Operators::Mul,
@@ -741,7 +741,7 @@ mod tests {
             let expr = "sin(4)";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::Function {
+            let expected = Polynomial::new(Expr::Function {
                 func: Functions::Sin,
                 inner: Box::new(Expr::Number(4.0)),
             });
@@ -778,7 +778,7 @@ mod tests {
                 paren: false,
             };
 
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(l_child),
                 rhs: Box::new(r_child),
@@ -863,7 +863,7 @@ mod tests {
             };
 
             // ((4 * x) + 2) - ((5 * x^2) * (4 * x^4)) / (6 * x^6)
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Sub,
                 lhs: Box::new(fmul_left),
                 rhs: Box::new(fmul_right),
@@ -878,7 +878,7 @@ mod tests {
             let expr = "0x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(0.0)),
                 rhs: Box::new(Expr::Variable("x".into())),
@@ -892,7 +892,7 @@ mod tests {
             let expr = "0";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::Number(0.0));
+            let expected = Polynomial::new(Expr::Number(0.0));
             assert_eq!(result, expected);
         }
 
@@ -953,7 +953,7 @@ mod tests {
             };
 
             // ((4xy + 4x^2) - 2y) + 4
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(term_left),
                 rhs: Box::new(Expr::Number(4.0)),
@@ -967,7 +967,7 @@ mod tests {
             let expr = "4x^2^3";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::BinaryOp {
@@ -991,7 +991,7 @@ mod tests {
             let expr = "(3+2) / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Div,
                 lhs: Box::new(Expr::BinaryOp {
                     op: Operators::Add,
@@ -1010,7 +1010,7 @@ mod tests {
             let expr = "3 + 2 / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::Number(3.0)),
                 rhs: Box::new(Expr::BinaryOp {
@@ -1029,7 +1029,7 @@ mod tests {
             let expr = "(3 + (4+2)) * 5x";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::BinaryOp {
                     op: Operators::Add,
@@ -1059,7 +1059,7 @@ mod tests {
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
 
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::UnaryOpPrefix {
                     op: Operators::Sub,
@@ -1081,7 +1081,7 @@ mod tests {
             let expr = "4!";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+            let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::Number(4.0)),
             });
@@ -1093,7 +1093,7 @@ mod tests {
             let expr = "x!";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+            let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::Variable("x".into())),
             });
@@ -1105,7 +1105,7 @@ mod tests {
             let expr = "4!!";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+            let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::UnaryOpPostfix {
                     op: Operators::Fac,
@@ -1120,7 +1120,7 @@ mod tests {
             let expr = "3! + 2";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::BinaryOp {
+            let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::UnaryOpPostfix {
                     op: Operators::Fac,
@@ -1137,7 +1137,7 @@ mod tests {
             let expr = "(2+1)!";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = PolynomialAst::new(Expr::UnaryOpPostfix {
+            let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::BinaryOp {
                     op: Operators::Add,

@@ -1,5 +1,5 @@
 use spindalis::integrals::analytical_integral;
-use spindalis::polynomials::{PolynomialExtended, PolynomialTraits, SimplePolynomial};
+use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits, SimplePolynomial};
 
 #[test]
 fn test_analytical_integral_cubic() {
@@ -12,7 +12,7 @@ fn test_analytical_integral_cubic() {
 #[test]
 fn test_analytical_integral_quadratic() {
     // ∫₀¹ x² dx = 1/3
-    let poly = PolynomialExtended::parse("x^2").unwrap();
+    let poly = IntermediatePolynomial::parse("x^2").unwrap();
     let result = analytical_integral(&poly, 0.0, 1.0).unwrap();
     assert!((result - (1.0 / 3.0)).abs() < 1e-6);
 }
@@ -28,7 +28,7 @@ fn test_analytical_integral_linear() {
 #[test]
 fn test_analytical_integral_constant() {
     // ∫₀¹ 3 dx = 3
-    let poly = PolynomialExtended::parse("3").unwrap();
+    let poly = IntermediatePolynomial::parse("3").unwrap();
     let result = analytical_integral(&poly, 0.0, 1.0).unwrap();
     assert!((result - 3.0).abs() < 1e-6);
 }

@@ -15,22 +15,22 @@ pub mod polynomials {
     pub use core::structs::PolynomialTraits;
 
     // Polynomial Structs
-    pub use core::structs::PolynomialExtended;
+    pub use core::structs::IntermediatePolynomial;
     pub use core::structs::SimplePolynomial;
 
     // Error Enums
     pub use core::PolynomialError;
 
     // Parsers and evaluators
-    pub use core::extended::eval_polynomial_extended;
-    pub use core::extended::parse_polynomial_extended;
+    pub use core::intermediate::eval_intermediate_polynomial;
+    pub use core::intermediate::parse_intermediate_polynomial;
     pub use core::simple::eval_simple_polynomial;
     pub use core::simple::parse_simple_polynomial;
-    pub use macros::{parse_polynomial_extended, parse_simple_polynomial};
+    pub use macros::{parse_intermediate_polynomial, parse_simple_polynomial};
 }
 
 pub mod derivatives {
-    pub use spindalis_core::derivatives::extended::partial_derivative;
+    pub use spindalis_core::derivatives::intermediate::partial_derivative;
     pub use spindalis_core::derivatives::simple::simple_derivative;
 }
 
@@ -39,7 +39,7 @@ pub mod integrals {
     pub use spindalis_core::integrals::IntegralError;
 
     // Functions
-    pub use spindalis_core::integrals::extended_indefinite::indefinite_integral_extended;
+    pub use spindalis_core::integrals::intermediate_indefinite::indefinite_integral_intermediate;
     pub use spindalis_core::integrals::simple_indefinite::indefinite_integral_simple;
     pub use spindalis_core::integrals::univariate_definite::analytical_integral;
     pub use spindalis_core::integrals::univariate_definite::definite_integral;
