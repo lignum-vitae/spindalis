@@ -4,7 +4,7 @@
 
 ### PolynomialTraits
 
-The two polynomial structs (simple, and extended) implement the `PolynomialTraits`
+The two polynomial structs (simple, and intermediate) implement the `PolynomialTraits`
 trait.
 
 ```rust
@@ -59,18 +59,18 @@ This function can handle addition and subtraction.
 
 [1.0, 0.0, -5.0, 5.0, 4.0] -> $1x^0+0x^1-5x^2+5x^3+4x^4$
 
-### Parse and evaluate Polynomials Extended
+### Parse and evaluate Intermediate Polynomials
 
 ```rust
 #[derive(Debug, PartialEq)]
-pub struct PolynomialExtended {
+pub struct IntermediatePolynomial {
     pub terms: Vec<Term>,
     pub variables: Vec<String>,
 }
 ```
 
 The basic functionality of the simple polynomial extended.
-This extended function can additionally handle fractional exponents, decimal
+This intermediate function can additionally handle fractional exponents, decimal
 exponents, multivariate polynomials, and negative exponents.
 
 Instead of using a vector of coefficients, each element of the polynomial is a `Term`
@@ -99,7 +99,7 @@ parsing to parse polynomials into an abstract syntax tree.
 
 - Derivatives
   - Simple Derivative
-  - Partial Derivative (for use with polynomial extended)
+  - Partial Derivative (for use with intermediate polynomial)
 
 ### Find Integrals
 
@@ -110,7 +110,7 @@ parsing to parse polynomials into an abstract syntax tree.
 
 - Indefinite Integrals
   - Simple Indefinite Integral
-  - Extended Indefinite Integral
+  - Intermediate Indefinite Integral
 
 ## Math
 

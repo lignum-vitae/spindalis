@@ -1,4 +1,4 @@
-use crate::polynomials::{PolynomialError, structs::PolynomialExtended};
+use crate::polynomials::{PolynomialError, structs::IntermediatePolynomial};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +27,7 @@ impl std::fmt::Display for Term {
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 
-pub fn parse_polynomial_extended<S>(expr: S) -> Result<PolynomialExtended, PolynomialError>
+pub fn parse_intermediate_polynomial<S>(expr: S) -> Result<IntermediatePolynomial, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -139,13 +139,16 @@ where
         .collect();
     let mut variables: Vec<String> = unique_variables.into_iter().collect();
     variables.sort();
-    Ok(PolynomialExtended {
+    Ok(IntermediatePolynomial {
         terms: parsed,
         variables,
     })
 }
 
-pub fn eval_polynomial_extended<V, S, F>(terms: &[Term], vars: &V) -> Result<f64, PolynomialError>
+pub fn eval_intermediate_polynomial<V, S, F>(
+    terms: &[Term],
+    vars: &V,
+) -> Result<f64, PolynomialError>
 where
     V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
     S: AsRef<str>,

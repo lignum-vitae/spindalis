@@ -1,10 +1,10 @@
 pub mod base;
-pub mod extended;
+pub mod intermediate;
 pub mod simple;
 
 pub mod structs;
 
-pub use extended::Term;
+pub use intermediate::Term;
 
 use base::Token;
 

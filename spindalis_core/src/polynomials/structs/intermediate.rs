@@ -1,22 +1,24 @@
-use crate::derivatives::extended::partial_derivative;
-use crate::integrals::extended_indefinite::indefinite_integral_extended;
-use crate::polynomials::extended::{eval_polynomial_extended, parse_polynomial_extended};
+use crate::derivatives::intermediate::partial_derivative;
+use crate::integrals::intermediate_indefinite::indefinite_integral_intermediate;
+use crate::polynomials::intermediate::{
+    eval_intermediate_polynomial, parse_intermediate_polynomial,
+};
 use crate::polynomials::structs::PolynomialTraits;
 use crate::polynomials::{PolynomialError, Term};
 
 #[derive(Debug, PartialEq)]
-pub struct PolynomialExtended {
+pub struct IntermediatePolynomial {
     pub terms: Vec<Term>,
     pub variables: Vec<String>,
 }
 
-impl PolynomialExtended {
+impl IntermediatePolynomial {
     pub fn is_empty(&self) -> bool {
         self.terms.is_empty()
     }
 }
 
-impl PolynomialExtended {
+impl IntermediatePolynomial {
     pub fn sort_poly(&mut self) {
         // Sort variables inside each individual term
         for term in &mut self.terms {
@@ -27,15 +29,15 @@ impl PolynomialExtended {
     }
 }
 
-impl PartialEq<Vec<Term>> for PolynomialExtended {
+impl PartialEq<Vec<Term>> for IntermediatePolynomial {
     fn eq(&self, other: &Vec<Term>) -> bool {
         self.terms == other.clone()
     }
 }
 
-impl PolynomialTraits for PolynomialExtended {
-    fn parse(input: &str) -> Result<PolynomialExtended, PolynomialError> {
-        parse_polynomial_extended(input)
+impl PolynomialTraits for IntermediatePolynomial {
+    fn parse(input: &str) -> Result<IntermediatePolynomial, PolynomialError> {
+        parse_intermediate_polynomial(input)
     }
 
     fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
@@ -48,7 +50,7 @@ impl PolynomialTraits for PolynomialExtended {
             });
         }
         let evaluated =
-            eval_polynomial_extended(&self.terms, &[(self.variables[0].clone(), point)])?;
+            eval_intermediate_polynomial(&self.terms, &[(self.variables[0].clone(), point)])?;
         Ok(evaluated)
     }
 
@@ -58,7 +60,7 @@ impl PolynomialTraits for PolynomialExtended {
         S: AsRef<str>,
         F: Into<f64>,
     {
-        let evaluated = eval_polynomial_extended(&self.terms, vars)?;
+        let evaluated = eval_intermediate_polynomial(&self.terms, vars)?;
         Ok(evaluated)
     }
 
@@ -86,7 +88,7 @@ impl PolynomialTraits for PolynomialExtended {
             &self.variables[0]
         };
 
-        let integrated_poly = indefinite_integral_extended(&self.terms, var);
+        let integrated_poly = indefinite_integral_intermediate(&self.terms, var);
 
         Ok(Self {
             terms: integrated_poly.terms,
@@ -114,14 +116,14 @@ impl PolynomialTraits for PolynomialExtended {
     where
         S: AsRef<str>,
     {
-        let integrated_poly = indefinite_integral_extended(&self.terms, var);
+        let integrated_poly = indefinite_integral_intermediate(&self.terms, var);
         Self {
             terms: integrated_poly.terms,
             variables: integrated_poly.variables,
         }
     }
 }
-impl std::fmt::Display for PolynomialExtended {
+impl std::fmt::Display for IntermediatePolynomial {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.terms.is_empty() {
             return write!(f, "0");

@@ -1,15 +1,15 @@
 use spindalis::derivatives::partial_derivative;
-use spindalis::polynomials::{PolynomialExtended, PolynomialTraits};
-use spindalis::polynomials::{eval_polynomial_extended, parse_polynomial_extended};
+use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits};
+use spindalis::polynomials::{eval_intermediate_polynomial, parse_intermediate_polynomial};
 
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
     // Parsing struct
     let polynomial = "4x^2y^3 + 4x - 2y + z^1.0/2.0";
-    let struct_parsed = PolynomialExtended::parse(polynomial).unwrap();
+    let struct_parsed = IntermediatePolynomial::parse(polynomial).unwrap();
 
     // Parsing macro
-    let parsed = parse_polynomial_extended!(4x ^ 2y ^ 3 + 4x - 2y + z ^ 1.0 / 2.0);
+    let parsed = parse_intermediate_polynomial!(4x ^ 2y ^ 3 + 4x - 2y + z ^ 1.0 / 2.0);
 
     println!("Parsing polynomials");
     println!("Original polynomial: {polynomial}");
@@ -20,7 +20,7 @@ fn main() {
     println!("Evaluating Polynomials");
     let vars = vec![("x", 2), ("y", 1), ("z", 4)];
     println!("Evaluated with function:");
-    let value = eval_polynomial_extended(&parsed, &vars).unwrap();
+    let value = eval_intermediate_polynomial(&parsed, &vars).unwrap();
     println!("Polynomial evaluated at x=2, y=1, z=4: {value}");
     println!("Evaluated with struct:");
     let value = struct_parsed.eval_multivariate(&vars).unwrap();
@@ -63,7 +63,7 @@ fn main() {
 
     println!("Univariate indefinite integral with struct:");
     let polynomial = "5x^3 + 4x^4 - 5x^2 + 1";
-    let struct_parsed = PolynomialExtended::parse(polynomial).unwrap();
+    let struct_parsed = IntermediatePolynomial::parse(polynomial).unwrap();
     let anti_dx = struct_parsed.indefinite_integral_univariate().unwrap();
     println!("Original polynomial: {polynomial}\nUnivariate integration: {anti_dx:.2}");
 }

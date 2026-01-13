@@ -2,15 +2,15 @@
 mod tests {
     use spindalis::polynomials::Term;
     use spindalis::polynomials::{
-        PolynomialError, eval_polynomial_extended, parse_polynomial_extended,
+        PolynomialError, eval_intermediate_polynomial, parse_intermediate_polynomial,
     };
     use std::collections::HashMap;
 
     // test positive ints
     #[test]
     fn test_parse_single_variable() {
-        let terms = parse_polynomial_extended("3x^2").unwrap().terms;
-        let terms_macro = parse_polynomial_extended!(3x ^ 2);
+        let terms = parse_intermediate_polynomial("3x^2").unwrap().terms;
+        let terms_macro = parse_intermediate_polynomial!(3x ^ 2);
 
         assert_eq!(terms.len(), 1);
         assert_eq!(terms_macro.len(), 1);
@@ -24,8 +24,8 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_variables() {
-        let terms = parse_polynomial_extended("4x^2y^3").unwrap();
-        let terms_macro = parse_polynomial_extended!(4x ^ 2y ^ 3);
+        let terms = parse_intermediate_polynomial("4x^2y^3").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(4x ^ 2y ^ 3);
 
         let result = vec![Term {
             coefficient: 4.0,
@@ -38,8 +38,8 @@ mod tests {
 
     #[test]
     fn test_parse_no_coefficient() {
-        let terms = parse_polynomial_extended("x^3").unwrap();
-        let terms_macro = parse_polynomial_extended!(x ^ 3);
+        let terms = parse_intermediate_polynomial("x^3").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(x ^ 3);
 
         let result = vec![Term {
             coefficient: 1.0,
@@ -52,8 +52,8 @@ mod tests {
 
     #[test]
     fn test_parse_negative_coefficient() {
-        let terms = parse_polynomial_extended("-2x^2").unwrap();
-        let terms_macro = parse_polynomial_extended!(-2x ^ 2);
+        let terms = parse_intermediate_polynomial("-2x^2").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(-2x ^ 2);
 
         let result = vec![Term {
             coefficient: -2.0,
@@ -66,8 +66,8 @@ mod tests {
 
     #[test]
     fn test_parse_negative_variable() {
-        let terms = parse_polynomial_extended("-x^2").unwrap();
-        let terms_macro = parse_polynomial_extended!(-x ^ 2);
+        let terms = parse_intermediate_polynomial("-x^2").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(-x ^ 2);
 
         let result = vec![Term {
             coefficient: -1.0,
@@ -80,8 +80,8 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_terms() {
-        let terms = parse_polynomial_extended("2x^2+3y-4z^3").unwrap().terms;
-        let terms_macro = parse_polynomial_extended!(2x ^ 2 + 3y - 4z ^ 3);
+        let terms = parse_intermediate_polynomial("2x^2+3y-4z^3").unwrap().terms;
+        let terms_macro = parse_intermediate_polynomial!(2x ^ 2 + 3y - 4z ^ 3);
 
         let result = vec![
             Term {
@@ -107,8 +107,8 @@ mod tests {
 
     #[test]
     fn test_parse_missing_power_defaults_to_one() {
-        let terms = parse_polynomial_extended("5x").unwrap();
-        let terms_macro = parse_polynomial_extended!(5x);
+        let terms = parse_intermediate_polynomial("5x").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(5x);
 
         let result = vec![Term {
             coefficient: 5.0,
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_parse_invalid_power_returns_none() {
         let expr = "2x^a";
-        let result = parse_polynomial_extended(expr);
+        let result = parse_intermediate_polynomial(expr);
 
         assert!(result.is_err());
     }
@@ -131,8 +131,8 @@ mod tests {
 
     #[test]
     fn test_parse_pos_decimal() {
-        let terms = parse_polynomial_extended("5x^0.5").unwrap();
-        let terms_macro = parse_polynomial_extended!(5x ^ 0.5);
+        let terms = parse_intermediate_polynomial("5x^0.5").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(5x ^ 0.5);
 
         let result = vec![Term {
             coefficient: 5.0,
@@ -145,8 +145,8 @@ mod tests {
 
     #[test]
     fn test_parse_neg_decimal() {
-        let terms = parse_polynomial_extended("5x^-0.5").unwrap();
-        let terms_macro = parse_polynomial_extended!(5x ^ -0.5);
+        let terms = parse_intermediate_polynomial("5x^-0.5").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(5x ^ -0.5);
 
         let result = vec![Term {
             coefficient: 5.0,
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_parse_err_decimal() {
         let expr = "5x^-0.5.0";
-        let result = parse_polynomial_extended(expr);
+        let result = parse_intermediate_polynomial(expr);
 
         assert!(result.is_err());
     }
@@ -169,8 +169,8 @@ mod tests {
 
     #[test]
     fn test_parse_fraction() {
-        let terms = parse_polynomial_extended("5x^1/2").unwrap();
-        let terms_macro = parse_polynomial_extended!(5x ^ 1 / 2);
+        let terms = parse_intermediate_polynomial("5x^1/2").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(5x ^ 1 / 2);
 
         let result = vec![Term {
             coefficient: 5.0,
@@ -183,8 +183,8 @@ mod tests {
 
     #[test]
     fn test_parse_float_fraction() {
-        let terms = parse_polynomial_extended("5x^0.5/1").unwrap();
-        let terms_macro = parse_polynomial_extended!(5x ^ 0.5 / 1);
+        let terms = parse_intermediate_polynomial("5x^0.5/1").unwrap();
+        let terms_macro = parse_intermediate_polynomial!(5x ^ 0.5 / 1);
 
         let result = vec![Term {
             coefficient: 5.0,
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_parse_err_fraction() {
         let expr = "5x^0.5/1.0/1.0";
-        let result = parse_polynomial_extended(expr);
+        let result = parse_intermediate_polynomial(expr);
 
         assert!(result.is_err());
     }
@@ -224,7 +224,7 @@ mod tests {
 
         let vars = vec![("x", 2)];
 
-        let result = eval_polynomial_extended(&terms, &vars).unwrap();
+        let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         // 3*2^2 - 2*2 + 5 = 12 - 4 + 5 = 13
         assert_eq!(result, 13.0);
     }
@@ -243,7 +243,7 @@ mod tests {
         ];
 
         let vars = vec![("x", 3), ("y", 2)];
-        let result = eval_polynomial_extended(&terms, &vars).unwrap();
+        let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         // 2*3*2^2 + 4*2 = 2*3*4 + 8 = 24 + 8 = 32
         assert_eq!(result, 32.0);
     }
@@ -258,7 +258,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert("x".to_string(), 16.0);
 
-        let result = eval_polynomial_extended(&terms, &vars).unwrap();
+        let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 4.0);
     }
 
@@ -270,7 +270,7 @@ mod tests {
         }];
 
         let vars: Vec<(&str, f64)> = vec![];
-        let result = eval_polynomial_extended(&terms, &vars);
+        let result = eval_intermediate_polynomial(&terms, &vars);
         assert!(matches!(
             result,
             Err(PolynomialError::VariableNotFound { variable: _ })
@@ -287,7 +287,7 @@ mod tests {
         ];
 
         let vars: Vec<(&str, f64)> = vec![];
-        let result = eval_polynomial_extended(&terms, &vars).unwrap();
+        let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 7.5);
     }
 
@@ -300,7 +300,7 @@ mod tests {
 
         let vars = [("x", 16)];
 
-        let result = eval_polynomial_extended(&terms, &vars).unwrap();
+        let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 0.25);
     }
 }

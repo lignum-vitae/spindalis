@@ -65,7 +65,7 @@ Then run:
 Spindalis makes handling polynomials easier through dedicated functions for parsing,
 evaluation, and derivation. Core functionality is implemented through structs for
 the three classes of polynomials:
-`SimplePolynomials`, `PolynomialsExtended`, and `Polynomial`. These structs are
+`SimplePolynomial`, `IntermediatePolynomial`, and `Polynomial`. These structs are
 unified through their implementation of `PolynomialTraits`, where they have
 attached methods to parse, evaluate, integrate, and derivate
 univariate and multivariate polynomials.
@@ -73,8 +73,8 @@ univariate and multivariate polynomials.
 Simple Polynomial can handle univariate polynomials with integer exponents and
 only addition and subtraction.
 
-Polynomial Extended is an extension of Simple Polynomial that can handle multivariate
-polynomials. Polynomial extended can also handle fractional, decimal, and
+Intermediate Polynomial is an extension of Simple Polynomial that can handle multivariate
+polynomials. Intermediate polynomial can also handle fractional, decimal, and
 negative exponents.
 
 Polynomial is intended to handle all operations for a polynomial. This would
@@ -112,9 +112,9 @@ Within these crates, the following modules `spindalis::<module name>` are provid
 | Module          | Description                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------ |
 | `utils`         | Utility functions such as `Arr2D`, `Arr2DError`, forward substitution, and back substitution           |
-| `polynomials`   | Parsing and evaluating simple and extended polynomials                                                 |
-| `derivatives`   | Differentiating simple and extended polynomials                                                        |
-| `integrals`     | Integrating simple and extended polynomials                                                            |
+| `polynomials`   | Parsing and evaluating simple and intermediate polynomials                                             |
+| `derivatives`   | Differentiating simple and intermediate polynomials                                                    |
+| `integrals`     | Integrating simple and intermediate polynomials                                                        |
 | `solvers`       | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
 | `eigen`         | Algorithms to solve eigenvalue and eigenvector problems                                                |
 | `decomposition` | Decomposition algorithms including LU decomposition and LU decomposition with partial pivoting         |
