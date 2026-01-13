@@ -1,7 +1,8 @@
-pub mod ast;
+pub mod base;
 pub mod extended;
 pub mod simple;
 
+pub use base::Polynomial;
 pub use extended::PolynomialExtended;
 pub use simple::SimplePolynomial;
 

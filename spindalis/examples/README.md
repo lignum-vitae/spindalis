@@ -35,7 +35,7 @@ pub trait PolynomialTraits {
 }
 ```
 
-The PolynomialAst struct will have this trait implemented in the future.
+The Polynomial struct will have this trait implemented in the future.
 
 ### Parse and evaluate Simple Polynomials
 
@@ -86,13 +86,13 @@ pub struct Term {
 
 ```rust
 #[derive(Debug, PartialEq)]
-pub struct PolynomialAst {
+pub struct Polynomial {
     expr: Expr,
 }
 ```
 
 This method is slowest to parse, but is intended to parse, evaluate, integrate, and
-derivate any polynomial given to it. The `PolynomialAst` struct implements Pratt
+derivate any polynomial given to it. The `Polynomial` struct implements Pratt
 parsing to parse polynomials into an abstract syntax tree.
 
 ### Find Derivates

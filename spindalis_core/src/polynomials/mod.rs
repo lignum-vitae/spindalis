@@ -1,4 +1,4 @@
-pub mod ast;
+pub mod base;
 pub mod extended;
 pub mod simple;
 
@@ -6,7 +6,7 @@ pub mod structs;
 
 pub use extended::Term;
 
-use ast::Token;
+use base::Token;
 
 // Error Enum
 
