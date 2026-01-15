@@ -196,7 +196,7 @@ pub enum Token {
     RParen,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum Expr {
     Number(f64),
     Variable(String),
@@ -280,7 +280,6 @@ impl std::fmt::Display for Expr {
     }
 }
 
-#[allow(dead_code)]
 fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
 where
     S: AsRef<str>,
@@ -504,7 +503,6 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
     Ok(left)
 }
 
-#[allow(dead_code)]
 fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
@@ -519,6 +517,76 @@ fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     }
 
     Ok(Polynomial::new(ast_node))
+}
+
+
+impl From<f64> for Expr{
+    fn from(v:f64)->Self{
+        Expr::Number(v)
+    }
+}
+
+fn fold_operations(expr: Expr)-> Expr {
+    let expr = match expr {
+        val @ Expr::Number(_)=>{
+            val
+        }
+        val @ Expr::Variable(_)=>{
+            val
+        }
+        val @ Expr::Constant(_)=>{
+            val
+        }
+        Expr::BinaryOp{op,lhs,rhs,paren}=>{
+            let lhs = fold_operations(*lhs);
+            let rhs = fold_operations(*rhs);
+            match op {
+                Operators::Mul=>{
+                    if lhs == Expr::Number(0.) {
+                        return Expr::Number(0.);
+                    }
+                    if rhs == Expr::Number(0.) {
+                        return Expr::Number(0.);
+                    }
+                }
+                Operators::Caret=>{
+                    if lhs == Expr::Number(0.) {
+                        return Expr::Number(0.);
+                    }
+                    if rhs == Expr::Number(0.) {
+                        return Expr::Number(1.);
+                    }
+                }
+                Operators::Add=>{
+                    if lhs == Expr::Number(0.) {
+                        return rhs;
+                    }
+                    if rhs == Expr::Number(0.) {
+                        return lhs;
+                    }
+                }
+                Operators::Sub=>{
+                    if rhs == Expr::Number(0.) {
+                        return lhs;
+                    }
+                }
+                Operators::Div=>{
+                    if rhs == Expr::Number(1.) {
+                        return lhs;
+                    }
+                }
+                _=>{}
+            }
+            Expr::BinaryOp{
+                op,
+                lhs:Box::new(lhs),
+                rhs:Box::new(rhs),
+                paren
+            }
+        }
+        expr => expr
+    };
+    expr
 }
 
 #[cfg(test)]
@@ -1372,6 +1440,14 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
             assert!(result.is_err());
+        }
+        #[test]
+        fn test_folding_operations(){
+            let expr = "4x+2^0-0x^3+sin(x)/1+1/0";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{} ",result);
+            println!("{} ",fold_operations(result.expr));
         }
     }
 
