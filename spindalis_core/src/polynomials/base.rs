@@ -280,6 +280,7 @@ impl std::fmt::Display for Expr {
     }
 }
 
+#[allow(dead_code)]
 fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
 where
     S: AsRef<str>,
@@ -421,6 +422,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     }
 }
 
+#[allow(dead_code)]
 fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr, PolynomialError> {
     let mut left = match token_stream.next() {
         Some(Token::Number(n)) => Ok(Expr::Number(n)),
@@ -503,6 +505,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
     Ok(left)
 }
 
+#[allow(dead_code)]
 fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
@@ -516,7 +519,7 @@ fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
         return Err(PolynomialError::UnexpectedToken { token });
     }
 
-    Ok(Polynomial::new(ast_node))
+    Ok(Polynomial::new(fold_operations(ast_node)))
 }
 
 
@@ -527,7 +530,7 @@ impl From<f64> for Expr{
 }
 
 fn fold_operations(expr: Expr)-> Expr {
-    let expr = match expr {
+    match expr {
         val @ Expr::Number(_)=>{
             val
         }
@@ -585,8 +588,7 @@ fn fold_operations(expr: Expr)-> Expr {
             }
         }
         expr => expr
-    };
-    expr
+    }
 }
 
 #[cfg(test)]
@@ -946,12 +948,7 @@ mod tests {
             let expr = "0x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(Expr::Number(0.0)),
-                rhs: Box::new(Expr::Variable("x".into())),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
         }
 
@@ -1443,14 +1440,24 @@ mod tests {
         }
         #[test]
         fn test_folding_operations(){
-            let expr = "4x+2^0-0x^3+sin(x)/1+1/0";
+            let expr = "4x+2^0-0x^3";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            println!("{} ",result);
-            println!("{} ",fold_operations(result.expr));
-        }
+            println!("{:?}",result);
+            assert_eq!(result,Polynomial::new(Expr::BinaryOp{
+                op: Operators::Add,
+                lhs: Box::new(Expr::BinaryOp{
+                    op: Operators::Mul,
+                    lhs:Box::new(Expr::Number(4.)),
+                    rhs:Box::new(Expr::Variable("x".into())),
+                    paren:false
+                }),
+                rhs: Box::new(Expr::Number(1.)),
+                paren:false
+                }
+            ));
     }
-
+    }
     // ---------------------------
     // Test Display
     // ---------------------------

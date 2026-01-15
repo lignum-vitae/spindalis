@@ -1,14 +1,12 @@
 use crate::polynomials::base::{Expr, Token};
 use std::iter::Peekable;
 use std::vec::IntoIter;
-use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::PolynomialTraits;
 
 pub type TokenStream = Peekable<IntoIter<Token>>;
 
 #[derive(Debug, PartialEq)]
 pub struct Polynomial {
-    pub expr: Expr,
+    expr: Expr,
 }
 impl Polynomial {
     pub fn new(expr: Expr) -> Self {
