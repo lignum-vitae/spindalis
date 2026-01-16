@@ -104,15 +104,15 @@ mod tests {
         ]);
         let (h, q) = hessenberg_reduction(&mat).unwrap();
 
-        // 1. Check if H is upper Hessenberg
+        // Check if H is upper Hessenberg
         assert!(h[(2, 0)].abs() < 1e-10);
 
-        // 2. Check if Q is orthogonal: Q * Q^T = I
+        // Check if Q is orthogonal: Q * Q^T = I
         let qt = q.transpose();
         let i = q.dot(&qt).unwrap();
         assert_eq!(i.round_to_decimal(10), Arr2D::identity(3).round_to_decimal(10));
 
-        // 3. Check if A = Q * H * Q^T
+        // Check if A = Q * H * Q^T
         let reconstructed = q.dot(&h).unwrap().dot(&qt).unwrap();
         assert_eq!(reconstructed.round_to_decimal(10), mat.round_to_decimal(10));
     }
