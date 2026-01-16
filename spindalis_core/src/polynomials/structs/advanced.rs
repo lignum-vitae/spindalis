@@ -1,4 +1,4 @@
-use crate::polynomials::base::{Expr, Token};
+use crate::polynomials::advanced::{Expr, Token};
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
