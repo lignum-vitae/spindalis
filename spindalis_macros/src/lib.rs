@@ -23,7 +23,7 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
     }
     tokens.push_str("], ");
     tokens.push_str(&format!("variable: {:?}, ", output.variable));
-    tokens.push_str("}");
+    tokens.push('}');
 
     TokenStream::from_str(&tokens).unwrap()
 }
@@ -59,7 +59,7 @@ pub fn parse_intermediate_polynomial(input: TokenStream) -> TokenStream {
         tokens.push_str(&format!("\"{var}\".to_string(), "));
     }
     tokens.push_str("], ");
-    tokens.push_str("}");
+    tokens.push('}');
 
     TokenStream::from_str(&tokens).unwrap()
 }
