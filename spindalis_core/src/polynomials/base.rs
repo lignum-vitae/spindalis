@@ -196,7 +196,7 @@ pub enum Token {
     RParen,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(f64),
     Variable(String),
@@ -422,6 +422,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     }
 }
 
+#[allow(dead_code)]
 fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr, PolynomialError> {
     let mut left = match token_stream.next() {
         Some(Token::Number(n)) => Ok(Expr::Number(n)),
@@ -518,7 +519,66 @@ fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
         return Err(PolynomialError::UnexpectedToken { token });
     }
 
-    Ok(Polynomial::new(ast_node))
+    Ok(Polynomial::new(fold_operations(ast_node)))
+}
+
+fn fold_operations(expr: Expr) -> Expr {
+    match expr {
+        Expr::Number(_) | Expr::Variable(_) | Expr::Constant(_) => expr,
+        Expr::BinaryOp {
+            op,
+            lhs,
+            rhs,
+            paren,
+        } => {
+            let lhs = fold_operations(*lhs);
+            let rhs = fold_operations(*rhs);
+            match (op, lhs, rhs) {
+                // 0*_ = 0
+                (Operators::Mul, Expr::Number(0.), _) => Expr::Number(0.),
+                (Operators::Mul, _, Expr::Number(0.)) => Expr::Number(0.),
+
+                // _^0 = 1 & 0^_ = 0
+                // Note: Above condition includes 0^0
+                (Operators::Caret, _, Expr::Number(0.)) => Expr::Number(1.),
+                (Operators::Caret, Expr::Number(0.), _) => Expr::Number(0.),
+
+                // x+0 = x
+                (Operators::Add, Expr::Number(0.), r) => r,
+                (Operators::Add, l, Expr::Number(0.)) => l,
+
+                // 0-x = -x & x-0 = x
+                (Operators::Sub, l, Expr::Number(0.)) => l,
+                (Operators::Sub, Expr::Number(0.), r) => Expr::UnaryOpPrefix {
+                    op: Operators::Sub,
+                    value: Box::new(fold_operations(r)),
+                },
+
+                // x/1 = x
+                (Operators::Div, l, Expr::Number(1.)) => l,
+
+                // Non foldable conditions
+                (_, l, r) => Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                    paren,
+                },
+            }
+        }
+        expr => expr,
+    }
+}
+
+impl From<f64> for Expr {
+    fn from(v: f64) -> Self {
+        Expr::Number(v)
+    }
+}
+impl From<&'static str> for Expr {
+    fn from(v: &'static str) -> Self {
+        Expr::Variable(v.into())
+    }
 }
 
 #[cfg(test)]
@@ -878,12 +938,7 @@ mod tests {
             let expr = "0x";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Mul,
-                lhs: Box::new(Expr::Number(0.0)),
-                rhs: Box::new(Expr::Variable("x".into())),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
         }
 
@@ -1373,8 +1428,77 @@ mod tests {
             let result = parser(tok_str);
             assert!(result.is_err());
         }
-    }
+        #[test]
+        fn test_folding_operations() {
+            let expr = "4x+2^0-0x^3";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.)),
+                    rhs: Box::new("x".into()),
+                    paren: false,
+                }),
+                rhs: Box::new(Expr::Number(1.)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
 
+        #[test]
+        fn test_folding_operations_2() {
+            let expr = "0^0 + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(1.)),
+                rhs: Box::new(Expr::Number(5.)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_3() {
+            let expr = "0^5 + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::Number(5.));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_4() {
+            let expr = "(0x^0 + 5) + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(5.)),
+                rhs: Box::new(Expr::Number(5.)),
+                paren: false,
+            });
+
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_5() {
+            let expr = "(0x^0 * 32) * 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::Number(0.));
+            assert_eq!(result, expected);
+        }
+    }
     // ---------------------------
     // Test Display
     // ---------------------------
@@ -1424,7 +1548,7 @@ mod tests {
         fn test_display_function() {
             let e = Expr::Function {
                 func: Functions::Sin,
-                inner: Box::new(Expr::Variable("x".into())),
+                inner: Box::new("x".into()),
             };
             assert_eq!(format!("{e}"), "sin(x)");
         }
@@ -1443,7 +1567,7 @@ mod tests {
             let e = Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::Number(1.0)),
-                rhs: Box::new(Expr::Variable("x".into())),
+                rhs: Box::new("x".into()),
                 paren: false,
             };
             assert_eq!(format!("{e}"), "1 + x");
@@ -1456,12 +1580,12 @@ mod tests {
                 lhs: Box::new(Expr::BinaryOp {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
-                    rhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new("x".into()),
                     paren: false,
                 }),
                 rhs: Box::new(Expr::BinaryOp {
                     op: Operators::Caret,
-                    lhs: Box::new(Expr::Variable("x".into())),
+                    lhs: Box::new("x".into()),
                     rhs: Box::new(Expr::Number(2.0)),
                     paren: false,
                 }),
@@ -1476,7 +1600,7 @@ mod tests {
                 func: Functions::Sin,
                 inner: Box::new(Expr::Function {
                     func: Functions::Cos,
-                    inner: Box::new(Expr::Variable("x".into())),
+                    inner: Box::new("x".into()),
                 }),
             };
             assert_eq!(format!("{e}"), "sin(cos(x))");
@@ -1489,7 +1613,7 @@ mod tests {
                 inner: Box::new(Expr::BinaryOp {
                     op: Operators::Mul,
                     lhs: Box::new(Expr::Number(4.0)),
-                    rhs: Box::new(Expr::Variable("x".into())),
+                    rhs: Box::new("x".into()),
                     paren: false,
                 }),
             };
