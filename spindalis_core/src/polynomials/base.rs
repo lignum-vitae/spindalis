@@ -541,7 +541,7 @@ fn fold_operations(expr: Expr) -> Expr {
                 // _^0 = 1 & 0^_ = 0
                 // Note: Above condition includes 0^0
                 (Operators::Caret, _, Expr::Number(0.)) => Expr::Number(1.),
-                (Operators::Caret, Expr::Number(0.), _) => Expr::Number(1.),
+                (Operators::Caret, Expr::Number(0.), _) => Expr::Number(0.),
 
                 // x+0 = x
                 (Operators::Add, Expr::Number(0.), r) => r,
@@ -549,12 +549,11 @@ fn fold_operations(expr: Expr) -> Expr {
 
                 // 0-x = -x & x-0 = x
                 (Operators::Sub, l, Expr::Number(0.)) => l,
-                (Operators::Sub, Expr::Number(0.), r) =>
-                    Expr::UnaryOpPrefix {
-                        op: Operators::Sub,
-                        value: Box::new(fold_operations(r)),
-                    },
-                
+                (Operators::Sub, Expr::Number(0.), r) => Expr::UnaryOpPrefix {
+                    op: Operators::Sub,
+                    value: Box::new(fold_operations(r)),
+                },
+
                 // x/1 = x
                 (Operators::Div, l, Expr::Number(1.)) => l,
 
@@ -1434,21 +1433,70 @@ mod tests {
             let expr = "4x+2^0-0x^3";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
-            println!("{:?}", result);
-            assert_eq!(
-                result,
-                Polynomial::new(Expr::BinaryOp {
-                    op: Operators::Add,
-                    lhs: Box::new(Expr::BinaryOp {
-                        op: Operators::Mul,
-                        lhs: Box::new(Expr::Number(4.)),
-                        rhs: Box::new("x".into()),
-                        paren: false
-                    }),
-                    rhs: Box::new(Expr::Number(1.)),
-                    paren: false
-                })
-            );
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Number(4.)),
+                    rhs: Box::new("x".into()),
+                    paren: false,
+                }),
+                rhs: Box::new(Expr::Number(1.)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_2() {
+            let expr = "0^0 + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(1.)),
+                rhs: Box::new(Expr::Number(5.)),
+                paren: false,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_3() {
+            let expr = "0^5 + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::Number(5.));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_4() {
+            let expr = "(0x^0 + 5) + 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Add,
+                lhs: Box::new(Expr::Number(5.)),
+                rhs: Box::new(Expr::Number(5.)),
+                paren: false,
+            });
+
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_folding_operations_5() {
+            let expr = "(0x^0 * 32) * 5 / 1";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            println!("{result:?}");
+            let expected = Polynomial::new(Expr::Number(0.));
+            assert_eq!(result, expected);
         }
     }
     // ---------------------------
