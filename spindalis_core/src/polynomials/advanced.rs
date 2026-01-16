@@ -1,5 +1,5 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::base::{Polynomial, TokenStream};
+use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::LazyLock;

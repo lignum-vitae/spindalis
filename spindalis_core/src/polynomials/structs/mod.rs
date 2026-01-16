@@ -1,8 +1,8 @@
-pub mod base;
+pub mod advanced;
 pub mod intermediate;
 pub mod simple;
 
-pub use base::Polynomial;
+pub use advanced::Polynomial;
 pub use intermediate::IntermediatePolynomial;
 pub use simple::SimplePolynomial;
 

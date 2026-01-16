@@ -1,4 +1,4 @@
-pub mod base;
+pub mod advanced;
 pub mod intermediate;
 pub mod simple;
 
@@ -6,7 +6,7 @@ pub mod structs;
 
 pub use intermediate::Term;
 
-use base::Token;
+use advanced::Token;
 
 // Error Enum
 
