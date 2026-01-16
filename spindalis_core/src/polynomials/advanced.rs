@@ -581,43 +581,49 @@ impl From<&'static str> for Expr {
     }
 }
 
-fn eval_advanced_polynomial<V,S,F>(poly:&Polynomial, variables:V)->Polynomial
-    where
-        V: IntoIterator<Item = (S,F)> + std::fmt::Debug + Clone,
-        S: AsRef<str>,
-        F: Into<f64>,
+#[allow(dead_code)]
+fn eval_advanced_polynomial<V, S, F>(poly: &Polynomial, variables: V) -> Polynomial
+where
+    V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
+    S: AsRef<str>,
+    F: Into<f64>,
 {
-    let expr = variables.into_iter().fold(
-        poly.expr.clone() , |acc,(name,value)|{
-            replace_variable_occurence(&acc,name.as_ref(),value.into())
-        }
-    );
+    let expr = variables
+        .into_iter()
+        .fold(poly.expr.clone(), |acc, (name, value)| {
+            replace_variable_occurence(&acc, name.as_ref(), value.into())
+        });
     Polynomial::new(expr)
 }
 
-fn replace_variable_occurence(expr:&Expr,var_name: &str,var_val:f64)->Expr{
-   match expr {
-    // replaces value of variable with variable's assigned value.
-    Expr::Variable(v) if v==var_name => var_val.into(),
+#[allow(dead_code)]
+fn replace_variable_occurence(expr: &Expr, var_name: &str, var_val: f64) -> Expr {
+    match expr {
+        // replaces value of variable with variable's assigned value.
+        Expr::Variable(v) if v == var_name => var_val.into(),
 
-    // recursively walks down the polynomial for operators 
-    Expr::BinaryOp{op,lhs,rhs,paren}=>
-        Expr::BinaryOp{
-            op:*op,
-            lhs:Box::new(replace_variable_occurence(lhs,var_name,var_val)),
-            rhs:Box::new(replace_variable_occurence(rhs,var_name,var_val)),
-            paren:*paren,
-    },
-    Expr::UnaryOpPrefix { op, value }=>Expr::UnaryOpPrefix{
-        op:*op,
-        value:Box::new(replace_variable_occurence(value,var_name,var_val))
-    },
-    Expr::UnaryOpPostfix { op, value }=>Expr::UnaryOpPostfix{
-        op:*op,
-        value:Box::new(replace_variable_occurence(value,var_name,var_val))
-    },
-    expr=>expr.clone(),
-   } 
+        // recursively walks down the polynomial for operators
+        Expr::BinaryOp {
+            op,
+            lhs,
+            rhs,
+            paren,
+        } => Expr::BinaryOp {
+            op: *op,
+            lhs: Box::new(replace_variable_occurence(lhs, var_name, var_val)),
+            rhs: Box::new(replace_variable_occurence(rhs, var_name, var_val)),
+            paren: *paren,
+        },
+        Expr::UnaryOpPrefix { op, value } => Expr::UnaryOpPrefix {
+            op: *op,
+            value: Box::new(replace_variable_occurence(value, var_name, var_val)),
+        },
+        Expr::UnaryOpPostfix { op, value } => Expr::UnaryOpPostfix {
+            op: *op,
+            value: Box::new(replace_variable_occurence(value, var_name, var_val)),
+        },
+        expr => expr.clone(),
+    }
 }
 
 #[cfg(test)]
@@ -1542,10 +1548,10 @@ mod tests {
             let expr = "x^3-3xy+5";
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parser(tok_str).unwrap();
-            let evaluated_result = eval_advanced_polynomial(&parsed_result, vec![("x", 5),("y",6)]);
-            println!("{}",parsed_result);
-            println!("{}",evaluated_result);
-
+            let evaluated_result =
+                eval_advanced_polynomial(&parsed_result, vec![("x", 5), ("y", 6)]);
+            println!("{}", parsed_result);
+            println!("{}", evaluated_result);
         }
     }
     // ---------------------------
