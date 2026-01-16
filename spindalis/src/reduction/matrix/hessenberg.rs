@@ -91,17 +91,16 @@ mod tests {
         let mat = Arr2D::from(&[[1.0, 2.0], [3.0, 4.0]]);
         let (h, q) = hessenberg_reduction(&mat).unwrap();
         assert_eq!(h.round_to_decimal(10), mat.round_to_decimal(10));
-        assert_eq!(q.round_to_decimal(10), Arr2D::identity(2).round_to_decimal(10));
+        assert_eq!(
+            q.round_to_decimal(10),
+            Arr2D::identity(2).round_to_decimal(10)
+        );
     }
 
     #[test]
     fn test_hessenberg_3x3() {
         // Simple 3x3 matrix
-        let mat = Arr2D::from(&[
-            [1.0, 5.0, 7.0],
-            [3.0, 0.0, 6.0],
-            [4.0, 3.0, 1.0],
-        ]);
+        let mat = Arr2D::from(&[[1.0, 5.0, 7.0], [3.0, 0.0, 6.0], [4.0, 3.0, 1.0]]);
         let (h, q) = hessenberg_reduction(&mat).unwrap();
 
         // Check if H is upper Hessenberg
@@ -110,7 +109,10 @@ mod tests {
         // Check if Q is orthogonal: Q * Q^T = I
         let qt = q.transpose();
         let i = q.dot(&qt).unwrap();
-        assert_eq!(i.round_to_decimal(10), Arr2D::identity(3).round_to_decimal(10));
+        assert_eq!(
+            i.round_to_decimal(10),
+            Arr2D::identity(3).round_to_decimal(10)
+        );
 
         // Check if A = Q * H * Q^T
         let reconstructed = q.dot(&h).unwrap().dot(&qt).unwrap();
@@ -135,7 +137,10 @@ mod tests {
         // Check orthogonality
         let qt = q.transpose();
         let i = q.dot(&qt).unwrap();
-        assert_eq!(i.round_to_decimal(10), Arr2D::identity(4).round_to_decimal(10));
+        assert_eq!(
+            i.round_to_decimal(10),
+            Arr2D::identity(4).round_to_decimal(10)
+        );
 
         // Check A = Q H Q^T
         let reconstructed = q.dot(&h).unwrap().dot(&qt).unwrap();
