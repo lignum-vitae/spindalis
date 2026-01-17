@@ -16,11 +16,14 @@ pub fn parse_simple_polynomial(input: TokenStream) -> TokenStream {
             }
         };
 
-    let mut tokens = String::from("vec![");
+    let mut tokens = String::from("::spindalis_core::polynomials::structs::SimplePolynomial { ");
+    tokens.push_str("coefficients: vec![");
     for coeff in output.coefficients {
         tokens.push_str(&format!("{coeff:?},"));
     }
-    tokens.push(']');
+    tokens.push_str("], ");
+    tokens.push_str(&format!("variable: {:?}, ", output.variable));
+    tokens.push('}');
 
     TokenStream::from_str(&tokens).unwrap()
 }
@@ -38,7 +41,8 @@ pub fn parse_intermediate_polynomial(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut tokens = String::from("vec![");
+    let mut tokens = String::from("::spindalis_core::polynomials::structs::IntermediatePolynomial { ");
+    tokens.push_str("terms: vec![");
     for term in output.terms {
         tokens.push_str(&format!(
             "::spindalis_core::polynomials::Term {{ coefficient: {:?}, variables: vec![",
@@ -49,7 +53,13 @@ pub fn parse_intermediate_polynomial(input: TokenStream) -> TokenStream {
         }
         tokens.push_str("] },");
     }
-    tokens.push(']');
+    tokens.push_str("], ");
+    tokens.push_str("variables: vec![");
+    for var in output.variables {
+        tokens.push_str(&format!("\"{var}\".to_string(), "));
+    }
+    tokens.push_str("], ");
+    tokens.push('}');
 
     TokenStream::from_str(&tokens).unwrap()
 }

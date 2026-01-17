@@ -18,6 +18,13 @@ impl IntermediatePolynomial {
     }
 }
 
+impl std::ops::Deref for IntermediatePolynomial {
+    type Target = [Term];
+    fn deref(&self) -> &Self::Target {
+        &self.terms
+    }
+}
+
 impl IntermediatePolynomial {
     pub fn sort_poly(&mut self) {
         // Sort variables inside each individual term

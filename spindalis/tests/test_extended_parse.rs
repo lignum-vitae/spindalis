@@ -13,7 +13,7 @@ mod tests {
         let terms_macro = parse_intermediate_polynomial!(3x ^ 2);
 
         assert_eq!(terms.len(), 1);
-        assert_eq!(terms_macro.len(), 1);
+        assert_eq!(terms_macro.terms.len(), 1);
         let result = vec![Term {
             coefficient: 3.0,
             variables: vec![("x".into(), 2.0)],
@@ -99,7 +99,7 @@ mod tests {
         ];
 
         assert_eq!(terms.len(), 3);
-        assert_eq!(terms_macro.len(), 3);
+        assert_eq!(terms_macro.terms.len(), 3);
 
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
