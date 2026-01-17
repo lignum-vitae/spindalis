@@ -4,6 +4,7 @@
 [![docs.rs](https://docs.rs/spindalis/badge.svg)](https://docs.rs/spindalis)
 [![Build Status](https://github.com/lignum-vitae/spindalis/workflows/Build%20and%20test%20Rust/badge.svg)](https://github.com/lignum-vitae/spindalis/actions?workflow=Build%20and%20test%20Rust)
 [![Build Status](https://github.com/lignum-vitae/spindalis/workflows/Clippy%20check%20-%20lint/badge.svg)](https://github.com/lignum-vitae/spindalis/actions?workflow=Clippy%20check%20-%20lint)
+[![GitHub stars](https://img.shields.io/github/stars/lignum-vitae/spindalis?style=social)](https://github.com/lignum-vitae/spindalis/stargazers)
 
 A bioinformatics library for numerical modeling, optimisation, data analysis,
 and simulation written in Rust.
@@ -70,14 +71,14 @@ unified through their implementation of `PolynomialTraits`, where they have
 attached methods to parse, evaluate, integrate, and derivate
 univariate and multivariate polynomials.
 
-Simple Polynomial can handle univariate polynomials with integer exponents and
+**Simple Polynomial** can handle univariate polynomials with integer exponents and
 only addition and subtraction.
 
-Intermediate Polynomial is an extension of Simple Polynomial that can handle multivariate
+**Intermediate Polynomial** is an extension of Simple Polynomial that can handle multivariate
 polynomials. Intermediate polynomial can also handle fractional, decimal, and
 negative exponents.
 
-Polynomial is intended to handle all operations for a polynomial. This would
+**Polynomial** is intended to handle all operations for a polynomial. This would
 include multivariate polynomials, functions such as sin or cos, constants such as
 pi, fractional exponents, negative exponents, and optimistically also polynomial
 expansion.
@@ -143,6 +144,8 @@ We welcome contributions! Please read our:
 > Before submitting a PR, install [just](https://github.com/casey/just) and run `just check`
 > to pull the latest changes from the main branch as well as to format, test, and lint your code.
 > Just can be installed using `cargo install just`, curl, or your favourite package manager.
+
+Stay connected via our **[Discord Server](https://discord.gg/PdVZCtcgaH)**
 
 ## Stability
 
