@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "spindalis",
+    "spindalis_core",
+    "spindalis_macros",
+]
+resolver = "2"
