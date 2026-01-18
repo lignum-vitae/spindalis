@@ -1,6 +1,7 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
 use std::collections::HashMap;
+use std::f64;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
@@ -137,7 +138,7 @@ impl std::fmt::Display for Operators {
 
 // declaring `Functions` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq, Eq,Clone)]
+    #[derive(Debug, PartialEq, Eq,Clone,Copy)]
     pub Functions {
         Sin => "sin",
         Cos => "cos",
@@ -164,7 +165,7 @@ impl std::fmt::Display for Functions {
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq, Eq,Clone)]
+    #[derive(Debug, PartialEq, Eq,Clone,Copy)]
     pub Constants {
         Pi => "pi",
         E => "e",
@@ -582,48 +583,142 @@ impl From<&'static str> for Expr {
 }
 
 #[allow(dead_code)]
-fn eval_advanced_polynomial<V, S, F>(poly: &Polynomial, variables: V) -> Polynomial
+fn eval_advanced_polynomial<V, S, F>(
+    poly: &Polynomial,
+    variables: V,
+) -> Result<f64, PolynomialError>
 where
     V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
     S: AsRef<str>,
     F: Into<f64>,
 {
-    let expr = variables
+    let vars_map: HashMap<String, f64> = variables
+        .clone()
         .into_iter()
-        .fold(poly.expr.clone(), |acc, (name, value)| {
-            replace_variable_occurence(&acc, name.as_ref(), value.into())
-        });
-    Polynomial::new(expr)
+        .map(|(k, v)| (k.as_ref().to_string(), v.into()))
+        .collect();
+    let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
+    evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable)
 }
 
 #[allow(dead_code)]
-fn replace_variable_occurence(expr: &Expr, var_name: &str, var_val: f64) -> Expr {
+fn replace_variable_occurence(
+    expr: &Expr,
+    vars: &HashMap<String, f64>,
+) -> Result<Expr, PolynomialError> {
     match expr {
         // replaces value of variable with variable's assigned value.
-        Expr::Variable(v) if v == var_name => var_val.into(),
-
+        Expr::Variable(v) => {
+            let val = vars.get(v).ok_or(PolynomialError::VariableNotFound {
+                variable: v.to_string(),
+            })?;
+            Ok((*val).into())
+        }
+        val @ Expr::Number(_) => Ok(val.clone()),
         // recursively walks down the polynomial for operators
         Expr::BinaryOp {
             op,
             lhs,
             rhs,
             paren,
-        } => Expr::BinaryOp {
+        } => Ok(Expr::BinaryOp {
             op: *op,
-            lhs: Box::new(replace_variable_occurence(lhs, var_name, var_val)),
-            rhs: Box::new(replace_variable_occurence(rhs, var_name, var_val)),
+            lhs: Box::new(replace_variable_occurence(lhs, vars)?),
+            rhs: Box::new(replace_variable_occurence(rhs, vars)?),
             paren: *paren,
-        },
-        Expr::UnaryOpPrefix { op, value } => Expr::UnaryOpPrefix {
+        }),
+        Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
             op: *op,
-            value: Box::new(replace_variable_occurence(value, var_name, var_val)),
-        },
-        Expr::UnaryOpPostfix { op, value } => Expr::UnaryOpPostfix {
+            value: Box::new(replace_variable_occurence(value, vars)?),
+        }),
+        Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
             op: *op,
-            value: Box::new(replace_variable_occurence(value, var_name, var_val)),
-        },
-        expr => expr.clone(),
+            value: Box::new(replace_variable_occurence(value, vars)?),
+        }),
+        Expr::Function { func, inner } => Ok(Expr::Function {
+            func: *func,
+            inner: Box::new(replace_variable_occurence(inner, vars)?),
+        }),
+        Expr::Constant(c) => Ok(Expr::Constant(*c)),
     }
+}
+
+fn evaluate_numerical_expression(expr: &Expr) -> Option<f64> {
+    match expr {
+        Expr::Number(v) => Some(*v),
+        Expr::BinaryOp { op, lhs, rhs, .. } => handle_binary_operation(op, lhs, rhs),
+        Expr::UnaryOpPostfix { op, value } => handle_postfix_operation(op, value),
+        Expr::UnaryOpPrefix { op, value } => handle_prefix_operation(op, value),
+        Expr::Function { func, inner } => handle_function(func, inner),
+        Expr::Constant(v) => handle_constants(v),
+        _ => None,
+    }
+}
+
+fn handle_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
+    match op {
+        Operators::Div => {
+            Some(evaluate_numerical_expression(lhs)? / evaluate_numerical_expression(rhs)?)
+        }
+        Operators::Mul | Operators::CDot => {
+            Some(evaluate_numerical_expression(lhs)? * evaluate_numerical_expression(rhs)?)
+        }
+        Operators::Add => {
+            Some(evaluate_numerical_expression(lhs)? + evaluate_numerical_expression(rhs)?)
+        }
+        Operators::Sub => {
+            Some(evaluate_numerical_expression(lhs)? - evaluate_numerical_expression(rhs)?)
+        }
+        Operators::Rem => {
+            Some(evaluate_numerical_expression(lhs)? % evaluate_numerical_expression(rhs)?)
+        }
+        Operators::Caret => {
+            Some(evaluate_numerical_expression(lhs)?.powf(evaluate_numerical_expression(rhs)?))
+        }
+        _ => None,
+    }
+}
+
+fn factorial_f64(n: f64) -> f64 {
+    if n < 0.0 {
+        return f64::NAN;
+    }
+    let n_int = n.floor() as u64;
+    (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
+}
+
+fn handle_postfix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+    match op {
+        Operators::Fac => Some(factorial_f64(evaluate_numerical_expression(value)?)),
+        _ => None,
+    }
+}
+
+fn handle_prefix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+    match op {
+        Operators::Add => Some(evaluate_numerical_expression(value)?),
+        Operators::Sub => Some(-evaluate_numerical_expression(value)?),
+        _ => None,
+    }
+}
+fn handle_function(func: &Functions, value: &Expr) -> Option<f64> {
+    match func {
+        Functions::Sin => Some(evaluate_numerical_expression(value)?.sin()),
+        Functions::Cos => Some(evaluate_numerical_expression(value)?.cos()),
+        Functions::Tan => Some(evaluate_numerical_expression(value)?.tan()),
+        Functions::Cot => Some(1.0 / evaluate_numerical_expression(value)?.tan()),
+        Functions::Ln => Some(evaluate_numerical_expression(value)?.ln()),
+        Functions::Log => Some(evaluate_numerical_expression(value)?.log10()),
+    }
+}
+
+fn handle_constants(cnst: &Constants) -> Option<f64> {
+    Some(match cnst {
+        Constants::Pi => f64::consts::PI,
+        Constants::E => f64::consts::E,
+        Constants::Tau => f64::consts::TAU,
+        Constants::Phi => 1.618_033_988_749_895_f64, // f64::consts::PHI
+    })
 }
 
 #[cfg(test)]
@@ -1544,14 +1639,23 @@ mod tests {
             assert_eq!(result, expected);
         }
         #[test]
-        fn test_eval_expression() {
+        fn test_failing_substitution_expression() {
             let expr = "x^3-3xy+5";
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result = eval_advanced_polynomial(&parsed_result, vec![("x", 5)]);
+            assert!(evaluated_result.is_err());
+        }
+        #[test]
+        fn test_eval_expression() {
+            let expr = "x^3-3xy+5!";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
             let evaluated_result =
-                eval_advanced_polynomial(&parsed_result, vec![("x", 5), ("y", 6)]);
+                eval_advanced_polynomial(&parsed_result, vec![("x", 5), ("y", 5)]).unwrap();
             println!("{}", parsed_result);
             println!("{}", evaluated_result);
+            assert_eq!(evaluated_result, 170.0);
         }
     }
     // ---------------------------
