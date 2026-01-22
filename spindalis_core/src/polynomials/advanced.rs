@@ -1744,6 +1744,16 @@ mod tests {
             println!("{:?}", evaluated_result);
             assert_eq!(evaluated_result, 7.0);
         }
+
+        #[test]
+        fn test_multivariant_missing_mapping_expression() {
+            let expr = "2x+3y!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_multivariate(&[("x", 2)]);
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert!(evaluated_result.is_err());
+        }
     }
     // ---------------------------
     // Test Display
