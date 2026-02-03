@@ -17,31 +17,30 @@ pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f6
 
     for k in 0..n - 2 {
         // x = h[k+1..n, k]
-        let mut x = Vec::with_capacity(n - (k + 1));
+        let mut x = 0.0;
         for i in k + 1..n {
-            x.push(h[(i, k)]);
+            x += h[(i, k)] * h[(i, k)];
         }
+        let norm_x = x.sqrt();
 
-        let norm_x = x.iter().map(|&val| val * val).sum::<f64>().sqrt();
         if norm_x == 0.0 {
             continue;
         }
 
         // v = x + sign(x[0]) * ||x|| * e1
-        let sign = if x[0] >= 0.0 { 1.0 } else { -1.0 };
-        let mut v = x;
-        v[0] += sign * norm_x;
-
-        // normalize v
-        let norm_v = v.iter().map(|&val| val * val).sum::<f64>().sqrt();
-        if norm_v == 0.0 {
-            continue;
-        }
-        for val in v.iter_mut() {
-            *val /= norm_v;
+        let h_first = h[(k + 1, k)];
+        let sign = if h_first >= 0.0 { -1.0 } else { 1.0 };
+        let u1 = h_first - sign * norm_x;
+        // v[0] is implicitly 1.0, we store the rest of v in a temporary slice or vec
+        let mut v = vec![0.0; n - (k + 1)];
+        v[0] = 1.0;
+        for i in 1..v.len() {
+            v[i] = h[(k + 1 + i, k)] / u1;
         }
 
-        // Apply H_k = I - 2vv^T to A from the left: A = H_k * A
+        let tau = -sign * u1 / norm_x;
+
+        // Apply H_k = I - tau * v * v^T to A from the left: A = H_k * A
         // This affects rows k+1..n
         for col in k..n {
             let mut dot = 0.0;
@@ -49,7 +48,7 @@ pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f6
                 dot += v[i] * h[(k + 1 + i, col)];
             }
             for i in 0..v.len() {
-                h[(k + 1 + i, col)] -= 2.0 * v[i] * dot;
+                h[(k + 1 + i, col)] -= tau * v[i] * dot;
             }
         }
 
@@ -61,7 +60,7 @@ pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f6
                 dot += v[j] * h[(row, k + 1 + j)];
             }
             for j in 0..v.len() {
-                h[(row, k + 1 + j)] -= 2.0 * v[j] * dot;
+                h[(row, k + 1 + j)] -= tau * v[j] * dot;
             }
         }
 
@@ -73,7 +72,7 @@ pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f6
                 dot += v[j] * q[(row, k + 1 + j)];
             }
             for j in 0..v.len() {
-                q[(row, k + 1 + j)] -= 2.0 * v[j] * dot;
+                q[(row, k + 1 + j)] -= tau * v[j] * dot;
             }
         }
     }

@@ -13,7 +13,12 @@ env:
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [spindalis, spindalis_core, spindalis_macros]
+
     steps:
       - uses: actions/checkout@v5
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -p ${{ matrix.package }}

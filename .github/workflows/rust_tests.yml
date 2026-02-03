@@ -10,12 +10,16 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  build_and_test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [spindalis, spindalis_core, spindalis_macros]
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose --workspace
-    - name: Run tests
-      run: cargo test --verbose --workspace
+      - uses: actions/checkout@v5
+      - name: Build
+        run: cargo build --verbose -p ${{ matrix.package }}
+      - name: Run tests
+        run: cargo test --verbose -p ${{ matrix.package }}
