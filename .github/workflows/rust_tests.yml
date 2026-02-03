@@ -10,22 +10,16 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  build_and_test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        crate-target:
-          - { crate: spindalis }
-          - { crate: spindalis_core }
-          - { crate: spindalis_macros }
+        package: [spindalis, spindalis_core, spindalis_macros]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      working-directory: ./${{ matrix.crate-target.crate }}
-      run: cargo build --verbose
-    - name: Run tests
-      working-directory: ./${{ matrix.crate-target.crate }}
-      run: cargo test --verbose
+      - uses: actions/checkout@v5
+      - name: Build
+        run: cargo build --verbose -p ${{ matrix.package }}
+      - name: Run tests
+        run: cargo test --verbose -p ${{ matrix.package }}
