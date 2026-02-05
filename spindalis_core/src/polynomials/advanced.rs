@@ -1,6 +1,7 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+use std::f64;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
@@ -106,7 +107,7 @@ macro_rules! token_from_char {
 
 // declaring `Operators` with `token_from_char`
 token_from_char! {
-    #[derive(Debug, PartialEq, Hash, Eq,Copy,Clone)]
+    #[derive(Debug, PartialEq,Eq,Copy,Clone,Hash)]
     pub Operators {
         Add   => '+',
         Sub   => '-',
@@ -137,7 +138,7 @@ impl std::fmt::Display for Operators {
 
 // declaring `Functions` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq, Eq,Clone)]
+    #[derive(Debug, PartialEq,Clone,Copy)]
     pub Functions {
         Sin => "sin",
         Cos => "cos",
@@ -164,7 +165,7 @@ impl std::fmt::Display for Functions {
 
 // declaring `Constants` with `token_from_str`
 token_from_str! {
-    #[derive(Debug, PartialEq, Eq,Clone)]
+    #[derive(Debug, PartialEq,Clone,Copy,)]
     pub Constants {
         Pi => "pi",
         E => "e",
@@ -280,8 +281,7 @@ impl std::fmt::Display for Expr {
     }
 }
 
-#[allow(dead_code)]
-fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
+pub fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
 where
     S: AsRef<str>,
 {
@@ -422,7 +422,6 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     }
 }
 
-#[allow(dead_code)]
 fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr, PolynomialError> {
     let mut left = match token_stream.next() {
         Some(Token::Number(n)) => Ok(Expr::Number(n)),
@@ -505,8 +504,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
     Ok(left)
 }
 
-#[allow(dead_code)]
-fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
+pub fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
@@ -579,6 +577,169 @@ impl From<&'static str> for Expr {
     fn from(v: &'static str) -> Self {
         Expr::Variable(v.into())
     }
+}
+
+pub fn eval_advanced_polynomial<V, S, F>(
+    poly: &Polynomial,
+    variables: &V,
+) -> Result<f64, PolynomialError>
+where
+    V: IntoIterator<Item = (S, F)> + std::fmt::Debug + Clone,
+    S: AsRef<str>,
+    F: Into<f64>,
+{
+    let vars_map: HashMap<String, f64> = variables
+        .clone()
+        .into_iter()
+        .map(|(k, v)| (k.as_ref().to_string(), v.into()))
+        .collect();
+    let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
+    evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable) // TODO: Work on error messages
+}
+
+fn replace_variable_occurence(
+    expr: &Expr,
+    vars: &HashMap<String, f64>,
+) -> Result<Expr, PolynomialError> {
+    expr.clone().map(&mut |e| match e {
+        Expr::Variable(v) => {
+            vars.get(&v)
+                .copied()
+                .map(Expr::Number)
+                .ok_or(PolynomialError::VariableNotFound {
+                    variable: v.to_string(),
+                })
+        }
+        x => Ok(x),
+    })
+}
+
+impl Expr {
+    pub fn map(
+        self,
+        f: &mut impl FnMut(Expr) -> Result<Expr, PolynomialError>,
+    ) -> Result<Expr, PolynomialError> {
+        match self {
+            // recursively walks down the polynomial for operators
+            Expr::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => Ok(Expr::BinaryOp {
+                op,
+                lhs: Box::new(lhs.map(f)?),
+                rhs: Box::new(rhs.map(f)?),
+                paren,
+            }),
+            Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
+                op,
+                value: Box::new(value.map(f)?),
+            }),
+            Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
+                op,
+                value: Box::new(value.map(f)?),
+            }),
+            Expr::Function { func, inner } => Ok(Expr::Function {
+                func,
+                inner: Box::new(inner.map(f)?),
+            }),
+            // This allows for extension of variants with f.
+            x => f(x),
+        }
+    }
+}
+
+pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialError> {
+    let mut variables: BTreeSet<String> = Default::default();
+    let _ = expr.clone().map(&mut |e| match &e {
+        Expr::Variable(v) => {
+            variables.insert(v.to_string());
+            Ok(e)
+        }
+        expr => Ok(expr.clone()),
+    });
+    if variables.len() > 1 {
+        Err(PolynomialError::TooManyVariables {
+            variables: variables.into_iter().collect::<Vec<_>>(),
+        })
+    } else {
+        variables
+            .clone()
+            .into_iter()
+            .next()
+            .map_or_else(|| Err(PolynomialError::MissingVariable), Ok)
+    }
+}
+
+pub(crate) fn evaluate_numerical_expression(expr: &Expr) -> Option<f64> {
+    match expr {
+        Expr::Number(v) => Some(*v),
+        Expr::BinaryOp { op, lhs, rhs, .. } => handle_binary_operation(op, lhs, rhs),
+        Expr::UnaryOpPostfix { op, value } => handle_postfix_operation(op, value),
+        Expr::UnaryOpPrefix { op, value } => handle_prefix_operation(op, value),
+        Expr::Function { func, inner } => handle_function(func, inner),
+        Expr::Constant(v) => handle_constants(v),
+        _ => None,
+    }
+}
+
+fn handle_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
+    let lhs = evaluate_numerical_expression(lhs)?;
+    let rhs = evaluate_numerical_expression(rhs)?;
+    match op {
+        Operators::Div => Some(lhs / rhs),
+        Operators::Mul | Operators::CDot => Some(lhs * rhs),
+        Operators::Add => Some(lhs + rhs),
+        Operators::Sub => Some(lhs - rhs),
+        Operators::Rem => Some(lhs % rhs),
+        Operators::Caret => Some(lhs.powf(rhs)),
+        _ => None,
+    }
+}
+
+fn factorial_f64(n: f64) -> f64 {
+    if n < 0.0 {
+        return f64::NAN;
+    }
+    let n_int = n.floor() as u64;
+    (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
+}
+
+fn handle_postfix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+    match op {
+        Operators::Fac => Some(factorial_f64(evaluate_numerical_expression(value)?)),
+        _ => None,
+    }
+}
+
+fn handle_prefix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+    let value = evaluate_numerical_expression(value)?;
+    match op {
+        Operators::Add => Some(value),
+        Operators::Sub => Some(-value),
+        _ => None,
+    }
+}
+fn handle_function(func: &Functions, value: &Expr) -> Option<f64> {
+    let value = evaluate_numerical_expression(value)?;
+    Some(match func {
+        Functions::Sin => value.sin(),
+        Functions::Cos => value.cos(),
+        Functions::Tan => value.tan(),
+        Functions::Cot => 1.0 / value.tan(),
+        Functions::Ln => value.ln(),
+        Functions::Log => value.log10(),
+    })
+}
+
+fn handle_constants(cnst: &Constants) -> Option<f64> {
+    Some(match cnst {
+        Constants::Pi => f64::consts::PI,
+        Constants::E => f64::consts::E,
+        Constants::Tau => f64::consts::TAU,
+        Constants::Phi => 1.618_033_988_749_895_f64, // f64::consts::PHI
+    })
 }
 
 #[cfg(test)]
@@ -1498,6 +1659,97 @@ mod tests {
             let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
         }
+        #[test]
+        fn test_failing_substitution_expression() {
+            let expr = "x^3-3xy+5";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result = eval_advanced_polynomial(&parsed_result, &[("x", 5)]);
+            assert!(evaluated_result.is_err());
+        }
+        #[test]
+        fn test_eval_expression() {
+            let expr = "x^3-3xy+5!";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result =
+                eval_advanced_polynomial(&parsed_result, &[("x", 5), ("y", 5)]).unwrap();
+            println!("{}", parsed_result);
+            println!("{}", evaluated_result);
+            assert_eq!(evaluated_result, 170.0);
+        }
+
+        #[test]
+        fn test_univariance_of_an_expression() {
+            let expr = "x^3-3x+5!";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result = extract_univariate_variable(&parsed_result.expr).unwrap();
+            println!("{}", parsed_result);
+            println!("{}", evaluated_result);
+            assert_eq!(evaluated_result, String::from("x"));
+        }
+
+        #[test]
+        fn test_too_many_variables_expression() {
+            let expr = "x^3-3y+5!";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result = extract_univariate_variable(&parsed_result.expr);
+            println!("{}", parsed_result);
+            println!("{:?}", evaluated_result);
+            assert!(evaluated_result.is_err());
+        }
+
+        #[test]
+        fn test_univariant_evaluation() {
+            let expr = "z^3-3z+5!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_univariate(10).unwrap();
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert_eq!(evaluated_result, 1090.);
+        }
+
+        #[test]
+        fn test_univariant_failure_evaluation() {
+            let expr = "-3x+5y!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_univariate(1);
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert!(evaluated_result.is_err());
+        }
+
+        #[test]
+        fn test_univariant_no_variables_evaluation() {
+            let expr = "-3+5!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_univariate(1).unwrap();
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert_eq!(evaluated_result, 117.0);
+        }
+
+        #[test]
+        fn test_multivariant_expression() {
+            let expr = "2x+3y!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_multivariate(&[("x", 2), ("y", 1)]).unwrap();
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert_eq!(evaluated_result, 7.0);
+        }
+
+        #[test]
+        fn test_multivariant_missing_mapping_expression() {
+            let expr = "2x+3y!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_multivariate(&[("x", 2)]);
+            println!("{}", poly);
+            println!("{:?}", evaluated_result);
+            assert!(evaluated_result.is_err());
+        }
     }
     // ---------------------------
     // Test Display
@@ -1651,7 +1903,7 @@ mod tests {
         use super::*;
 
         token_from_str! {
-            #[derive(Debug, PartialEq, Eq)]
+            #[derive(Debug, PartialEq)]
             pub TestEnum {
                 Alpha => "alpha",
                 Beta  => "beta",
