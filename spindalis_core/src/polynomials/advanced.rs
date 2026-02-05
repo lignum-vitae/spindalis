@@ -281,7 +281,6 @@ impl std::fmt::Display for Expr {
     }
 }
 
-#[allow(dead_code)]
 pub fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
 where
     S: AsRef<str>,
@@ -423,7 +422,6 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     }
 }
 
-#[allow(dead_code)]
 fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr, PolynomialError> {
     let mut left = match token_stream.next() {
         Some(Token::Number(n)) => Ok(Expr::Number(n)),
@@ -506,7 +504,6 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
     Ok(left)
 }
 
-#[allow(dead_code)]
 pub fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
@@ -600,7 +597,6 @@ where
     evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable) // TODO: Work on error messages
 }
 
-#[allow(dead_code)]
 fn replace_variable_occurence(
     expr: &Expr,
     vars: &HashMap<String, f64>,
@@ -648,13 +644,13 @@ impl Expr {
                 func,
                 inner: Box::new(inner.map(f)?),
             }),
+            // This allows for extension of variants with f.
             x => f(x),
         }
     }
 }
 
-#[allow(dead_code)]
-pub fn identify_univariance(expr: &Expr) -> Result<String, PolynomialError> {
+pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialError> {
     let mut variables: BTreeSet<String> = Default::default();
     let _ = expr.clone().map(&mut |e| match &e {
         Expr::Variable(v) => {
@@ -1688,7 +1684,7 @@ mod tests {
             let expr = "x^3-3x+5!";
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parser(tok_str).unwrap();
-            let evaluated_result = identify_univariance(&parsed_result.expr).unwrap();
+            let evaluated_result = extract_univariate_variable(&parsed_result.expr).unwrap();
             println!("{}", parsed_result);
             println!("{}", evaluated_result);
             assert_eq!(evaluated_result, String::from("x"));
@@ -1699,7 +1695,7 @@ mod tests {
             let expr = "x^3-3y+5!";
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parser(tok_str).unwrap();
-            let evaluated_result = identify_univariance(&parsed_result.expr);
+            let evaluated_result = extract_univariate_variable(&parsed_result.expr);
             println!("{}", parsed_result);
             println!("{:?}", evaluated_result);
             assert!(evaluated_result.is_err());

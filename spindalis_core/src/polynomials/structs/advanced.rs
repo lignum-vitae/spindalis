@@ -1,7 +1,7 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::advanced::{Expr, Token};
 use crate::polynomials::advanced::{
-    eval_advanced_polynomial, evaluate_numerical_expression, identify_univariance, lexer, parser,
+    eval_advanced_polynomial, evaluate_numerical_expression, extract_univariate_variable, lexer, parser,
 };
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -32,7 +32,7 @@ impl Polynomial {
     where
         F: Into<f64> + std::clone::Clone + std::fmt::Debug,
     {
-        let variable = match identify_univariance(&self.expr) {
+        let variable = match extract_univariate_variable(&self.expr) {
             Err(PolynomialError::MissingVariable) => {
                 return evaluate_numerical_expression(&self.expr)
                     .ok_or(PolynomialError::MissingVariable);
