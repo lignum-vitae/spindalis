@@ -203,7 +203,7 @@ impl<T> Arr2D<T> {
     where
         T: Copy + std::default::Default + std::ops::AddAssign + std::ops::Mul<Output = T>,
     {
-        if self.height == 1 && self.width == 1 || rhs.height == 1 && rhs.width == 2 {
+        if self.height == 1 && self.width == 1 || rhs.height == 1 && rhs.width == 1 {
             let mut matrix = Arr2D::new();
             let mut scalar = T::default();
             if rhs.height == 1 {
