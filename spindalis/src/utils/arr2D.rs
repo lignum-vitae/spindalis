@@ -1098,6 +1098,16 @@ mod tests {
     }
 
     #[test]
+    fn test_vec_mul_vec() {
+        let arr1 = Arr2D::from_flat(vec![1, 1], 0, 2, 1).unwrap();
+        let arr2 = Arr2D::from_flat(vec![1, 0], 0, 1, 2).unwrap();
+
+        let expected = Arr2D::from_flat(vec![1, 0, 1, 0], 0, 2, 2).unwrap();
+        let res = arr1.dot(&arr2).unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
     fn test_scalar_mul_mat() {
         let scal = Arr2D::from_flat(vec![2], 0, 1, 1).unwrap();
         let mat = Arr2D::from_flat(vec![4, 0, 1, -9], 0, 2, 2).unwrap();
