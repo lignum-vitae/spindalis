@@ -41,7 +41,8 @@ pub fn parse_intermediate_polynomial(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut tokens = String::from("::spindalis_core::polynomials::structs::IntermediatePolynomial { ");
+    let mut tokens =
+        String::from("::spindalis_core::polynomials::structs::IntermediatePolynomial { ");
     tokens.push_str("terms: vec![");
     for term in output.terms {
         tokens.push_str(&format!(
