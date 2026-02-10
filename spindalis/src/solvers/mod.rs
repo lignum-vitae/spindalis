@@ -1,5 +1,4 @@
 pub mod bisection;
-pub mod decomposition;
 pub mod eigen;
 pub mod gaussian_elim;
 pub mod nrm;
@@ -9,7 +8,7 @@ pub use gaussian_elim::gaussian_elimination;
 pub use nrm::newton_raphson_method;
 
 use crate::polynomials::PolynomialError;
-use crate::utils::Arr2DError;
+use jedvek::Matrix2DError;
 
 #[derive(PartialEq)]
 pub enum SolveMode {
@@ -24,13 +23,13 @@ pub enum SolverError {
     XInitOutOfBounds,
     NonSquareMatrix,
     SingularMatrix,
-    InvalidVector(Arr2DError),
+    InvalidVector(Matrix2DError),
     FunctionError(PolynomialError),
     NumArgumentsMismatch { num_rows: usize, rhs_len: usize },
 }
 
-impl From<Arr2DError> for SolverError {
-    fn from(err: Arr2DError) -> Self {
+impl From<Matrix2DError> for SolverError {
+    fn from(err: Matrix2DError) -> Self {
         SolverError::InvalidVector(err)
     }
 }

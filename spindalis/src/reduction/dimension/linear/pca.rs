@@ -1,5 +1,6 @@
 use crate::reduction::dimension::{DimensionError, ReductionError};
-use crate::utils::{StdDevType, arith_mean, arr2D::Arr2D, std_dev};
+use crate::utils::{StdDevType, arith_mean, std_dev};
+use jedvek::Matrix2D;
 
 // ┌─────────────┬────────┬────────┬────────┬────────┬──────────┐
 // │             │  USA   │ France │ Belgium│   UK   │ Czechia  │
@@ -16,9 +17,9 @@ use crate::utils::{StdDevType, arith_mean, arr2D::Arr2D, std_dev};
 pub fn pca() {}
 
 fn _center_data(
-    data: &Arr2D<f64>,
+    data: &Matrix2D<f64>,
     std_type: Option<StdDevType>,
-) -> Result<Arr2D<f64>, ReductionError> {
+) -> Result<Matrix2D<f64>, ReductionError> {
     let mut result = data.clone();
     let mut std = 1_f64;
     for row in &mut result {
@@ -76,10 +77,10 @@ fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, DimensionError> {
     Ok(cov_sum / (n - 1.0))
 }
 
-fn _cov_mat(data: &Arr2D<f64>) -> Result<Arr2D<f64>, ReductionError> {
+fn _cov_mat(data: &Matrix2D<f64>) -> Result<Matrix2D<f64>, ReductionError> {
     let height = data.height;
 
-    let mut covariance_matrix = Arr2D::full(0.0, height, height);
+    let mut covariance_matrix = Matrix2D::full(0.0, height, height);
 
     for (i, x) in data.into_iter().enumerate() {
         for (j, y) in data.into_iter().enumerate() {
@@ -99,10 +100,10 @@ mod tests {
 
     #[test]
     fn test_center_data() {
-        let data = Arr2D::from(&[[1., 2., 3.], [4., 5., 6.]]);
+        let data = Matrix2D::from(&[[1., 2., 3.], [4., 5., 6.]]);
 
         let centered = _center_data(&data, None).unwrap();
-        let expected = Arr2D::from(&[[-1., 0., 1.], [-1., 0., 1.]]);
+        let expected = Matrix2D::from(&[[-1., 0., 1.], [-1., 0., 1.]]);
 
         assert_eq!(centered, expected);
     }

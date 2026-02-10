@@ -1,16 +1,16 @@
-use crate::utils::{Arr2D, Arr2DError};
+use jedvek::{Matrix2D, Matrix2DError};
 
-pub fn power_method<M>(matrix: M, es: f64) -> Result<(f64, Arr2D<f64>), Arr2DError>
+pub fn power_method<M>(matrix: M, es: f64) -> Result<(f64, Matrix2D<f64>), Matrix2DError>
 where
-    M: TryInto<Arr2D<f64>, Error = Arr2DError>,
+    M: TryInto<Matrix2D<f64>, Error = Matrix2DError>,
 {
-    let matrix: Arr2D<f64> = matrix.try_into()?;
+    let matrix: Matrix2D<f64> = matrix.try_into()?;
     if matrix.height != matrix.width || matrix.height == 0 || matrix.width == 0 {
-        return Err(Arr2DError::NonSquareMatrix);
+        return Err(Matrix2DError::NonSquareMatrix);
     }
-    let initial_eigenvector = Arr2D::from(&[[1.0], [1.0], [1.0]]);
+    let initial_eigenvector = Matrix2D::from(&[[1.0], [1.0], [1.0]]);
     let mut eigenvector = &matrix * initial_eigenvector;
-    // Arr2D.max() only returns None if the matrix is empty
+    // Matrix2D.max() only returns None if the matrix is empty
     let mut eigenvalue = eigenvector.max().unwrap(); // Matrix won't be empty here
     eigenvector = eigenvector / eigenvalue; // Normalised Eigenvector
     loop {
@@ -37,17 +37,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::arr2D::Rounding;
+    use jedvek::Rounding;
 
     #[test]
     fn test_known_solution() {
         // Largest eigenvalue and eigenvector
-        let matrix = Arr2D::from(&[
+        let matrix = Matrix2D::from(&[
             [3.556, -1.778, 0.0],
             [-1.778, 3.556, -1.778],
             [0.0, -1.778, 3.556],
         ]);
-        let expected = (6.070, Arr2D::from(&[[1.0], [-1.414], [1.0]]));
+        let expected = (6.070, Matrix2D::from(&[[1.0], [-1.414], [1.0]]));
 
         let (mut eigenvalue, mut eigenvector) = power_method(&matrix, 1e-10).unwrap();
         eigenvalue = (eigenvalue * 10_f64.powi(2)).round() / 10_f64.powi(2);
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn test_known_inverse_solution() {
         // Smallest eigenvalue and eigenvector
-        let matrix = Arr2D::from(&[
+        let matrix = Matrix2D::from(&[
             [3.556, -1.778, 0.0],
             [-1.778, 3.556, -1.778],
             [0.0, -1.778, 3.556],
@@ -69,7 +69,7 @@ mod tests {
             ((1_f64 / 0.960127) * 10_f64.powi(5)).round() / 10_f64.powi(5);
         let expected = (
             rounded_expected_eigenvalue,
-            Arr2D::from(&[[0.707], [1.0], [0.707]]),
+            Matrix2D::from(&[[0.707], [1.0], [0.707]]),
         );
 
         let (converged_value, mut eigenvector) = power_method(&inverse_res, 1e-10).unwrap();
@@ -83,8 +83,8 @@ mod tests {
     #[test]
     fn test_known_solution_2() {
         // Largest eigenvalue and eigenvector
-        let matrix = Arr2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
-        let expected = (19.88, Arr2D::from(&[[0.9035], [0.7698], [1.0]]));
+        let matrix = Matrix2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
+        let expected = (19.88, Matrix2D::from(&[[0.9035], [0.7698], [1.0]]));
 
         let (mut eigenvalue, mut eigenvector) = power_method(&matrix, 1e-10).unwrap();
         eigenvalue = (eigenvalue * 10_f64.powi(2)).round() / 10_f64.powi(2);
@@ -96,8 +96,8 @@ mod tests {
     #[test]
     fn test_known_inverse_solution_2() {
         // Smallest eigenvalue and eigenvector
-        let matrix = Arr2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
-        let expected = (0.29, Arr2D::from(&[[0.04117], [1.0], [-0.80702]]));
+        let matrix = Matrix2D::from(&[[2, 8, 10], [8, 4, 5], [10, 5, 7]]);
+        let expected = (0.29, Matrix2D::from(&[[0.04117], [1.0], [-0.80702]]));
 
         let inverse_res = matrix.inverse().unwrap();
         let (converged_value, mut eigenvector) = power_method(&inverse_res, 1e-10).unwrap();

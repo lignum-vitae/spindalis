@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "jedvek"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2994ad4a94f739dff0d4eb50dc5be6a8ba738f1d0dd44bf0e553a5fb359c700f"
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -24,6 +30,7 @@ dependencies = [
 name = "spindalis"
 version = "0.6.0"
 dependencies = [
+ "jedvek",
  "spindalis_core",
  "spindalis_macros",
 ]
