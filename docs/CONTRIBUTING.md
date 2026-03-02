@@ -110,11 +110,13 @@ project directory. Windows users may need to check that `just` is in their `PATH
 After installing `just`, all appropriate checks can be run using the command
 `just check`.
 
+Alternatively, you can directly use cargo to run the following checks before starting a PR.
+
 ```nginx
 # Format your changes
 cargo fmt
 
-# Clear cache to avoid issuessuch as "failed to resolve" errors
+# Clear cache to avoid issues such as "failed to resolve" errors
 cargo clean
 cargo check
 
