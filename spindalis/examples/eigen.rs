@@ -1,8 +1,8 @@
+use jedvek::{Matrix2D, Rounding};
 use spindalis::eigen::power_method;
-use spindalis::utils::{Arr2D, Rounding};
 
 fn main() {
-    let matrix = Arr2D::from(&[[2.0, 8.0, 10.0], [8.0, 4.0, 5.0], [10.0, 5.0, 7.0]]);
+    let matrix = Matrix2D::from(&[[2.0, 8.0, 10.0], [8.0, 4.0, 5.0], [10.0, 5.0, 7.0]]);
     println!("Original Matrix:\n{matrix}\n");
     let result = power_method(&matrix, 1e-10);
     match result {
@@ -16,7 +16,7 @@ fn main() {
         Ok(inverted) => inverted,
         Err(e) => {
             eprintln!("Unable to invert matrix: {e:?}");
-            Arr2D::from(&[[]])
+            Matrix2D::from(&[[]])
         }
     };
     if !inverse_matrix.is_empty() {
