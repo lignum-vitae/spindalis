@@ -83,20 +83,6 @@ include multivariate polynomials, functions such as sin or cos, constants such a
 pi, fractional exponents, negative exponents, and optimistically also polynomial
 expansion.
 
-### Arr2D
-
-The Arr2D struct provides a convenient way to use a two-dimensional matrix that is
-a one-dimensional vector under the hood.
-This allows for efficient memory usage while enabling standard matrix operations.
-
-Arr2D implements a wide range of methods and traits, including:
-
-- Linear Algebra: dot product, inverse, transpose.
-- Arithmetic: Implementations of multiplication by matrices, vectors, and scalars and division by scalars
-- Manipulation: shape, size, full, reshape, map
-- Conversion: from_flat, From, TryFrom
-- Utility: new, max, min, is_empty
-
 ## Project layout
 
 This repository is split into three crates. The tests for spindalis_core and
@@ -112,13 +98,12 @@ Within these crates, the following modules `spindalis::<module name>` are provid
 
 | Module          | Description                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------ |
-| `utils`         | Utility functions such as `Arr2D`, `Arr2DError`, forward substitution, and back substitution           |
+| `utils`         | Utility functions such as different types of mean and standard deviation                               |
 | `polynomials`   | Parsing and evaluating simple and intermediate polynomials                                             |
 | `derivatives`   | Differentiating simple and intermediate polynomials                                                    |
 | `integrals`     | Integrating simple and intermediate polynomials                                                        |
 | `solvers`       | Solving equations and differential equations, including root-finding, extrema-finding, and ODE solvers |
 | `eigen`         | Algorithms to solve eigenvalue and eigenvector problems                                                |
-| `decomposition` | Decomposition algorithms including LU decomposition and LU decomposition with partial pivoting         |
 | `regressors`    | Linear and non-linear regression, including least-squares, Gaussian, and polynomial regression         |
 | `reduction`     | Linear and non-linear dimensionality reduction algorithms, including PCA                               |
 
@@ -149,7 +134,11 @@ Stay connected via our **[Discord Server](https://discord.gg/PdVZCtcgaH)**
 
 ## Stability
 
-This project is in the alpha stage. APIs may change without warning until version
+> [!CAUTION]
+> Arr2D functionality and decomposition functions moved to [jedvek](https://github.com/lignum-vitae/jedvek)!
+> Arr2D is now Matrix2D.
+
+This project is in the beta stage. APIs may change without warning until version
 1.0.0.
 
 ## License

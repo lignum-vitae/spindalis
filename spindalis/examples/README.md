@@ -115,8 +115,8 @@ parsing to parse polynomials into an abstract syntax tree.
 ## Math
 
 Where applicable, functions accept any coefficient matrix that can be coerced
-into a `Arr2D<f64>` type. That includes nested vecs of ints or floats,
-nested arrays of ints or floats, and Arr2D vectors of types other than
+into a `Matrix2D<f64>` type. That includes nested vecs of ints or floats,
+nested arrays of ints or floats, and Matrix2D vectors of types other than
 `f64`. The matrix must be borrowed for conversion to work.
 The right hand side vector also accepts a vector containing
 any numerical values that can be converted into `f64`.

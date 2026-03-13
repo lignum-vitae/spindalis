@@ -1,19 +1,21 @@
 use crate::solvers::SolverError;
-use crate::utils::Arr2D;
+use jedvek::Matrix2D;
 
 /// Computes the Hessenberg reduction of a square matrix A.
 /// Returns (H, Q) such that H = Q^T * A * Q, where H is upper Hessenberg and Q is orthogonal.
-pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f64>), SolverError> {
+pub fn hessenberg_reduction(
+    matrix: &Matrix2D<f64>,
+) -> Result<(Matrix2D<f64>, Matrix2D<f64>), SolverError> {
     if matrix.height != matrix.width {
         return Err(SolverError::NonSquareMatrix);
     }
     let n = matrix.height;
     if n <= 2 {
-        return Ok((matrix.clone(), Arr2D::identity(n)));
+        return Ok((matrix.clone(), Matrix2D::identity(n)));
     }
 
     let mut h = matrix.clone();
-    let mut q = Arr2D::identity(n);
+    let mut q = Matrix2D::identity(n);
 
     for k in 0..n - 2 {
         // x = h[k+1..n, k]
@@ -83,23 +85,23 @@ pub fn hessenberg_reduction(matrix: &Arr2D<f64>) -> Result<(Arr2D<f64>, Arr2D<f6
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::Rounding;
+    use jedvek::Rounding;
 
     #[test]
     fn test_hessenberg_2x2() {
-        let mat = Arr2D::from(&[[1.0, 2.0], [3.0, 4.0]]);
+        let mat = Matrix2D::from(&[[1.0, 2.0], [3.0, 4.0]]);
         let (h, q) = hessenberg_reduction(&mat).unwrap();
         assert_eq!(h.round_to_decimal(10), mat.round_to_decimal(10));
         assert_eq!(
             q.round_to_decimal(10),
-            Arr2D::identity(2).round_to_decimal(10)
+            Matrix2D::identity(2).round_to_decimal(10)
         );
     }
 
     #[test]
     fn test_hessenberg_3x3() {
         // Simple 3x3 matrix
-        let mat = Arr2D::from(&[[1.0, 5.0, 7.0], [3.0, 0.0, 6.0], [4.0, 3.0, 1.0]]);
+        let mat = Matrix2D::from(&[[1.0, 5.0, 7.0], [3.0, 0.0, 6.0], [4.0, 3.0, 1.0]]);
         let (h, q) = hessenberg_reduction(&mat).unwrap();
 
         // Check if H is upper Hessenberg
@@ -110,7 +112,7 @@ mod tests {
         let i = q.dot(&qt).unwrap();
         assert_eq!(
             i.round_to_decimal(10),
-            Arr2D::identity(3).round_to_decimal(10)
+            Matrix2D::identity(3).round_to_decimal(10)
         );
 
         // Check if A = Q * H * Q^T
@@ -120,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_hessenberg_4x4() {
-        let mat = Arr2D::from(&[
+        let mat = Matrix2D::from(&[
             [1.0, 2.0, 3.0, 4.0],
             [2.0, 1.0, 2.0, 3.0],
             [3.0, 2.0, 1.0, 2.0],
@@ -138,7 +140,7 @@ mod tests {
         let i = q.dot(&qt).unwrap();
         assert_eq!(
             i.round_to_decimal(10),
-            Arr2D::identity(4).round_to_decimal(10)
+            Matrix2D::identity(4).round_to_decimal(10)
         );
 
         // Check A = Q H Q^T
