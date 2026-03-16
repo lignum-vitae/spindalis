@@ -17,6 +17,13 @@ impl SimplePolynomial {
     }
 }
 
+impl std::ops::Deref for SimplePolynomial {
+    type Target = [f64];
+    fn deref(&self) -> &Self::Target {
+        &self.coefficients
+    }
+}
+
 impl PartialEq<Vec<f64>> for SimplePolynomial {
     fn eq(&self, other: &Vec<f64>) -> bool {
         &self.coefficients == other

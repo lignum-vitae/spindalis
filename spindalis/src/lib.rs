@@ -46,11 +46,6 @@ pub mod integrals {
     pub use spindalis_core::integrals::univariate_definite::romberg_definite;
 }
 
-pub mod decomposition {
-    pub use crate::solvers::decomposition::lu::lu_decomposition;
-    pub use crate::solvers::decomposition::plu::lu_pivot_decomposition;
-}
-
 pub mod eigen {
     pub use crate::solvers::eigen::power_method::power_method;
 }

@@ -1,5 +1,5 @@
 use crate::solvers::SolverError;
-use crate::utils::{Arr2DError, arr2D::Arr2D, back_substitution};
+use jedvek::{Matrix2D, Matrix2DError, substitution::back_substitution};
 
 pub fn gaussian_elimination<M, W>(
     matrix: M,
@@ -7,10 +7,10 @@ pub fn gaussian_elimination<M, W>(
     tolerance: f64,
 ) -> Result<Vec<f64>, SolverError>
 where
-    M: TryInto<Arr2D<f64>, Error = Arr2DError>,
+    M: TryInto<Matrix2D<f64>, Error = Matrix2DError>,
     W: Into<f64> + Copy,
 {
-    let mut coeff_matrix: Arr2D<f64> = matrix.try_into()?;
+    let mut coeff_matrix: Matrix2D<f64> = matrix.try_into()?;
     if coeff_matrix.height != coeff_matrix.width {
         return Err(SolverError::NonSquareMatrix);
     }
@@ -51,7 +51,7 @@ where
 }
 
 fn forward_elimination(
-    coeff_matrix: &mut Arr2D<f64>,
+    coeff_matrix: &mut Matrix2D<f64>,
     scale_factor: &mut [f64],
     size: usize,
     rhs_vector: &mut [f64],
@@ -78,7 +78,7 @@ fn forward_elimination(
 }
 
 fn partial_pivot(
-    coeff_matrix: &mut Arr2D<f64>,
+    coeff_matrix: &mut Matrix2D<f64>,
     rhs_vector: &mut [f64],
     scale_factor: &mut [f64],
     size: usize,
@@ -130,7 +130,7 @@ mod tests {
     fn test_known_elim_2() {
         let matrix = vec![vec![3, 6], vec![5, -8]];
 
-        let coeff_matrix = Arr2D::try_from(matrix).unwrap();
+        let coeff_matrix = Matrix2D::try_from(matrix).unwrap();
         let rhs_vector = vec![12, 2];
         let tol = 1e-12;
         let expected: Vec<f64> = vec![2.0, 1.0];
@@ -148,7 +148,7 @@ mod tests {
             vec![3.0, -5.0, 5.0, -4.0],
         ];
 
-        let coeff_matrix: Arr2D<f64> = Arr2D::try_from(matrix).unwrap();
+        let coeff_matrix: Matrix2D<f64> = Matrix2D::try_from(matrix).unwrap();
         let rhs_vector = vec![0.0; 4];
         let tol = 1e-12;
 

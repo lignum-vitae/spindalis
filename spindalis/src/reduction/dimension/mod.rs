@@ -1,18 +1,18 @@
 pub mod linear;
 pub mod non_linear;
 
-use crate::utils::Arr2DError;
+use jedvek::Matrix2DError;
 pub use linear::pca::pca;
 
 #[derive(Debug)]
 pub enum ReductionError {
     ShapeError(DimensionError),
-    InvalidFlatVector(Arr2DError),
+    InvalidFlatVector(Matrix2DError),
     ZeroMean,
 }
 
-impl From<Arr2DError> for ReductionError {
-    fn from(err: Arr2DError) -> Self {
+impl From<Matrix2DError> for ReductionError {
+    fn from(err: Matrix2DError) -> Self {
         ReductionError::InvalidFlatVector(err)
     }
 }
