@@ -34,6 +34,11 @@ pub mod derivatives {
     pub use spindalis_core::derivatives::simple::simple_derivative;
 }
 
+pub mod expansion {
+    pub use spindalis_core::expansion::intermediate::{expand_intermediate, multiply_intermediate};
+    pub use spindalis_core::expansion::simple::{expand_simple, multiply_simple};
+}
+
 pub mod integrals {
     // Error Enums
     pub use spindalis_core::integrals::IntegralError;
