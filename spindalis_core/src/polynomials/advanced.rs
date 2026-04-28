@@ -1,5 +1,5 @@
-use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
+use crate::polynomials::PolynomialError;
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -594,30 +594,31 @@ where
         .map(|(k, v)| (k.as_ref().to_string(), v.into()))
         .collect();
     let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
-    evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable) // TODO: Work on error messages
+    evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable)
+    // TODO: Work on error messages
 }
 
 fn replace_variable_occurence(
     expr: &Expr,
     vars: &HashMap<String, f64>,
 ) -> Result<Expr, PolynomialError> {
-    expr.clone().map(&mut |e| match e {
+    expr.map(&mut |e| match e {
         Expr::Variable(v) => {
-            vars.get(&v)
+            vars.get(v)
                 .copied()
                 .map(Expr::Number)
                 .ok_or(PolynomialError::VariableNotFound {
                     variable: v.to_string(),
                 })
         }
-        x => Ok(x),
+        x => Ok(x.clone()),
     })
 }
 
 impl Expr {
     pub fn map(
-        self,
-        f: &mut impl FnMut(Expr) -> Result<Expr, PolynomialError>,
+        &self,
+        f: &mut impl FnMut(&Expr) -> Result<Expr, PolynomialError>,
     ) -> Result<Expr, PolynomialError> {
         match self {
             // recursively walks down the polynomial for operators
@@ -627,37 +628,51 @@ impl Expr {
                 rhs,
                 paren,
             } => Ok(Expr::BinaryOp {
-                op,
+                op:*op,
                 lhs: Box::new(lhs.map(f)?),
                 rhs: Box::new(rhs.map(f)?),
-                paren,
+                paren:*paren,
             }),
             Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
-                op,
+                op:*op,
                 value: Box::new(value.map(f)?),
             }),
             Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
-                op,
+                op:*op,
                 value: Box::new(value.map(f)?),
             }),
             Expr::Function { func, inner } => Ok(Expr::Function {
-                func,
+                func:*func,
                 inner: Box::new(inner.map(f)?),
             }),
             // This allows for extension of variants with f.
             x => f(x),
         }
     }
+    pub fn visit(&self, f: &mut impl FnMut(&Expr)) {
+        f(self);
+        match self {
+            Expr::BinaryOp { lhs, rhs, .. } => {
+                lhs.visit(f);
+                rhs.visit(f);
+            }
+            Expr::UnaryOpPrefix { value, .. }
+            | Expr::UnaryOpPostfix { value, .. }
+            | Expr::Function { inner: value, .. } => {
+                value.visit(f);
+            }
+            _ => {}
+        }
+    }
 }
 
 pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialError> {
     let mut variables: BTreeSet<String> = Default::default();
-    let _ = expr.clone().map(&mut |e| match &e {
+    let _ = expr.visit(&mut |e| match &e {
         Expr::Variable(v) => {
             variables.insert(v.to_string());
-            Ok(e)
         }
-        expr => Ok(expr.clone()),
+        _ => {}
     });
     if variables.len() > 1 {
         Err(PolynomialError::TooManyVariables {
@@ -665,7 +680,6 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
         })
     } else {
         variables
-            .clone()
             .into_iter()
             .next()
             .map_or_else(|| Err(PolynomialError::MissingVariable), Ok)
