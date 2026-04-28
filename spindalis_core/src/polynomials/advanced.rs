@@ -628,21 +628,21 @@ impl Expr {
                 rhs,
                 paren,
             } => Ok(Expr::BinaryOp {
-                op:*op,
+                op: *op,
                 lhs: Box::new(lhs.map(f)?),
                 rhs: Box::new(rhs.map(f)?),
-                paren:*paren,
+                paren: *paren,
             }),
             Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
-                op:*op,
+                op: *op,
                 value: Box::new(value.map(f)?),
             }),
             Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
-                op:*op,
+                op: *op,
                 value: Box::new(value.map(f)?),
             }),
             Expr::Function { func, inner } => Ok(Expr::Function {
-                func:*func,
+                func: *func,
                 inner: Box::new(inner.map(f)?),
             }),
             // This allows for extension of variants with f.
@@ -668,11 +668,10 @@ impl Expr {
 
 pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialError> {
     let mut variables: BTreeSet<String> = Default::default();
-    let _ = expr.visit(&mut |e| match &e {
-        Expr::Variable(v) => {
+    expr.visit(&mut |e| {
+        if let Expr::Variable(v) = e {
             variables.insert(v.to_string());
         }
-        _ => {}
     });
     if variables.len() > 1 {
         Err(PolynomialError::TooManyVariables {
