@@ -1,5 +1,5 @@
-use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
 use crate::polynomials::PolynomialError;
+use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -471,6 +471,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
         _ => return Err(PolynomialError::PolynomialSyntaxError),
     }?;
 
+    // Handles factorial (as well as stacked factorials eg. 3!!!)
     while matches!(token_stream.peek(), Some(Token::Operator(op)) if *op == Operators::Fac) {
         token_stream.next();
         left = Expr::UnaryOpPostfix {
@@ -478,8 +479,17 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
             value: Box::new(left),
         };
     }
+    // Handles parentheses right after factorial using implicit multiplication
+    if matches!(token_stream.peek(), Some(Token::LParen)) {
+        left = Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(left),
+            rhs: Box::new(parse_expr(token_stream, 0.0)?),
+            paren: true,
+        }
+    }
 
-    // iteratively looks for operators with lower binding than minimum binding power
+    // Iteratively looks for operators with lower binding than minimum binding power
     while let Some(Token::Operator(op)) = token_stream.peek() {
         let cbind_pow = *BINDING_POW.get(op).unwrap_or(&0.0);
         if cbind_pow < min_bind_pow {
@@ -1580,11 +1590,36 @@ mod tests {
         }
 
         #[test]
-        fn test_postfix_unary_invalid_following_token_lparen() {
+        fn test_postfix_unary_invalid_following_unclosed_lparen() {
             let expr = "3!(";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str);
             assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_postfix_followed_by_paren() {
+            let expr = "3!(2)";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = Polynomial::new(Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::UnaryOpPostfix {
+                    op: Operators::Fac,
+                    value: Box::new(Expr::Number(3.0)),
+                }),
+                rhs: Box::new(Expr::Number(2.0)),
+                paren: true,
+            });
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_postfix_followed_by_paren_eval() {
+            let expr = "3!(2x)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_univariate(2).unwrap();
+            assert_eq!(evaluated_result, 24.);
         }
 
         #[test]
