@@ -1,5 +1,5 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::advanced::{Polynomial, TokenStream};
+use crate::polynomials::structs::advanced::{AstOperation, Polynomial, TokenStream};
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -604,7 +604,7 @@ where
         .map(|(k, v)| (k.as_ref().to_string(), v.into()))
         .collect();
     let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
-    evaluate_numerical_expression(&literal_expr).ok_or(PolynomialError::MissingVariable)
+    walk_ast(&literal_expr, &AstOperation::Eval).ok_or(PolynomialError::MissingVariable)
     // TODO: Work on error messages
 }
 
@@ -695,21 +695,22 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
     }
 }
 
-pub(crate) fn evaluate_numerical_expression(expr: &Expr) -> Option<f64> {
+pub(crate) fn walk_ast(expr: &Expr, ast_operation: &AstOperation) -> Option<f64> {
+    let operation = ast_operation;
     match expr {
         Expr::Number(v) => Some(*v),
-        Expr::BinaryOp { op, lhs, rhs, .. } => handle_binary_operation(op, lhs, rhs),
-        Expr::UnaryOpPostfix { op, value } => handle_postfix_operation(op, value),
-        Expr::UnaryOpPrefix { op, value } => handle_prefix_operation(op, value),
-        Expr::Function { func, inner } => handle_function(func, inner),
-        Expr::Constant(v) => handle_constants(v),
+        Expr::BinaryOp { op, lhs, rhs, .. } => operation.handle_binary_operation(op, lhs, rhs),
+        Expr::UnaryOpPostfix { op, value } => operation.handle_postfix_operation(op, value),
+        Expr::UnaryOpPrefix { op, value } => operation.handle_prefix_operation(op, value),
+        Expr::Function { func, inner } => operation.handle_function(func, inner),
+        Expr::Constant(v) => operation.handle_constants(v),
         _ => None,
     }
 }
 
-fn handle_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
-    let lhs = evaluate_numerical_expression(lhs)?;
-    let rhs = evaluate_numerical_expression(rhs)?;
+pub(crate) fn eval_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
+    let lhs = walk_ast(lhs, &AstOperation::Eval)?;
+    let rhs = walk_ast(rhs, &AstOperation::Eval)?;
     match op {
         Operators::Div => Some(lhs / rhs),
         Operators::Mul | Operators::CDot => Some(lhs * rhs),
@@ -729,23 +730,23 @@ fn factorial_f64(n: f64) -> f64 {
     (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
 }
 
-fn handle_postfix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+pub(crate) fn eval_postfix_operation(op: &Operators, value: &Expr) -> Option<f64> {
     match op {
-        Operators::Fac => Some(factorial_f64(evaluate_numerical_expression(value)?)),
+        Operators::Fac => Some(factorial_f64(walk_ast(value, &AstOperation::Eval)?)),
         _ => None,
     }
 }
 
-fn handle_prefix_operation(op: &Operators, value: &Expr) -> Option<f64> {
-    let value = evaluate_numerical_expression(value)?;
+pub(crate) fn eval_prefix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+    let value = walk_ast(value, &AstOperation::Eval)?;
     match op {
         Operators::Add => Some(value),
         Operators::Sub => Some(-value),
         _ => None,
     }
 }
-fn handle_function(func: &Functions, value: &Expr) -> Option<f64> {
-    let value = evaluate_numerical_expression(value)?;
+pub(crate) fn eval_function(func: &Functions, value: &Expr) -> Option<f64> {
+    let value = walk_ast(value, &AstOperation::Eval)?;
     Some(match func {
         Functions::Sin => value.sin(),
         Functions::Cos => value.cos(),
@@ -756,7 +757,7 @@ fn handle_function(func: &Functions, value: &Expr) -> Option<f64> {
     })
 }
 
-fn handle_constants(cnst: &Constants) -> Option<f64> {
+pub(crate) fn eval_constants(cnst: &Constants) -> Option<f64> {
     Some(match cnst {
         Constants::Pi => f64::consts::PI,
         Constants::E => f64::consts::E,

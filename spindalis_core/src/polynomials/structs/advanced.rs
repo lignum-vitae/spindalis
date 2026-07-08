@@ -1,8 +1,9 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::advanced::{Expr, Token};
+use crate::polynomials::advanced::{Constants, Expr, Functions, Operators, Token};
 use crate::polynomials::advanced::{
-    eval_advanced_polynomial, evaluate_numerical_expression, extract_univariate_variable, lexer,
-    parser,
+    eval_advanced_polynomial, eval_binary_operation, eval_constants, eval_function,
+    eval_postfix_operation, eval_prefix_operation, extract_univariate_variable, lexer, parser,
+    walk_ast,
 };
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -23,6 +24,52 @@ impl std::fmt::Display for Polynomial {
         write!(f, "{}", self.expr)
     }
 }
+
+#[allow(dead_code)] // Remove after Derive and Integrate are implemented
+pub(crate) enum AstOperation {
+    Eval,
+    Derive,
+    Integrate,
+}
+
+impl AstOperation {
+    pub fn handle_binary_operation(&self, op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
+        match self {
+            AstOperation::Eval => eval_binary_operation(op, lhs, rhs),
+            AstOperation::Derive => todo!(),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+    pub fn handle_constants(&self, cnst: &Constants) -> Option<f64> {
+        match self {
+            AstOperation::Eval => eval_constants(cnst),
+            AstOperation::Derive => todo!(),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+    pub fn handle_function(&self, func: &Functions, value: &Expr) -> Option<f64> {
+        match self {
+            AstOperation::Eval => eval_function(func, value),
+            AstOperation::Derive => todo!(),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+    pub fn handle_postfix_operation(&self, op: &Operators, value: &Expr) -> Option<f64> {
+        match self {
+            AstOperation::Eval => eval_postfix_operation(op, value),
+            AstOperation::Derive => todo!(),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+    pub fn handle_prefix_operation(&self, op: &Operators, value: &Expr) -> Option<f64> {
+        match self {
+            AstOperation::Eval => eval_prefix_operation(op, value),
+            AstOperation::Derive => todo!(),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+}
+
 impl Polynomial {
     pub fn parse(input: &str) -> Result<Polynomial, PolynomialError> {
         let tokens = lexer(input)?;
@@ -36,7 +83,7 @@ impl Polynomial {
         let variable = match extract_univariate_variable(&self.expr) {
             Ok(var) => var,
             Err(PolynomialError::MissingVariable) => {
-                return evaluate_numerical_expression(&self.expr)
+                return walk_ast(&self.expr, &AstOperation::Eval)
                     .ok_or(PolynomialError::MissingVariable);
             }
             Err(e @ PolynomialError::TooManyVariables { .. }) => return Err(e),
