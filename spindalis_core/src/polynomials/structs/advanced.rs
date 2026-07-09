@@ -25,6 +25,11 @@ impl std::fmt::Display for Polynomial {
     }
 }
 
+pub enum PolyResult {
+    Float(f64),
+    Expression(Expr),
+}
+
 #[allow(dead_code)] // Remove after Derive and Integrate are implemented
 pub(crate) enum AstOperation {
     Eval,
@@ -33,35 +38,40 @@ pub(crate) enum AstOperation {
 }
 
 impl AstOperation {
-    pub fn handle_binary_operation(&self, op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
+    pub fn handle_binary_operation(
+        &self,
+        op: &Operators,
+        lhs: &Expr,
+        rhs: &Expr,
+    ) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_binary_operation(op, lhs, rhs),
             AstOperation::Derive => todo!(),
             AstOperation::Integrate => todo!(),
         }
     }
-    pub fn handle_constants(&self, cnst: &Constants) -> Option<f64> {
+    pub fn handle_constants(&self, cnst: &Constants) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_constants(cnst),
             AstOperation::Derive => todo!(),
             AstOperation::Integrate => todo!(),
         }
     }
-    pub fn handle_function(&self, func: &Functions, value: &Expr) -> Option<f64> {
+    pub fn handle_function(&self, func: &Functions, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_function(func, value),
             AstOperation::Derive => todo!(),
             AstOperation::Integrate => todo!(),
         }
     }
-    pub fn handle_postfix_operation(&self, op: &Operators, value: &Expr) -> Option<f64> {
+    pub fn handle_postfix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_postfix_operation(op, value),
             AstOperation::Derive => todo!(),
             AstOperation::Integrate => todo!(),
         }
     }
-    pub fn handle_prefix_operation(&self, op: &Operators, value: &Expr) -> Option<f64> {
+    pub fn handle_prefix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_prefix_operation(op, value),
             AstOperation::Derive => todo!(),
@@ -83,8 +93,11 @@ impl Polynomial {
         let variable = match extract_univariate_variable(&self.expr) {
             Ok(var) => var,
             Err(PolynomialError::MissingVariable) => {
-                return walk_ast(&self.expr, &AstOperation::Eval)
-                    .ok_or(PolynomialError::MissingVariable);
+                if let Some(PolyResult::Float(result)) = walk_ast(&self.expr, &AstOperation::Eval) {
+                    return Ok(result);
+                } else {
+                    return Err(PolynomialError::MissingVariable);
+                };
             }
             Err(e @ PolynomialError::TooManyVariables { .. }) => return Err(e),
             Err(e) => return Err(e), // Catches any error not explicitly mentioned above

@@ -1,5 +1,5 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::advanced::{AstOperation, Polynomial, TokenStream};
+use crate::polynomials::structs::advanced::{AstOperation, PolyResult, Polynomial, TokenStream};
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -604,7 +604,10 @@ where
         .map(|(k, v)| (k.as_ref().to_string(), v.into()))
         .collect();
     let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
-    walk_ast(&literal_expr, &AstOperation::Eval).ok_or(PolynomialError::MissingVariable)
+    let Some(PolyResult::Float(result)) = walk_ast(&literal_expr, &AstOperation::Eval) else {
+        return Err(PolynomialError::MissingVariable);
+    };
+    Ok(result)
     // TODO: Work on error messages
 }
 
@@ -695,23 +698,30 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
     }
 }
 
-pub(crate) fn walk_ast(expr: &Expr, ast_operation: &AstOperation) -> Option<f64> {
+pub(crate) fn walk_ast(expr: &Expr, ast_operation: &AstOperation) -> Option<PolyResult> {
     let operation = ast_operation;
+    if let Expr::Number(val) = expr {
+        return Some(PolyResult::Float(*val));
+    };
     match expr {
-        Expr::Number(v) => Some(*v),
         Expr::BinaryOp { op, lhs, rhs, .. } => operation.handle_binary_operation(op, lhs, rhs),
         Expr::UnaryOpPostfix { op, value } => operation.handle_postfix_operation(op, value),
         Expr::UnaryOpPrefix { op, value } => operation.handle_prefix_operation(op, value),
         Expr::Function { func, inner } => operation.handle_function(func, inner),
-        Expr::Constant(v) => operation.handle_constants(v),
+        Expr::Constant(c) => operation.handle_constants(c),
         _ => None,
     }
 }
 
-pub(crate) fn eval_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<f64> {
-    let lhs = walk_ast(lhs, &AstOperation::Eval)?;
-    let rhs = walk_ast(rhs, &AstOperation::Eval)?;
-    match op {
+pub(crate) fn eval_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<PolyResult> {
+    let Some(PolyResult::Float(lhs)) = walk_ast(lhs, &AstOperation::Eval) else {
+        return None;
+    };
+    let Some(PolyResult::Float(rhs)) = walk_ast(rhs, &AstOperation::Eval) else {
+        return None;
+    };
+
+    let ans = match op {
         Operators::Div => Some(lhs / rhs),
         Operators::Mul | Operators::CDot => Some(lhs * rhs),
         Operators::Add => Some(lhs + rhs),
@@ -719,51 +729,71 @@ pub(crate) fn eval_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> O
         Operators::Rem => Some(lhs % rhs),
         Operators::Caret => Some(lhs.powf(rhs)),
         _ => None,
-    }
+    };
+    if let Some(res) = ans {
+        return Some(PolyResult::Float(res));
+    };
+    None
 }
 
-fn factorial_f64(n: f64) -> f64 {
-    if n < 0.0 {
-        return f64::NAN;
+fn factorial_f64(n: PolyResult) -> PolyResult {
+    if let PolyResult::Float(n) = n {
+        if n < 0.0 {
+            return PolyResult::Float(f64::NAN);
+        }
+        let n_int = n.floor() as u64;
+        return PolyResult::Float((1..=n_int).fold(1.0, |acc, x| acc * x as f64));
     }
-    let n_int = n.floor() as u64;
-    (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
+    // Currently this func is only used in eval_postfix_operation
+    // This part of the code SHOULD be unreachable considering walk_ast returns a float or bubbles
+    // up None.
+    // Will have to reconsider unreachable macro call if this func is used elsewhere
+    unreachable!()
 }
 
-pub(crate) fn eval_postfix_operation(op: &Operators, value: &Expr) -> Option<f64> {
+pub(crate) fn eval_postfix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
     match op {
         Operators::Fac => Some(factorial_f64(walk_ast(value, &AstOperation::Eval)?)),
         _ => None,
     }
 }
 
-pub(crate) fn eval_prefix_operation(op: &Operators, value: &Expr) -> Option<f64> {
-    let value = walk_ast(value, &AstOperation::Eval)?;
-    match op {
-        Operators::Add => Some(value),
-        Operators::Sub => Some(-value),
-        _ => None,
+pub(crate) fn eval_prefix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
+    if let Some(PolyResult::Float(value)) = walk_ast(value, &AstOperation::Eval) {
+        let new_value = match op {
+            Operators::Add => Some(value),
+            Operators::Sub => Some(-value),
+            _ => None,
+        };
+        if let Some(res) = new_value {
+            return Some(PolyResult::Float(res));
+        }
     }
+    None
 }
-pub(crate) fn eval_function(func: &Functions, value: &Expr) -> Option<f64> {
-    let value = walk_ast(value, &AstOperation::Eval)?;
-    Some(match func {
-        Functions::Sin => value.sin(),
-        Functions::Cos => value.cos(),
-        Functions::Tan => value.tan(),
-        Functions::Cot => 1.0 / value.tan(),
-        Functions::Ln => value.ln(),
-        Functions::Log => value.log10(),
-    })
+pub(crate) fn eval_function(func: &Functions, value: &Expr) -> Option<PolyResult> {
+    if let Some(PolyResult::Float(value)) = walk_ast(value, &AstOperation::Eval) {
+        let res = match func {
+            Functions::Sin => value.sin(),
+            Functions::Cos => value.cos(),
+            Functions::Tan => value.tan(),
+            Functions::Cot => 1.0 / value.tan(),
+            Functions::Ln => value.ln(),
+            Functions::Log => value.log10(),
+        };
+        return Some(PolyResult::Float(res));
+    }
+    None
 }
 
-pub(crate) fn eval_constants(cnst: &Constants) -> Option<f64> {
-    Some(match cnst {
+pub(crate) fn eval_constants(cnst: &Constants) -> Option<PolyResult> {
+    let constant = match cnst {
         Constants::Pi => f64::consts::PI,
         Constants::E => f64::consts::E,
         Constants::Tau => f64::consts::TAU,
         Constants::Phi => 1.618_033_988_749_895_f64, // f64::consts::PHI
-    })
+    };
+    Some(PolyResult::Float(constant))
 }
 
 #[cfg(test)]
