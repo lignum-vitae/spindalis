@@ -51,7 +51,8 @@ macro_rules! token_from_str {
         //INPUT
         $(#[$meta_exp:meta])*
         $visb:vis $enum_name:ident {
-            $($var_name:ident => $var_str:literal),* $(,)*
+            // variants & their `str` values e.g. `Tau => "tau" -> "τ"`
+            $($var_name:ident => $var_str:literal $(-> $disp_str:literal)?),* $(,)*
         }
     ) => {
         // OUTPUT
@@ -70,7 +71,18 @@ macro_rules! token_from_str {
                 }
             }
         }
+        // 3. impl Display
+        impl std::fmt::Display for $enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let s: &str = match self {
+                    $(Self::$var_name => token_from_str!(@first_or_fallback $($disp_str)? $var_str),)*
+                };
+            write!(f, "{s}")
+            }
+        }
     };
+    (@first_or_fallback $first:literal $fallback:literal) => { $first };
+    (@first_or_fallback $fallback:literal) => { $fallback };
 }
 
 // `token_from_char` is similar to `token_from_str`
@@ -82,7 +94,7 @@ macro_rules! token_from_char {
         // visibility and enum name e.g. `pub SomeEnum {...}`
         $visb:vis $enum_name:ident {
             // variants & their `char` values e.g. `Add => +`
-            $($var_name:ident => $var_char:literal),* $(,)*
+            $($var_name:ident => $var_char:literal $(-> $disp_char:literal)?),* $(,)*
         }
     ) =>
     // OUTPUT
@@ -102,7 +114,18 @@ macro_rules! token_from_char {
                 }
             }
         }
+        // 3. impl Display
+        impl std::fmt::Display for $enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let s: &str = match self {
+                    $(Self::$var_name => token_from_char!(@first_or_fallback $($disp_str)? stringify!($var_char)),)*
+                };
+            write!(f, "{s}")
+            }
+        }
     };
+    (@first_or_fallback $first:literal $fallback:literal) => { $first };
+    (@first_or_fallback $fallback:literal) => { $fallback };
 }
 
 // declaring `Operators` with `token_from_char`
@@ -120,22 +143,6 @@ token_from_char! {
     }
 }
 
-impl std::fmt::Display for Operators {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s: &str = match self {
-            Self::Add => "+",
-            Self::Sub => "-",
-            Self::Div => "/",
-            Self::Mul => "*",
-            Self::CDot => "·",
-            Self::Rem => "%",
-            Self::Caret => "^",
-            Self::Fac => "!",
-        };
-        write!(f, "{s}")
-    }
-}
-
 // declaring `Functions` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone,Copy)]
@@ -149,40 +156,14 @@ token_from_str! {
     }
 }
 
-impl std::fmt::Display for Functions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Sin => "sin",
-            Self::Cos => "cos",
-            Self::Tan => "tan",
-            Self::Cot => "cot",
-            Self::Log => "log",
-            Self::Ln => "ln",
-        };
-        write!(f, "{s}")
-    }
-}
-
 // declaring `Constants` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone,Copy,)]
     pub Constants {
-        Pi => "pi",
+        Pi => "pi" -> "π",
         E => "e",
-        Tau => "tau",
-        Phi => "phi",
-    }
-}
-
-impl std::fmt::Display for Constants {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Pi => "π",
-            Self::E => "e",
-            Self::Tau => "τ",
-            Self::Phi => "ϕ",
-        };
-        write!(f, "{s}")
+        Tau => "tau" -> "τ",
+        Phi => "phi"-> "ϕ",
     }
 }
 
