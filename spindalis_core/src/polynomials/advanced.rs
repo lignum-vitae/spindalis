@@ -46,12 +46,26 @@ use std::sync::LazyLock;
 *
 */
 
+macro_rules! __display_str {
+    ($parse:literal => $display:literal) => {
+        $display
+    };
+    ($parse:literal) => {
+        $parse
+    };
+}
+
 macro_rules! token_from_str {
     (
         //INPUT
         $(#[$meta_exp:meta])*
         $visb:vis $enum_name:ident {
-            $($var_name:ident => $var_str:literal),* $(,)*
+            $(
+                // variants & their `str` values e.g. `Tau => "tau" -> "τ"`
+                $var_name:ident => $var_str:literal
+                // optional `-> "τ"`
+                $(-> $display_str:literal)?
+            ),+ $(,)?
         }
     ) => {
         // OUTPUT
@@ -60,14 +74,37 @@ macro_rules! token_from_str {
         $visb enum $enum_name {
             $($var_name),*
         }
+
         // 2. `FromStr` implementation
         impl ::std::str::FromStr for $enum_name {
             type Err = ();
-            fn from_str(s:&str)->::std::result::Result<Self,Self::Err>{
-                match s.to_lowercase().as_str(){
-                    $($var_str => Ok($enum_name::$var_name),)*
+
+            fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+                match s.to_lowercase().as_str() {
+                    $(
+                        $var_str => Ok(Self::$var_name),
+                        $(
+                            $display_str => Ok(Self::$var_name),
+                        )?
+                    )*
                     _ => Err(()),
                 }
+            }
+        }
+
+        // 3. Display implementation
+        impl ::std::fmt::Display for $enum_name {
+            fn fmt(
+                &self,
+                f: &mut ::std::fmt::Formatter<'_>,
+            ) -> ::std::fmt::Result {
+                let s = match self {
+                    $(
+                        Self::$var_name => __display_str!($var_str $(=> $display_str)?),
+                    )*
+
+                };
+                write!(f, "{s}")
             }
         }
     };
@@ -75,18 +112,21 @@ macro_rules! token_from_str {
 
 // `token_from_char` is similar to `token_from_str`
 macro_rules! token_from_char {
-    // INPUT
     (
-        // attribute(s) (optional) e.g. `#[Derive(Foo,Bar)]`
+    // INPUT
+    // attribute(s) (optional) e.g. `#[Derive(Foo,Bar)]`
         $(#[$attr:meta])*
         // visibility and enum name e.g. `pub SomeEnum {...}`
         $visb:vis $enum_name:ident {
-            // variants & their `char` values e.g. `Add => +`
-            $($var_name:ident => $var_char:literal),* $(,)*
+            $(
+                // variants & their `char` values e.g. `Add => +`
+                $var_name:ident => $var_char:literal
+                // optional display char
+                $(-> $display_str:literal)?
+            ),* $(,)?
         }
-    ) =>
-    // OUTPUT
-    {
+    ) => {
+        // OUTPUT
         // 1. `enum` declaration
         $(#[$attr])*
         $visb enum $enum_name {
@@ -97,9 +137,29 @@ macro_rules! token_from_char {
             #[allow(clippy::result_unit_err)]
             pub fn from_char(c: char) -> ::std::result::Result<Self, ()> {
                 match c {
-                    $($var_char => Ok($enum_name::$var_name),)*
+                    $(
+                        $var_char => Ok(Self::$var_name),
+                        $(
+                            $display_str => Ok(Self::$var_name),
+                        )?
+                    )*
                     _ => Err(()),
                 }
+            }
+        }
+
+        // 3. Display implementation
+        impl ::std::fmt::Display for $enum_name {
+            fn fmt(
+                &self,
+                f: &mut ::std::fmt::Formatter<'_>,
+            ) -> ::std::fmt::Result {
+                let s = match self {
+                    $(
+                        Self::$var_name => __display_str!($var_char $(=> $display_str)?),
+                    )*
+                };
+                write!(f, "{s}")
             }
         }
     };
@@ -120,22 +180,6 @@ token_from_char! {
     }
 }
 
-impl std::fmt::Display for Operators {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s: &str = match self {
-            Self::Add => "+",
-            Self::Sub => "-",
-            Self::Div => "/",
-            Self::Mul => "*",
-            Self::CDot => "·",
-            Self::Rem => "%",
-            Self::Caret => "^",
-            Self::Fac => "!",
-        };
-        write!(f, "{s}")
-    }
-}
-
 // declaring `Functions` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone,Copy)]
@@ -149,40 +193,14 @@ token_from_str! {
     }
 }
 
-impl std::fmt::Display for Functions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Sin => "sin",
-            Self::Cos => "cos",
-            Self::Tan => "tan",
-            Self::Cot => "cot",
-            Self::Log => "log",
-            Self::Ln => "ln",
-        };
-        write!(f, "{s}")
-    }
-}
-
 // declaring `Constants` with `token_from_str`
 token_from_str! {
     #[derive(Debug, PartialEq,Clone,Copy,)]
     pub Constants {
-        Pi => "pi",
+        Pi => "pi" -> "π",
         E => "e",
-        Tau => "tau",
-        Phi => "phi",
-    }
-}
-
-impl std::fmt::Display for Constants {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Pi => "π",
-            Self::E => "e",
-            Self::Tau => "τ",
-            Self::Phi => "ϕ",
-        };
-        write!(f, "{s}")
+        Tau => "tau" -> "τ",
+        Phi => "phi"-> "ϕ",
     }
 }
 
@@ -350,8 +368,13 @@ where
             }
 
             _ => {
+                let mut buf = [0; 4];
+                let ch_str = ch.encode_utf8(&mut buf);
                 if let Ok(op) = Operators::from_char(ch) {
                     tokens.push(Token::Operator(op));
+                    chars.next();
+                } else if let Ok(c) = Constants::from_str(ch_str) {
+                    tokens.push(Token::Constant(c));
                     chars.next();
                 } else {
                     return Err(PolynomialError::UnexpectedChar { char: ch });
@@ -947,6 +970,42 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Variable("x".into()));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_phi_parse() {
+            let expr = "phi";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = Polynomial::new(Expr::Constant(Constants::Phi));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_phi_parse_2() {
+            let expr = "ϕ";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = Polynomial::new(Expr::Constant(Constants::Phi));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_pi_parse() {
+            let expr = "pi";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = Polynomial::new(Expr::Constant(Constants::Pi));
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_pi_parse_2() {
+            let expr = "π";
+            let tok_str = lexer(expr).unwrap();
+            let result = parser(tok_str).unwrap();
+            let expected = Polynomial::new(Expr::Constant(Constants::Pi));
             assert_eq!(result, expected);
         }
 
@@ -1870,9 +1929,21 @@ mod tests {
         }
 
         #[test]
-        fn test_display_constant() {
+        fn test_display_constant_1() {
             let e = Expr::Constant(Constants::Pi);
             assert_eq!(format!("{e}"), "π");
+        }
+
+        #[test]
+        fn test_display_constant_2() {
+            let e = Expr::Constant(Constants::Tau);
+            assert_eq!(format!("{e}"), "τ");
+        }
+
+        #[test]
+        fn test_display_constant_3() {
+            let e = Expr::Constant(Constants::Phi);
+            assert_eq!(format!("{e}"), "ϕ");
         }
 
         #[test]
@@ -2009,18 +2080,6 @@ mod tests {
             assert!(TestEnum::from_str("not_an_option").is_err());
             assert!(TestEnum::from_str("").is_err());
         }
-
-        // edge case: empty enum
-        // compiles but returns `Err(())` on comparison
-        token_from_str! {
-            #[derive(Debug,PartialEq, Eq)]
-            pub EmptyEnum{}
-        }
-
-        #[test]
-        fn empty_enum_returns_err() {
-            assert_eq!(EmptyEnum::from_str("abc"), Err(()));
-        }
     }
 
     // ---------------------------
@@ -2047,18 +2106,6 @@ mod tests {
             assert_eq!(TestOps::from_char('*'), Err(()));
             assert_eq!(TestOps::from_char(' '), Err(()));
             assert_eq!(TestOps::from_char('\n'), Err(()));
-        }
-
-        // edge case: empty enum
-        // compiles but always returns `Err(())`
-        token_from_char! {
-            #[derive(Debug, PartialEq, Eq)]
-            pub EmptyEnum {}
-        }
-
-        #[test]
-        fn empty_enum_returns_err() {
-            assert_eq!(EmptyEnum::from_char('x'), Err(()));
         }
     }
 }
