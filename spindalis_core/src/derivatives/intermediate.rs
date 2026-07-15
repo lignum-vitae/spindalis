@@ -2,11 +2,11 @@ use std::collections::HashSet;
 
 use crate::polynomials::{Term, structs::IntermediatePolynomial};
 
-pub fn partial_derivative<S>(poly: &[Term], var: S) -> IntermediatePolynomial
+pub fn partial_derivative<S>(poly: &[Term], variable: S) -> IntermediatePolynomial
 where
     S: AsRef<str>,
 {
-    let var = var.as_ref();
+    let var = variable.as_ref();
     let mut parsed_deriv = Vec::new();
     for part in poly {
         let mut new_part = part.clone();

@@ -1,7 +1,11 @@
+use crate::derivatives::advanced::{
+    derive_binary_operation, derive_constants, derive_function, derive_numbers,
+    derive_postfix_operation, derive_prefix_operation, derive_variables,
+};
 use crate::polynomials::PolynomialError;
-use crate::polynomials::advanced::{Constants, Expr, Functions, Operators, Token};
+use crate::polynomials::advanced::{Constants, Expr, Functions, Operators, Token, eval_variables};
 use crate::polynomials::advanced::{
-    eval_advanced_polynomial, eval_binary_operation, eval_constants, eval_function,
+    eval_advanced_polynomial, eval_binary_operation, eval_constants, eval_function, eval_numbers,
     eval_postfix_operation, eval_prefix_operation, extract_univariate_variable, lexer, parser,
     walk_ast,
 };
@@ -43,38 +47,54 @@ impl AstOperation {
         op: &Operators,
         lhs: &Expr,
         rhs: &Expr,
+        paren: &bool,
     ) -> Option<PolyResult> {
         match self {
-            AstOperation::Eval => eval_binary_operation(op, lhs, rhs),
-            AstOperation::Derive => todo!(),
+            AstOperation::Eval => eval_binary_operation(op, lhs, rhs, paren),
+            AstOperation::Derive => derive_binary_operation(op, lhs, rhs, paren),
             AstOperation::Integrate => todo!(),
         }
     }
     pub fn handle_constants(&self, cnst: &Constants) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_constants(cnst),
-            AstOperation::Derive => todo!(),
+            AstOperation::Derive => derive_constants(cnst),
             AstOperation::Integrate => todo!(),
         }
     }
     pub fn handle_function(&self, func: &Functions, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_function(func, value),
-            AstOperation::Derive => todo!(),
+            AstOperation::Derive => derive_function(func, value),
             AstOperation::Integrate => todo!(),
         }
     }
     pub fn handle_postfix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_postfix_operation(op, value),
-            AstOperation::Derive => todo!(),
+            AstOperation::Derive => derive_postfix_operation(op, value),
             AstOperation::Integrate => todo!(),
         }
     }
     pub fn handle_prefix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
         match self {
             AstOperation::Eval => eval_prefix_operation(op, value),
-            AstOperation::Derive => todo!(),
+            AstOperation::Derive => derive_prefix_operation(op, value),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+    pub fn handle_numbers(&self, value: &f64) -> Option<PolyResult> {
+        match self {
+            AstOperation::Eval => eval_numbers(value),
+            AstOperation::Derive => derive_numbers(value),
+            AstOperation::Integrate => todo!(),
+        }
+    }
+
+    pub fn handle_variables(&self, value: &String) -> Option<PolyResult> {
+        match self {
+            AstOperation::Eval => eval_variables(value),
+            AstOperation::Derive => derive_variables(value),
             AstOperation::Integrate => todo!(),
         }
     }
