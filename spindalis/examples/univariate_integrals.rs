@@ -1,5 +1,6 @@
 use spindalis::integrals::{analytical_integral, definite_integral, romberg_definite};
-use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits, SimplePolynomial};
+use spindalis::polynomials::{IntermediatePolynomial, SimplePolynomial};
+use spindalis::prelude::*;
 
 fn main() {
     // SIMPLE POLYNOMIALS

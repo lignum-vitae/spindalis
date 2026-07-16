@@ -1,5 +1,6 @@
-use spindalis::polynomials::{PolynomialTraits, SimplePolynomial};
-use spindalis::solvers::{SolveMode, newton_raphson_method};
+use spindalis::polynomials::SimplePolynomial;
+use spindalis::prelude::*;
+use spindalis::solvers::newton_raphson_method;
 
 fn main() {
     let polynomial = "0.5x^3 - 3.9x^2 + 6x - 1.5";

@@ -1,5 +1,6 @@
-use spindalis::polynomials::{PolynomialTraits, SimplePolynomial};
-use spindalis::solvers::{Bounds, SolveMode, bisection};
+use spindalis::polynomials::SimplePolynomial;
+use spindalis::prelude::*;
+use spindalis::solvers::bisection;
 
 fn main() {
     let polynomial = "-2x^6 - 1.6x^4 + 12x + 1";

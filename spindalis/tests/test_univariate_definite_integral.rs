@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use spindalis::integrals::{definite_integral, romberg_definite};
-    use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits, SimplePolynomial};
+    use spindalis::polynomials::{IntermediatePolynomial, SimplePolynomial};
+    use spindalis::prelude::*;
 
     #[test]
     fn test_known_solution_std_integral() {

@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use spindalis::derivatives::simple_derivative;
-    use spindalis::polynomials::{PolynomialTraits, SimplePolynomial};
+    use spindalis::polynomials::SimplePolynomial;
+    use spindalis::prelude::*;
 
     #[test]
     fn test_derivative_simple() {

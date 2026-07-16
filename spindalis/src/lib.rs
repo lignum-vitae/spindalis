@@ -6,6 +6,12 @@ pub mod regressors;
 pub mod solvers;
 pub mod utils;
 
+pub mod prelude {
+    pub use crate::polynomials::PolynomialTraits;
+    pub use crate::regressors::LinearRegressor;
+    pub use crate::solvers::{Bounds, SolveMode};
+}
+
 pub mod polynomials {
     pub use spindalis_core::polynomials as core;
     pub use spindalis_macros as macros;

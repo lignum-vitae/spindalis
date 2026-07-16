@@ -1,4 +1,4 @@
-use spindalis::regressors::LinearRegressor;
+use spindalis::prelude::*;
 use spindalis::regressors::linear::{batch_validate_input, validate_single_input};
 use spindalis::regressors::{
     GradientDescentRegression, LeastSquaresRegression, PolynomialRegression,
