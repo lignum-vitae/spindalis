@@ -64,7 +64,10 @@ where
                 },
                 // 2 + (3 * x)
                 (false, true) => {
-                    if op == Operators::Mul || op == Operators::Div {
+                    if op == Operators::Mul
+                        || op == Operators::Div
+                        || ((op == Operators::Add || op == Operators::Sub) && paren)
+                    {
                         // Handles 3x and 3/x
                         Expr::BinaryOp {
                             op,
@@ -83,7 +86,11 @@ where
                 }
                 // (3 * x) + 2
                 (true, false) => {
-                    if op == Operators::Mul || op == Operators::Div || op == Operators::Caret {
+                    if op == Operators::Mul
+                        || op == Operators::Div
+                        || op == Operators::Caret
+                        || ((op == Operators::Add || op == Operators::Sub) && paren)
+                    {
                         // Handles 3xy, 3x/y, and 3xy^2
                         Expr::BinaryOp {
                             op,
@@ -102,7 +109,7 @@ where
                 }
                 // 2 + 2
                 (false, false) => {
-                    if op == Operators::Caret {
+                    if op == Operators::Caret || op == Operators::Add || op == Operators::Sub {
                         // Handles 3xy^2
                         Expr::BinaryOp {
                             op,
@@ -344,6 +351,86 @@ mod tests {
         let zeroed = remove_extra_vars(parsed.expr, "x");
         let result = fold_operations(zeroed);
         let expected = Polynomial::parse("3/xy + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv() {
+        let parsed = Polynomial::parse("(3+y)/xy + 3xz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("(3+y)/xy + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_2() {
+        let parsed = Polynomial::parse("xy/(3+y) + 3xz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("xy/(3+y) + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_3() {
+        let parsed = Polynomial::parse("xy/(3+xy) + 3xz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("xy/(3+xy) + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_4() {
+        let parsed = Polynomial::parse("xy/(3x+y) + 3xz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("xy/(3x+y) + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_5() {
+        let parsed = Polynomial::parse("(x+y)/(3+y) + 3xz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("(x+y)/(3+y) + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_6() {
+        let parsed = Polynomial::parse("(3+y)/(x+y) + 3xz - 9yf").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("(3+y)/(x+y) + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_div_deriv_exponent() {
+        let parsed = Polynomial::parse("xy/(3x+y)^2 + 3xz + 4hi").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("xy/(3x+y)^2 + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn multivariate_add_mul_deriv_exponent() {
+        let parsed = Polynomial::parse("xy*(3x+y)^2 + 3xz - 3hy").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("xy*(3x+y)^2 + 3xz").unwrap();
 
         assert_eq!(Polynomial { expr: result }, expected);
     }
