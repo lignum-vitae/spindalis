@@ -249,6 +249,16 @@ mod tests {
     }
 
     #[test]
+    fn univariate_with_exponent_3() {
+        let parsed = Polynomial::parse("- 3 - 3x^2 + 3x").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("-3x^2 + 3x").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
     fn multivariate_with_exponent() {
         let parsed = Polynomial::parse("3x^2y + 3xz - 3a + 2d^5").unwrap();
         let zeroed = remove_extra_vars(parsed.expr, "x");

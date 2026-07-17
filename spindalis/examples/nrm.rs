@@ -12,7 +12,7 @@ fn main() {
         match result {
             Ok(x) => println!(
                 "Starting at {guess}, root found: ({x:.5}, {:.5})",
-                &parsed.eval_univariate(x).unwrap().abs()
+                parsed.eval_univariate(x).unwrap().abs()
             ),
             Err(e) => eprintln!("{e:?}"),
         }
@@ -24,7 +24,7 @@ fn main() {
         match result {
             Ok(x) => println!(
                 "Starting at {guess}, extrema found: ({x:.5}, {:.5})",
-                &parsed.eval_univariate(x).unwrap()
+                parsed.eval_univariate(x).unwrap()
             ),
             Err(e) => eprintln!("{e:?}"),
         }

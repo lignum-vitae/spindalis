@@ -77,6 +77,16 @@ mod tests {
     }
 
     #[test]
+    fn univariate_with_exponent_3() {
+        let parsed = Polynomial::parse("- 3 - 3x^2 + 3x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("- 3x^2 + 3x").unwrap();
+        //let expected = Polynomial::parse("-6x + 3").unwrap();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn multivariate_with_exponent() {
         let parsed = Polynomial::parse("3x^2y + 3xz - 3a + 2d^5").unwrap();
         let result = advanced_derivative(&parsed, "x").unwrap();

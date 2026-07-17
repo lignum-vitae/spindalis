@@ -24,12 +24,12 @@ fn main() {
         Ok(x) => {
             println!(
                 "Approximate maximum coords between x=0 and x=1: ({x}, {:.5})",
-                &parsed.eval_univariate(x).unwrap()
+                parsed.eval_univariate(x).unwrap()
             );
 
             println!(
                 "True maximum coords within that range: (0.90449, {:.5})\n",
-                &parsed.eval_univariate(0.90449).unwrap()
+                parsed.eval_univariate(0.90449).unwrap()
             );
         }
         Err(e) => eprintln!("{e:?}"),
@@ -60,12 +60,12 @@ fn main() {
             Ok(x) => {
                 println!(
                     "Approximate root coords between x=-0.2 and x=0: ({x}, {:.5})",
-                    &parsed.eval_univariate(x).unwrap()
+                    parsed.eval_univariate(x).unwrap()
                 );
 
                 println!(
                     "True root coords within that range: ({true_root}, {:.3})\n",
-                    &parsed.eval_univariate(true_root).unwrap()
+                    parsed.eval_univariate(true_root).unwrap()
                 );
             }
             Err(e) => eprintln!("{e:?}\n"),
