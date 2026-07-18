@@ -16,6 +16,7 @@ use std::sync::LazyLock;
 * pub SomeEnum { // visibility specification is OPTIONAL. `SomeEnum{...}` would also work
 *  Var1 => "var1str", // NOTE1: strings must be in lowercase
 *  Var2 => "var2str", // NOTE2: strings must not be duplicated
+*  Var3 => "var3str" -> "e", // NOTE3: optional display char after "->"
 *  ..., // <- may or may not end with a trailing comma
 * }
 *
@@ -33,17 +34,27 @@ use std::sync::LazyLock;
 *
 * // 2. `FromStr` and string matching logic
 * impl FromStr for SomeEnum{
-*  type Err = ();
-*  fn from_str(s:&str)->Result<Self,Self::Err>{
-*      match s.to_lowercase().as_str(){
-*          var1str => Ok(SomeEnum::Var1),
-*          var2str => Ok(SomeEnum::Var2),
-*          ...
-*          _ => Err(()),
-*      }
-*  }
+*    type Err = ();
+*    fn from_str(s:&str)->Result<Self,Self::Err>{
+*        match s.to_lowercase().as_str(){
+*            var1str => Ok(SomeEnum::Var1),
+*            var2str => Ok(SomeEnum::Var2),
+*            ...
+*            _ => Err(()),
+*        }
+*    }
 * }
 *
+* // 3. Display implementation
+* impl Display for SomeEnum{
+*    fn fmt (&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+*        let s: &str = match self {
+*            Self::... => ...,
+*            ...
+*        };
+*        write!(f, "{s}")
+*    }
+* }
 */
 
 macro_rules! __display_str {
@@ -169,14 +180,18 @@ macro_rules! token_from_char {
 token_from_char! {
     #[derive(Debug, PartialEq,Eq,Copy,Clone,Hash)]
     pub Operators {
-        Add   => '+',
-        Sub   => '-',
-        Div   => '/',
-        Mul   => '*',
-        CDot   => '·',
-        Rem   => '%',
-        Caret => '^',
-        Fac => '!',
+        Add     => '+',
+        Sub     => '-',
+        Div     => '/',
+        Mul     => '*',
+        CDot    => '·',
+        Rem     => '%',
+        Caret   => '^',
+        Fac     => '!',
+        TempAdd => '#',
+        TempSub => '@',
+        TempMul => '&',
+        TempDiv => '$',
     }
 }
 
@@ -553,7 +568,7 @@ pub fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     Ok(Polynomial::new(fold_operations(ast_node)))
 }
 
-fn fold_operations(expr: Expr) -> Expr {
+pub(crate) fn fold_operations(expr: Expr) -> Expr {
     match expr {
         Expr::Number(_) | Expr::Variable(_) | Expr::Constant(_) => expr,
         Expr::BinaryOp {
@@ -587,6 +602,15 @@ fn fold_operations(expr: Expr) -> Expr {
 
                 // x/1 = x
                 (Operators::Div, l, Expr::Number(1.)) => l,
+
+                (
+                    Operators::TempAdd
+                    | Operators::TempSub
+                    | Operators::TempMul
+                    | Operators::TempDiv,
+                    _,
+                    _,
+                ) => Expr::Number(0.),
 
                 // Non foldable conditions
                 (_, l, r) => Expr::BinaryOp {
@@ -723,20 +747,36 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
 
 pub(crate) fn walk_ast(expr: &Expr, ast_operation: &AstOperation) -> Option<PolyResult> {
     let operation = ast_operation;
-    if let Expr::Number(val) = expr {
-        return Some(PolyResult::Float(*val));
-    };
     match expr {
-        Expr::BinaryOp { op, lhs, rhs, .. } => operation.handle_binary_operation(op, lhs, rhs),
+        Expr::BinaryOp {
+            op,
+            lhs,
+            rhs,
+            paren,
+        } => operation.handle_binary_operation(op, lhs, rhs, paren),
         Expr::UnaryOpPostfix { op, value } => operation.handle_postfix_operation(op, value),
         Expr::UnaryOpPrefix { op, value } => operation.handle_prefix_operation(op, value),
         Expr::Function { func, inner } => operation.handle_function(func, inner),
         Expr::Constant(c) => operation.handle_constants(c),
-        _ => None,
+        Expr::Number(val) => operation.handle_numbers(val),
+        Expr::Variable(var) => operation.handle_variables(var),
     }
 }
 
-pub(crate) fn eval_binary_operation(op: &Operators, lhs: &Expr, rhs: &Expr) -> Option<PolyResult> {
+pub(crate) fn eval_numbers(value: &f64) -> Option<PolyResult> {
+    Some(PolyResult::Float(*value))
+}
+
+pub(crate) fn eval_variables(_: &String) -> Option<PolyResult> {
+    unreachable!()
+}
+
+pub(crate) fn eval_binary_operation(
+    op: &Operators,
+    lhs: &Expr,
+    rhs: &Expr,
+    _: &bool,
+) -> Option<PolyResult> {
     let Some(PolyResult::Float(lhs)) = walk_ast(lhs, &AstOperation::Eval) else {
         return None;
     };

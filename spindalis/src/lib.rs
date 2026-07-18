@@ -16,6 +16,7 @@ pub mod polynomials {
 
     // Polynomial Structs
     pub use core::structs::IntermediatePolynomial;
+    pub use core::structs::Polynomial;
     pub use core::structs::SimplePolynomial;
 
     // Error Enums
@@ -30,6 +31,7 @@ pub mod polynomials {
 }
 
 pub mod derivatives {
+    pub use spindalis_core::derivatives::advanced::advanced_derivative;
     pub use spindalis_core::derivatives::intermediate::partial_derivative;
     pub use spindalis_core::derivatives::simple::simple_derivative;
 }
