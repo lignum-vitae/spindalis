@@ -10,7 +10,8 @@ where
 {
     let var = variable.as_ref();
     let zeroed = remove_extra_vars(poly.expr.clone(), var);
-    let filtered = fold_operations(zeroed);
+    let folded = fold_operations(zeroed);
+    let filtered = clear_num_var_literal(folded, var);
     let Some(PolyResult::Expression(result)) = walk_ast(&filtered, &AstOperation::Derive) else {
         return Err(PolynomialError::MissingVariable);
     };
@@ -29,7 +30,6 @@ fn contains_var(expr: &Expr, var: &str) -> bool {
     }
 }
 
-// Needs to handle 4xyz; 3x +2; 3xy / 4; 3x; 3
 fn remove_extra_vars<S>(expr: Expr, variable: S) -> Expr
 where
     S: AsRef<str>,
@@ -68,12 +68,30 @@ where
                         || op == Operators::Div
                         || ((op == Operators::Add || op == Operators::Sub) && paren)
                     {
-                        // Handles 3x and 3/x
-                        Expr::BinaryOp {
-                            op,
-                            lhs: Box::new(lhs),
-                            rhs: Box::new(rhs),
-                            paren,
+                        if let Expr::BinaryOp {
+                            op:
+                                Operators::TempAdd
+                                | Operators::TempSub
+                                | Operators::TempMul
+                                | Operators::TempDiv,
+                            ..
+                        } = lhs
+                        {
+                            // Handles 3+y/x
+                            replace_temp_operations(Expr::BinaryOp {
+                                op,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                                paren,
+                            })
+                        } else {
+                            // Handles 3x and 3/x
+                            Expr::BinaryOp {
+                                op,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                                paren,
+                            }
                         }
                     } else {
                         Expr::BinaryOp {
@@ -91,12 +109,30 @@ where
                         || op == Operators::Caret
                         || ((op == Operators::Add || op == Operators::Sub) && paren)
                     {
-                        // Handles 3xy, 3x/y, and 3xy^2
-                        Expr::BinaryOp {
-                            op,
-                            lhs: Box::new(lhs),
-                            rhs: Box::new(rhs),
-                            paren,
+                        if let Expr::BinaryOp {
+                            op:
+                                Operators::TempAdd
+                                | Operators::TempSub
+                                | Operators::TempMul
+                                | Operators::TempDiv,
+                            ..
+                        } = rhs
+                        {
+                            // Handles x/3+y
+                            replace_temp_operations(Expr::BinaryOp {
+                                op,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                                paren,
+                            })
+                        } else {
+                            // Handles 3xy, 3x/y, and 3xy^2
+                            Expr::BinaryOp {
+                                op,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                                paren,
+                            }
                         }
                     } else {
                         Expr::BinaryOp {
@@ -109,10 +145,38 @@ where
                 }
                 // 2 + 2
                 (false, false) => {
-                    if op == Operators::Caret || op == Operators::Add || op == Operators::Sub {
+                    if op == Operators::Caret {
                         // Handles 3xy^2
                         Expr::BinaryOp {
                             op,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            paren,
+                        }
+                    } else if op == Operators::Add {
+                        Expr::BinaryOp {
+                            op: Operators::TempAdd,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            paren,
+                        }
+                    } else if op == Operators::Sub {
+                        Expr::BinaryOp {
+                            op: Operators::TempSub,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            paren,
+                        }
+                    } else if op == Operators::Mul {
+                        Expr::BinaryOp {
+                            op: Operators::TempMul,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            paren,
+                        }
+                    } else if op == Operators::Div {
+                        Expr::BinaryOp {
+                            op: Operators::TempDiv,
                             lhs: Box::new(lhs),
                             rhs: Box::new(rhs),
                             paren,
@@ -123,6 +187,62 @@ where
                 }
             }
         }
+    }
+}
+
+fn replace_temp_operations(expr: Expr) -> Expr {
+    match expr {
+        Expr::Number(_) | Expr::Variable(_) | Expr::Constant(_) => expr,
+        Expr::BinaryOp {
+            op,
+            lhs,
+            rhs,
+            paren,
+        } => {
+            let lhs = replace_temp_operations(*lhs);
+            let rhs = replace_temp_operations(*rhs);
+            match op {
+                Operators::TempAdd => Expr::BinaryOp {
+                    op: Operators::Add,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    paren,
+                },
+                Operators::TempSub => Expr::BinaryOp {
+                    op: Operators::Sub,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    paren,
+                },
+                Operators::TempMul => Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    paren,
+                },
+                Operators::TempDiv => Expr::BinaryOp {
+                    op: Operators::Div,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    paren,
+                },
+                _ => Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    paren,
+                },
+            }
+        }
+        expr => expr,
+    }
+}
+
+fn clear_num_var_literal(expr: Expr, var: &str) -> Expr {
+    match &expr {
+        Expr::Number(..) => Expr::Number(0.),
+        Expr::Variable(v) if v != var => Expr::Number(0.),
+        _ => expr,
     }
 }
 
@@ -186,7 +306,40 @@ mod tests {
     use super::*;
 
     #[test]
+    fn number_only() {
+        let parsed = Polynomial::parse("3").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let folded = fold_operations(zeroed);
+        let result = clear_num_var_literal(folded, "x");
+        let expected = Polynomial::parse("0").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn variable_only() {
+        let parsed = Polynomial::parse("x").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let folded = fold_operations(zeroed);
+        let result = clear_num_var_literal(folded, "x");
+        let expected = Polynomial::parse("x").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
     fn univariate_derivative() {
+        let parsed = Polynomial::parse("3x").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let folded = fold_operations(zeroed);
+        let result = clear_num_var_literal(folded, "x"); // Check that this doesn't effect BinOp
+        let expected = Polynomial::parse("3x").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn univariate_derivative_2() {
         let parsed = Polynomial::parse("3x + 2").unwrap();
         let zeroed = remove_extra_vars(parsed.expr, "x");
         let result = fold_operations(zeroed);
@@ -196,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn univariate_derivative_2() {
+    fn univariate_derivative_3() {
         let parsed = Polynomial::parse("2 + 3x").unwrap();
         let zeroed = remove_extra_vars(parsed.expr, "x");
         let result = fold_operations(zeroed);
@@ -431,6 +584,154 @@ mod tests {
         let zeroed = remove_extra_vars(parsed.expr, "x");
         let result = fold_operations(zeroed);
         let expected = Polynomial::parse("xy*(3x+y)^2 + 3xz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn many_vars() {
+        let parsed = Polynomial::parse("4xyz - 7yz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        println!("{zeroed}");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("4xyz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn many_vars_div() {
+        let parsed = Polynomial::parse("4xyz/7z - 7yz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("4xyz/7z").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn many_vars_div_2() {
+        let parsed = Polynomial::parse("7z/4xyz - 7yz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("7z/4xyz").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn null_return() {
+        let parsed = Polynomial::parse("4yz/7z - 7yz").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial {
+            expr: Expr::Number(0.),
+        };
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn null_return_2() {
+        let parsed = Polynomial::parse("y + z").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial {
+            expr: Expr::Number(0.),
+        };
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn null_return_3() {
+        let parsed = Polynomial::parse("y").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let folded = fold_operations(zeroed);
+        let result = clear_num_var_literal(folded, "x");
+        let expected = Polynomial {
+            expr: Expr::Number(0.),
+        };
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn power_tower() {
+        let parsed = Polynomial::parse("y^2^2^2 - x^3^26^4").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("-x^3^26^4").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn power_tower_div() {
+        let parsed = Polynomial::parse("y/x^3^26^4").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("y/x^3^26^4").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn power_tower_div_2() {
+        let parsed = Polynomial::parse("(y+3)/x^3^26^4").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("(y+3)/x^3^26^4").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn power_tower_div_3() {
+        let parsed = Polynomial::parse("x^3^26^4/y").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("x^3^26^4/y").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn power_tower_div_4() {
+        let parsed = Polynomial::parse("x^3^26^4/(y+3)").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("x^3^26^4/(y+3)").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn div_div_deriv() {
+        let parsed = Polynomial::parse("x/34/y").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("x/34/y").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn div_add_div_deriv() {
+        let parsed = Polynomial::parse("x/(34+y)/y").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("x/(34+y)/y").unwrap();
+
+        assert_eq!(Polynomial { expr: result }, expected);
+    }
+
+    #[test]
+    fn add_div_div_deriv() {
+        let parsed = Polynomial::parse("(x+45)/(34+y)/y").unwrap();
+        let zeroed = remove_extra_vars(parsed.expr, "x");
+        let result = fold_operations(zeroed);
+        let expected = Polynomial::parse("(x+45)/(34+y)/y").unwrap();
 
         assert_eq!(Polynomial { expr: result }, expected);
     }

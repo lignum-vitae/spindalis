@@ -180,14 +180,18 @@ macro_rules! token_from_char {
 token_from_char! {
     #[derive(Debug, PartialEq,Eq,Copy,Clone,Hash)]
     pub Operators {
-        Add   => '+',
-        Sub   => '-',
-        Div   => '/',
-        Mul   => '*',
-        CDot   => '·',
-        Rem   => '%',
-        Caret => '^',
-        Fac => '!',
+        Add     => '+',
+        Sub     => '-',
+        Div     => '/',
+        Mul     => '*',
+        CDot    => '·',
+        Rem     => '%',
+        Caret   => '^',
+        Fac     => '!',
+        TempAdd => '#',
+        TempSub => '@',
+        TempMul => '&',
+        TempDiv => '$',
     }
 }
 
@@ -598,6 +602,15 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
 
                 // x/1 = x
                 (Operators::Div, l, Expr::Number(1.)) => l,
+
+                (
+                    Operators::TempAdd
+                    | Operators::TempSub
+                    | Operators::TempMul
+                    | Operators::TempDiv,
+                    _,
+                    _,
+                ) => Expr::Number(0.),
 
                 // Non foldable conditions
                 (_, l, r) => Expr::BinaryOp {
