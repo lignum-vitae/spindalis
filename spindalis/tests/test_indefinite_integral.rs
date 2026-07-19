@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits, SimplePolynomial};
+    use spindalis::polynomials::{IntermediatePolynomial, SimplePolynomial};
+    use spindalis::prelude::*;
 
     #[test]
     fn test_known_indefinite() {

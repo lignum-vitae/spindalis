@@ -1,5 +1,6 @@
+use spindalis::polynomials::SimplePolynomial;
 use spindalis::polynomials::parse_simple_polynomial;
-use spindalis::polynomials::{PolynomialTraits, SimplePolynomial};
+use spindalis::prelude::*;
 
 fn main() {
     let polynomial = "5a^3 + 4a^4 - 5a^2 + 1";

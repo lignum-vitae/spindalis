@@ -1,5 +1,6 @@
 use spindalis::integrals::analytical_integral;
-use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits, SimplePolynomial};
+use spindalis::polynomials::{IntermediatePolynomial, SimplePolynomial};
+use spindalis::prelude::*;
 
 #[test]
 fn test_analytical_integral_cubic() {

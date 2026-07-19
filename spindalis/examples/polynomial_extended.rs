@@ -1,6 +1,7 @@
 use spindalis::derivatives::partial_derivative;
-use spindalis::polynomials::{IntermediatePolynomial, PolynomialTraits};
+use spindalis::polynomials::IntermediatePolynomial;
 use spindalis::polynomials::{eval_intermediate_polynomial, parse_intermediate_polynomial};
+use spindalis::prelude::*;
 
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
