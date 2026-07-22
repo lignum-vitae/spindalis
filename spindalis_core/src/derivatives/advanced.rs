@@ -1,9 +1,8 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::advanced::{
-    Constants, Expr, Functions, Operators, fold_operations, walk_ast,
-};
-use crate::polynomials::structs::advanced::{AstOperation, PolyResult, Polynomial};
+use crate::polynomials::advanced::{Constants, Functions, Operators, fold_operations};
+use crate::polynomials::structs::advanced::{Expr, Polynomial, Visitor};
 
+/* Main derivative function */
 pub fn advanced_derivative<S>(poly: &Polynomial, variable: S) -> Result<Polynomial, PolynomialError>
 where
     S: AsRef<str>,
@@ -12,13 +11,16 @@ where
     let zeroed = remove_extra_vars(poly.expr.clone(), var);
     let folded = fold_operations(zeroed);
     let filtered = clear_num_var_literal(folded, var);
-    let Some(PolyResult::Expression(result)) = walk_ast(&filtered, &AstOperation::Derive) else {
+
+    let derive = Differentiator { var };
+    let Some(result) = filtered.accept(&derive) else {
         return Err(PolynomialError::MissingVariable);
     };
     Ok(Polynomial { expr: result })
     // TODO: Work on error messages
 }
 
+/* Input cleanup functions */
 fn contains_var(expr: &Expr, var: &str) -> bool {
     match expr {
         Expr::Variable(v) => v == var,
@@ -246,59 +248,180 @@ fn clear_num_var_literal(expr: Expr, var: &str) -> Expr {
     }
 }
 
-pub(crate) fn derive_binary_operation(
-    op: &Operators,
-    lhs: &Expr,
-    rhs: &Expr,
-    paren: &bool,
-) -> Option<PolyResult> {
-    let Some(PolyResult::Expression(lhs)) = walk_ast(lhs, &AstOperation::Derive) else {
-        return None;
-    };
-    let Some(PolyResult::Expression(rhs)) = walk_ast(rhs, &AstOperation::Derive) else {
-        return None;
-    };
-
-    // match op <- use operator to determine action
-    Some(PolyResult::Expression(Expr::BinaryOp {
-        op: *op,
-        lhs: Box::new(lhs.clone()),
-        rhs: Box::new(rhs.clone()),
-        paren: *paren,
-    }))
+pub(crate) struct Differentiator<'a> {
+    var: &'a str,
 }
 
-pub(crate) fn derive_postfix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::UnaryOpPostfix {
-        op: *op,
-        value: Box::new(value.clone()),
-    }))
-}
+/* Actual derivative implementation */
+impl<'a> Visitor for Differentiator<'a> {
+    type Output = Option<Expr>;
 
-pub(crate) fn derive_prefix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::UnaryOpPrefix {
-        op: *op,
-        value: Box::new(value.clone()),
-    }))
-}
+    fn visit_binary_op(&self, op: &Operators, lhs: &Expr, rhs: &Expr, paren: bool) -> Option<Expr> {
+        let derived_lhs = lhs.accept(self)?;
+        let derived_rhs = rhs.accept(self)?;
 
-pub(crate) fn derive_function(func: &Functions, value: &Expr) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::Function {
-        func: *func,
-        inner: Box::new(value.clone()),
-    }))
-}
+        let op = *op;
+        match op {
+            Operators::Add | Operators::Sub => {
+                let res = Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(derived_lhs),
+                    rhs: Box::new(derived_rhs),
+                    paren,
+                };
+                Some(fold_operations(res))
+            }
+            Operators::Mul => {
+                let left = Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(derived_rhs),
+                    paren,
+                };
+                let right = Expr::BinaryOp {
+                    op,
+                    lhs: Box::new(derived_lhs),
+                    rhs: Box::new(rhs.clone()),
+                    paren,
+                };
 
-pub(crate) fn derive_constants(cnst: &Constants) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::Constant(*cnst)))
-}
+                let product_rule = Expr::BinaryOp {
+                    op: Operators::Add,
+                    lhs: Box::new(left),
+                    rhs: Box::new(right),
+                    paren,
+                };
+                Some(fold_operations(product_rule))
+            }
+            Operators::Div => {
+                let left = Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(derived_lhs),
+                    rhs: Box::new(rhs.clone()),
+                    paren: true,
+                };
+                let right = Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(derived_rhs),
+                    paren,
+                };
+                let numerator = Expr::BinaryOp {
+                    op: Operators::Sub,
+                    lhs: Box::new(left),
+                    rhs: Box::new(right),
+                    paren,
+                };
+                let new_paren = matches!(rhs, Expr::BinaryOp { .. });
+                let quotient_rule = Expr::BinaryOp {
+                    op: Operators::Div,
+                    lhs: Box::new(numerator),
+                    rhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Caret,
+                        lhs: Box::new(rhs.clone()),
+                        rhs: Box::new(Expr::Number(2.)),
+                        paren: new_paren,
+                    }),
+                    paren,
+                };
+                Some(fold_operations(quotient_rule))
+            }
+            Operators::Caret => {
+                let new_exp;
+                let exp = rhs;
+                if let Expr::Number(val) = exp {
+                    new_exp = Expr::Number(val - 1.);
+                } else {
+                    new_exp = Expr::BinaryOp {
+                        op: Operators::Sub,
+                        lhs: Box::new(exp.clone()),
+                        rhs: Box::new(Expr::Number(1.)),
+                        paren: true,
+                    }
+                };
+                let base_pow = Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(new_exp),
+                    paren: true,
+                };
+                let power_rule = Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(exp.clone()),
+                        rhs: Box::new(base_pow),
+                        paren: false,
+                    }),
+                    rhs: Box::new(derived_lhs),
+                    paren,
+                };
+                Some(fold_operations(power_rule))
+            }
+            _ => Some(Expr::BinaryOp {
+                op,
+                lhs: Box::new(lhs.clone()),
+                rhs: Box::new(rhs.clone()),
+                paren,
+            }),
+        }
+    }
 
-pub(crate) fn derive_numbers(value: &f64) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::Number(*value)))
-}
+    fn visit_function(&self, func: &Functions, value: &Expr) -> Option<Expr> {
+        let mut res = match func {
+            Functions::Sin => Expr::Function {
+                func: Functions::Cos,
+                inner: Box::new(value.clone()),
+            },
+            _ => Expr::Function {
+                func: *func,
+                inner: Box::new(value.clone()),
+            },
+        };
 
-pub(crate) fn derive_variables(value: &str) -> Option<PolyResult> {
-    Some(PolyResult::Expression(Expr::Variable(value.to_string())))
+        if contains_var(value, self.var) {
+            let derived_val = value.accept(self)?;
+            res = Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(derived_val),
+                rhs: Box::new(res),
+                paren: false,
+            };
+        };
+        Some(res)
+    }
+
+    fn visit_unary_prefix(&self, op: &Operators, value: &Expr) -> Option<Expr> {
+        if let Some(value) = value.accept(self) {
+            return Some(Expr::UnaryOpPrefix {
+                op: *op,
+                value: Box::new(value.clone()),
+            });
+        };
+        None
+    }
+
+    fn visit_unary_postfix(&self, op: &Operators, value: &Expr) -> Option<Expr> {
+        Some(Expr::UnaryOpPostfix {
+            op: *op,
+            value: Box::new(value.clone()),
+        })
+    }
+
+    fn visit_constant(&self, cnst: &Constants) -> Option<Expr> {
+        Some(Expr::Constant(*cnst))
+    }
+
+    fn visit_number(&self, _: f64) -> Option<Expr> {
+        Some(Expr::Number(0.))
+    }
+
+    fn visit_variable(&self, value: &str) -> Option<Expr> {
+        if value == self.var {
+            return Some(Expr::Number(1.));
+        }
+        Some(Expr::Number(0.))
+    }
 }
 
 #[cfg(test)]

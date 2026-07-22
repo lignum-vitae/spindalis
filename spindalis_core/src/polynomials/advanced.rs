@@ -1,5 +1,5 @@
 use crate::polynomials::PolynomialError;
-use crate::polynomials::structs::advanced::{AstOperation, PolyResult, Polynomial, TokenStream};
+use crate::polynomials::structs::advanced::{Expr, Polynomial, TokenStream, Visitor};
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -228,90 +228,6 @@ pub enum Token {
     Constant(Constants),
     LParen,
     RParen,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
-    Number(f64),
-    Variable(String),
-    Constant(Constants),
-    Function {
-        func: Functions,
-        inner: Box<Self>,
-    },
-    UnaryOpPrefix {
-        op: Operators,
-        value: Box<Self>,
-    },
-    UnaryOpPostfix {
-        op: Operators,
-        value: Box<Self>,
-    },
-    BinaryOp {
-        op: Operators,
-        lhs: Box<Self>,
-        rhs: Box<Self>,
-        paren: bool,
-    },
-}
-
-impl std::fmt::Display for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Number(n) => write!(f, "{n}"),
-            Self::Variable(v) => write!(f, "{v}"),
-            Self::Constant(c) => write!(f, "{c}"),
-            Self::Function { func, inner } => write!(f, "{func}({inner})"),
-            Self::UnaryOpPrefix { op, value } => write!(f, "{op}{value}"),
-            Self::UnaryOpPostfix { op, value } => write!(f, "{value}{op}"),
-            Self::BinaryOp {
-                op,
-                lhs,
-                rhs,
-                paren,
-            } => {
-                // 4 * x   -> 4x
-                // 5 * x^2 -> 5x^2
-                // 2 * π   -> 2π
-                let mut implied: Option<String> = None;
-
-                if *op == Operators::Mul {
-                    implied = match (&**lhs, &**rhs) {
-                        (Self::Number(n), Self::Variable(v)) => Some(format!("{n}{v}")),
-                        (Self::Number(n), Self::Constant(c)) => Some(format!("{n}{c}")),
-                        (
-                            Self::Number(n),
-                            Self::BinaryOp {
-                                op: Operators::Caret,
-                                ..
-                            },
-                        ) => Some(format!("{n}{rhs}")),
-                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}{n}")),
-                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}{n}")),
-                        _ => None,
-                    };
-                } else if *op == Operators::Caret {
-                    implied = match (&**lhs, &**rhs) {
-                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}^{n}")),
-                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}^{n}")),
-                        _ => None,
-                    };
-                }
-
-                if let Some(s) = implied {
-                    if *paren {
-                        return write!(f, "({s})");
-                    }
-                    return write!(f, "{s}");
-                }
-                if *paren {
-                    write!(f, "({lhs} {op} {rhs})")
-                } else {
-                    write!(f, "{lhs} {op} {rhs}")
-                }
-            }
-        }
-    }
 }
 
 pub fn lexer<S>(input: S) -> Result<Vec<Token>, PolynomialError>
@@ -584,24 +500,31 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
                 (Operators::Mul, Expr::Number(0.), _) => Expr::Number(0.),
                 (Operators::Mul, _, Expr::Number(0.)) => Expr::Number(0.),
 
+                // 1*x = x
+                (Operators::Mul, Expr::Number(1.), r) => fold_operations(r),
+                (Operators::Mul, l, Expr::Number(1.)) => fold_operations(l),
+
                 // _^0 = 1 & 0^_ = 0
                 // Note: Above condition includes 0^0
                 (Operators::Caret, _, Expr::Number(0.)) => Expr::Number(1.),
                 (Operators::Caret, Expr::Number(0.), _) => Expr::Number(0.),
 
+                // x^1 = x
+                (Operators::Caret, l, Expr::Number(1.)) => fold_operations(l),
+
                 // x+0 = x
-                (Operators::Add, Expr::Number(0.), r) => r,
-                (Operators::Add, l, Expr::Number(0.)) => l,
+                (Operators::Add, Expr::Number(0.), r) => fold_operations(r),
+                (Operators::Add, l, Expr::Number(0.)) => fold_operations(l),
 
                 // 0-x = -x & x-0 = x
-                (Operators::Sub, l, Expr::Number(0.)) => l,
+                (Operators::Sub, l, Expr::Number(0.)) => fold_operations(l),
                 (Operators::Sub, Expr::Number(0.), r) => Expr::UnaryOpPrefix {
                     op: Operators::Sub,
                     value: Box::new(fold_operations(r)),
                 },
 
                 // x/1 = x
-                (Operators::Div, l, Expr::Number(1.)) => l,
+                (Operators::Div, l, Expr::Number(1.)) => fold_operations(l),
 
                 (
                     Operators::TempAdd
@@ -611,6 +534,179 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
                     _,
                     _,
                 ) => Expr::Number(0.),
+
+                // (-3)/2 -> -(3/2), (-3x)*2 -> -(3x*2)
+                (
+                    Operators::Div | Operators::Mul,
+                    Expr::UnaryOpPrefix {
+                        op: Operators::Sub,
+                        value: val,
+                    },
+                    r,
+                ) => Expr::UnaryOpPrefix {
+                    op: Operators::Sub,
+                    value: Box::new(fold_operations(Expr::BinaryOp {
+                        op,
+                        lhs: Box::new(*val),
+                        rhs: Box::new(r),
+                        paren,
+                    })),
+                },
+
+                // 3 * 2 => 6, 3 + 4 => 7
+                (Operators::Add, Expr::Number(a), Expr::Number(b)) => Expr::Number(a + b),
+                (Operators::Sub, Expr::Number(a), Expr::Number(b)) => {
+                    let res = a - b;
+                    if res < 0_f64 {
+                        Expr::UnaryOpPrefix {
+                            op: Operators::Sub,
+                            value: Box::new(Expr::Number(-res)),
+                        }
+                    } else {
+                        Expr::Number(res)
+                    }
+                }
+                (Operators::Mul, Expr::Number(a), Expr::Number(b)) => {
+                    let res = a * b;
+                    if res < 0_f64 {
+                        Expr::UnaryOpPrefix {
+                            op: Operators::Sub,
+                            value: Box::new(Expr::Number(-res)),
+                        }
+                    } else {
+                        Expr::Number(res)
+                    }
+                }
+                (Operators::Div, Expr::Number(a), Expr::Number(b)) if b != 0.0 => {
+                    let res = a / b;
+                    if res < 0_f64 {
+                        Expr::UnaryOpPrefix {
+                            op: Operators::Sub,
+                            value: Box::new(Expr::Number(-res)),
+                        }
+                    } else {
+                        Expr::Number(res)
+                    }
+                }
+                (Operators::Caret, Expr::Number(a), Expr::Number(b)) => Expr::Number(a.powf(b)),
+
+                // c1 * (c2 * x) => (c1 * c2) * x
+                (
+                    Operators::Mul,
+                    Expr::Number(c1),
+                    Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: inner_lhs,
+                        rhs: inner_rhs,
+                        ..
+                    },
+                ) => {
+                    if let Expr::Number(c2) = *inner_lhs {
+                        fold_operations(Expr::BinaryOp {
+                            op: Operators::Mul,
+                            lhs: Box::new(Expr::Number(c1 * c2)),
+                            rhs: inner_rhs,
+                            paren,
+                        })
+                    } else {
+                        Expr::BinaryOp {
+                            op,
+                            lhs: Box::new(Expr::Number(c1)),
+                            rhs: Box::new(Expr::BinaryOp {
+                                op: Operators::Mul,
+                                lhs: inner_lhs,
+                                rhs: inner_rhs,
+                                paren,
+                            }),
+                            paren,
+                        }
+                    }
+                }
+
+                // (x * y)^n -> x^n * y^n
+                (
+                    Operators::Caret,
+                    Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: inner_lhs,
+                        rhs: inner_rhs,
+                        ..
+                    },
+                    exp,
+                ) => fold_operations(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Caret,
+                        lhs: inner_lhs,
+                        rhs: Box::new(exp.clone()),
+                        paren: false,
+                    }),
+                    rhs: Box::new(Expr::BinaryOp {
+                        op: Operators::Caret,
+                        lhs: inner_rhs,
+                        rhs: Box::new(exp),
+                        paren: false,
+                    }),
+                    paren: false,
+                }),
+
+                // Variable exponent division: y^a / y^b -> 1, y^k, or 1/y^k
+                (Operators::Div, l, r) => {
+                    let mut num_factors = Vec::new();
+                    let mut den_factors = Vec::new();
+
+                    collect_factors(&l, &mut num_factors);
+                    collect_factors(&r, &mut den_factors);
+
+                    // Look for matching base sub-trees
+                    let matching_factor = num_factors.iter().find_map(|(base1, p1)| {
+                        den_factors
+                            .iter()
+                            .find(|(base2, _)| base1 == base2) // Deep AST equality
+                            .map(|(_, p2)| (base1.clone(), *p1, *p2))
+                    });
+
+                    if let Some((base_expr, p1, p2)) = matching_factor {
+                        let diff = p1 - p2;
+
+                        if diff == 0.0 {
+                            let new_lhs = fold_operations(remove_factor(l, &base_expr));
+                            let new_rhs = fold_operations(remove_factor(r, &base_expr));
+                            fold_operations(Expr::BinaryOp {
+                                op: Operators::Div,
+                                lhs: Box::new(new_lhs),
+                                rhs: Box::new(new_rhs),
+                                paren,
+                            })
+                        } else if diff > 0.0 {
+                            let new_lhs = fold_operations(replace_factor(l, &base_expr, diff));
+                            let new_rhs = fold_operations(remove_factor(r, &base_expr));
+                            fold_operations(Expr::BinaryOp {
+                                op: Operators::Div,
+                                lhs: Box::new(new_lhs),
+                                rhs: Box::new(new_rhs),
+                                paren,
+                            })
+                        } else {
+                            let new_lhs = fold_operations(remove_factor(l, &base_expr));
+                            let new_rhs =
+                                fold_operations(replace_factor(r, &base_expr, diff.abs()));
+                            fold_operations(Expr::BinaryOp {
+                                op: Operators::Div,
+                                lhs: Box::new(new_lhs),
+                                rhs: Box::new(new_rhs),
+                                paren,
+                            })
+                        }
+                    } else {
+                        Expr::BinaryOp {
+                            op: Operators::Div,
+                            lhs: Box::new(l),
+                            rhs: Box::new(r),
+                            paren,
+                        }
+                    }
+                }
 
                 // Non foldable conditions
                 (_, l, r) => Expr::BinaryOp {
@@ -622,6 +718,118 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
             }
         }
         expr => expr,
+    }
+}
+
+fn collect_factors(expr: &Expr, factors: &mut Vec<(Expr, f64)>) {
+    match expr {
+        // Multiplication: recurse into children
+        Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs,
+            rhs,
+            ..
+        } => {
+            collect_factors(lhs, factors);
+            collect_factors(rhs, factors);
+        }
+        // Powers: A^n -> base A with power n
+        Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs,
+            rhs,
+            ..
+        } => {
+            if let Expr::Number(n) = **rhs {
+                factors.push((*lhs.clone(), n));
+            } else {
+                factors.push((expr.clone(), 1.0));
+            }
+        }
+        // Base case: Any other expression (Variable, Constant, Add, Sub, etc.) has power 1.0
+        other => factors.push((other.clone(), 1.0)),
+    }
+}
+
+// Removes a factor (e.g. `34 + y` or `(34 + y)^2`), replacing it with 1.0 (which folds away)
+fn remove_factor(expr: Expr, target: &Expr) -> Expr {
+    if &expr == target {
+        return Expr::Number(1.0);
+    }
+
+    match expr {
+        Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs,
+            ..
+        } if &*lhs == target => Expr::Number(1.0),
+
+        Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs,
+            rhs,
+            paren,
+        } => Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(remove_factor(*lhs, target)),
+            rhs: Box::new(remove_factor(*rhs, target)),
+            paren,
+        },
+
+        other => other,
+    }
+}
+
+// Replaces an expression factor's power (e.g. `(34 + y)^2` -> `(34 + y)^1` which is just `(34 + y)`)
+fn replace_factor(expr: Expr, target: &Expr, new_pow: f64) -> Expr {
+    // Direct match on the target expression itself (eg target is `34 + y`)
+    if &expr == target {
+        return if new_pow == 1.0 {
+            expr
+        } else {
+            Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(expr),
+                rhs: Box::new(Expr::Number(new_pow)),
+                paren: false,
+            }
+        };
+    }
+
+    match expr {
+        // Match on a Caret node whose base matches target (eg `(34 + y)^2`)
+        Expr::BinaryOp {
+            op: Operators::Caret,
+            lhs,
+            ..
+        } if &*lhs == target => {
+            if new_pow == 1.0 {
+                *lhs
+            } else {
+                Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs,
+                    rhs: Box::new(Expr::Number(new_pow)),
+                    paren: false,
+                }
+            }
+        }
+
+        // Recurse down multiplication chains
+        Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs,
+            rhs,
+            paren,
+        } => Expr::BinaryOp {
+            op: Operators::Mul,
+            lhs: Box::new(replace_factor(*lhs, target, new_pow)),
+            rhs: Box::new(replace_factor(*rhs, target, new_pow)),
+            paren,
+        },
+
+        // Base case for non-matching nodes
+        other => other,
     }
 }
 
@@ -651,7 +859,9 @@ where
         .map(|(k, v)| (k.as_ref().to_string(), v.into()))
         .collect();
     let literal_expr = replace_variable_occurence(&poly.expr, &vars_map)?;
-    let Some(PolyResult::Float(result)) = walk_ast(&literal_expr, &AstOperation::Eval) else {
+
+    let eval = Evaluator;
+    let Some(result) = literal_expr.accept(&eval) else {
         return Err(PolynomialError::MissingVariable);
     };
     Ok(result)
@@ -675,57 +885,6 @@ fn replace_variable_occurence(
     })
 }
 
-impl Expr {
-    pub fn map(
-        &self,
-        f: &mut impl FnMut(&Expr) -> Result<Expr, PolynomialError>,
-    ) -> Result<Expr, PolynomialError> {
-        match self {
-            // recursively walks down the polynomial for operators
-            Expr::BinaryOp {
-                op,
-                lhs,
-                rhs,
-                paren,
-            } => Ok(Expr::BinaryOp {
-                op: *op,
-                lhs: Box::new(lhs.map(f)?),
-                rhs: Box::new(rhs.map(f)?),
-                paren: *paren,
-            }),
-            Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
-                op: *op,
-                value: Box::new(value.map(f)?),
-            }),
-            Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
-                op: *op,
-                value: Box::new(value.map(f)?),
-            }),
-            Expr::Function { func, inner } => Ok(Expr::Function {
-                func: *func,
-                inner: Box::new(inner.map(f)?),
-            }),
-            // This allows for extension of variants with f.
-            x => f(x),
-        }
-    }
-    pub fn visit(&self, f: &mut impl FnMut(&Expr)) {
-        f(self);
-        match self {
-            Expr::BinaryOp { lhs, rhs, .. } => {
-                lhs.visit(f);
-                rhs.visit(f);
-            }
-            Expr::UnaryOpPrefix { value, .. }
-            | Expr::UnaryOpPostfix { value, .. }
-            | Expr::Function { inner: value, .. } => {
-                value.visit(f);
-            }
-            _ => {}
-        }
-    }
-}
-
 pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialError> {
     let mut variables: BTreeSet<String> = Default::default();
     expr.visit(&mut |e| {
@@ -745,118 +904,89 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
     }
 }
 
-pub(crate) fn walk_ast(expr: &Expr, ast_operation: &AstOperation) -> Option<PolyResult> {
-    let operation = ast_operation;
-    match expr {
-        Expr::BinaryOp {
-            op,
-            lhs,
-            rhs,
-            paren,
-        } => operation.handle_binary_operation(op, lhs, rhs, paren),
-        Expr::UnaryOpPostfix { op, value } => operation.handle_postfix_operation(op, value),
-        Expr::UnaryOpPrefix { op, value } => operation.handle_prefix_operation(op, value),
-        Expr::Function { func, inner } => operation.handle_function(func, inner),
-        Expr::Constant(c) => operation.handle_constants(c),
-        Expr::Number(val) => operation.handle_numbers(val),
-        Expr::Variable(var) => operation.handle_variables(var),
+fn factorial_f64(n: f64) -> f64 {
+    if n < 0.0 {
+        return f64::NAN;
     }
+    let n_int = n.floor() as u64;
+    (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
 }
+pub(crate) struct Evaluator;
 
-pub(crate) fn eval_numbers(value: &f64) -> Option<PolyResult> {
-    Some(PolyResult::Float(*value))
-}
+impl Visitor for Evaluator {
+    type Output = Option<f64>;
 
-pub(crate) fn eval_variables(_: &String) -> Option<PolyResult> {
-    unreachable!()
-}
-
-pub(crate) fn eval_binary_operation(
-    op: &Operators,
-    lhs: &Expr,
-    rhs: &Expr,
-    _: &bool,
-) -> Option<PolyResult> {
-    let Some(PolyResult::Float(lhs)) = walk_ast(lhs, &AstOperation::Eval) else {
-        return None;
-    };
-    let Some(PolyResult::Float(rhs)) = walk_ast(rhs, &AstOperation::Eval) else {
-        return None;
-    };
-
-    let ans = match op {
-        Operators::Div => Some(lhs / rhs),
-        Operators::Mul | Operators::CDot => Some(lhs * rhs),
-        Operators::Add => Some(lhs + rhs),
-        Operators::Sub => Some(lhs - rhs),
-        Operators::Rem => Some(lhs % rhs),
-        Operators::Caret => Some(lhs.powf(rhs)),
-        _ => None,
-    };
-    if let Some(res) = ans {
-        return Some(PolyResult::Float(res));
-    };
-    None
-}
-
-fn factorial_f64(n: PolyResult) -> PolyResult {
-    if let PolyResult::Float(n) = n {
-        if n < 0.0 {
-            return PolyResult::Float(f64::NAN);
-        }
-        let n_int = n.floor() as u64;
-        return PolyResult::Float((1..=n_int).fold(1.0, |acc, x| acc * x as f64));
+    fn visit_number(&self, value: f64) -> Option<f64> {
+        Some(value)
     }
-    // Currently this func is only used in eval_postfix_operation
-    // This part of the code SHOULD be unreachable considering walk_ast returns a float or bubbles
-    // up None.
-    // Will have to reconsider unreachable macro call if this func is used elsewhere
-    unreachable!()
-}
 
-pub(crate) fn eval_postfix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
-    match op {
-        Operators::Fac => Some(factorial_f64(walk_ast(value, &AstOperation::Eval)?)),
-        _ => None,
+    fn visit_variable(&self, _: &str) -> Option<f64> {
+        unreachable!()
     }
-}
 
-pub(crate) fn eval_prefix_operation(op: &Operators, value: &Expr) -> Option<PolyResult> {
-    if let Some(PolyResult::Float(value)) = walk_ast(value, &AstOperation::Eval) {
-        let new_value = match op {
-            Operators::Add => Some(value),
-            Operators::Sub => Some(-value),
+    fn visit_binary_op(&self, op: &Operators, lhs: &Expr, rhs: &Expr, _: bool) -> Option<f64> {
+        let lhs = lhs.accept(self)?;
+        let rhs = rhs.accept(self)?;
+
+        let ans = match op {
+            Operators::Div => Some(lhs / rhs),
+            Operators::Mul | Operators::CDot => Some(lhs * rhs),
+            Operators::Add => Some(lhs + rhs),
+            Operators::Sub => Some(lhs - rhs),
+            Operators::Rem => Some(lhs % rhs),
+            Operators::Caret => Some(lhs.powf(rhs)),
             _ => None,
         };
-        if let Some(res) = new_value {
-            return Some(PolyResult::Float(res));
+        if let Some(res) = ans {
+            return Some(res);
+        };
+        None
+    }
+
+    fn visit_unary_postfix(&self, op: &Operators, value: &Expr) -> Option<f64> {
+        match op {
+            Operators::Fac => Some(factorial_f64(value.accept(self)?)),
+            _ => None,
         }
     }
-    None
-}
-pub(crate) fn eval_function(func: &Functions, value: &Expr) -> Option<PolyResult> {
-    if let Some(PolyResult::Float(value)) = walk_ast(value, &AstOperation::Eval) {
-        let res = match func {
-            Functions::Sin => value.sin(),
-            Functions::Cos => value.cos(),
-            Functions::Tan => value.tan(),
-            Functions::Cot => 1.0 / value.tan(),
-            Functions::Ln => value.ln(),
-            Functions::Log => value.log10(),
-        };
-        return Some(PolyResult::Float(res));
-    }
-    None
-}
 
-pub(crate) fn eval_constants(cnst: &Constants) -> Option<PolyResult> {
-    let constant = match cnst {
-        Constants::Pi => f64::consts::PI,
-        Constants::E => f64::consts::E,
-        Constants::Tau => f64::consts::TAU,
-        Constants::Phi => 1.618_033_988_749_895_f64, // f64::consts::PHI
-    };
-    Some(PolyResult::Float(constant))
+    fn visit_unary_prefix(&self, op: &Operators, value: &Expr) -> Option<f64> {
+        if let Some(value) = value.accept(self) {
+            let new_value = match op {
+                Operators::Add => Some(value),
+                Operators::Sub => Some(-value),
+                _ => None,
+            };
+            if let Some(res) = new_value {
+                return Some(res);
+            }
+        }
+        None
+    }
+    fn visit_function(&self, func: &Functions, value: &Expr) -> Option<f64> {
+        if let Some(value) = value.accept(self) {
+            let res = match func {
+                Functions::Sin => value.sin(),
+                Functions::Cos => value.cos(),
+                Functions::Tan => value.tan(),
+                Functions::Cot => 1.0 / value.tan(),
+                Functions::Ln => value.ln(),
+                Functions::Log => value.log10(),
+            };
+            return Some(res);
+        }
+        None
+    }
+
+    fn visit_constant(&self, cnst: &Constants) -> Option<f64> {
+        let constant = match cnst {
+            Constants::Pi => f64::consts::PI,
+            Constants::E => f64::consts::E,
+            Constants::Tau => f64::consts::TAU,
+            Constants::Phi => 1.618_033_988_749_895_f64, // f64::consts::PHI
+        };
+        Some(constant)
+    }
 }
 
 #[cfg(test)]
@@ -1163,7 +1293,7 @@ mod tests {
 
         #[test]
         fn test_complex_expression_parse() {
-            let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let expr = "4x + 2 - 5x^2 * 4y^4 / 6z^6";
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
 
@@ -1194,13 +1324,13 @@ mod tests {
                 paren: false,
             };
 
-            // (4 * x^4)
-            let term_4x4 = Expr::BinaryOp {
+            // (4 * y^4)
+            let term_4y4 = Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
                 rhs: Box::new(Expr::BinaryOp {
                     op: Operators::Caret,
-                    lhs: Box::new(Expr::Variable("x".into())),
+                    lhs: Box::new(Expr::Variable("y".into())),
                     rhs: Box::new(Expr::Number(4.0)),
                     paren: false,
                 }),
@@ -1211,24 +1341,24 @@ mod tests {
             let numerator = Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(term_5x2),
-                rhs: Box::new(term_4x4),
+                rhs: Box::new(term_4y4),
                 paren: false,
             };
 
-            // 6 * x^6
+            // 6 * z^6
             let denominator = Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(6.0)),
                 rhs: Box::new(Expr::BinaryOp {
                     op: Operators::Caret,
-                    lhs: Box::new(Expr::Variable("x".into())),
+                    lhs: Box::new(Expr::Variable("z".into())),
                     rhs: Box::new(Expr::Number(6.0)),
                     paren: false,
                 }),
                 paren: false,
             };
 
-            // ((5 * x^2) * (4 * x^4)) / (6 * x^6)
+            // ((5 * x^2) * (4 * y^4)) / (6 * z^6)
             let fmul_right = Expr::BinaryOp {
                 op: Operators::Div,
                 lhs: Box::new(numerator),
@@ -1236,7 +1366,7 @@ mod tests {
                 paren: false,
             };
 
-            // ((4 * x) + 2) - ((5 * x^2) * (4 * x^4)) / (6 * x^6)
+            // ((4 * x) + 2) - ((5 * x^2) * (4 * y^4)) / (6 * z^6)
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Sub,
                 lhs: Box::new(fmul_left),
@@ -1360,17 +1490,7 @@ mod tests {
             let expr = "(3+2) / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Div,
-                lhs: Box::new(Expr::BinaryOp {
-                    op: Operators::Add,
-                    lhs: Box::new(Expr::Number(3.0)),
-                    rhs: Box::new(Expr::Number(2.0)),
-                    paren: true,
-                }),
-                rhs: Box::new(Expr::Number(4.0)),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(1.25));
             assert_eq!(result, expected);
         }
 
@@ -1379,46 +1499,22 @@ mod tests {
             let expr = "3 + 2 / 4";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Add,
-                lhs: Box::new(Expr::Number(3.0)),
-                rhs: Box::new(Expr::BinaryOp {
-                    op: Operators::Div,
-                    lhs: Box::new(Expr::Number(2.0)),
-                    rhs: Box::new(Expr::Number(4.0)),
-                    paren: false,
-                }),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(3.5));
             assert_eq!(result, expected);
         }
 
         #[test]
         fn test_nested_parens() {
-            let expr = "(3 + (4+2)) * 5x";
+            let expr = "(3 - (4-2)) * 5x";
             let tkn_str = lexer(expr).unwrap();
             let result = parser(tkn_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
-                lhs: Box::new(Expr::BinaryOp {
-                    op: Operators::Add,
-                    lhs: Box::new(Expr::Number(3.0)),
-                    rhs: Box::new(Expr::BinaryOp {
-                        op: Operators::Add,
-                        lhs: Box::new(Expr::Number(4.0)),
-                        rhs: Box::new(Expr::Number(2.0)),
-                        paren: true,
-                    }),
-                    paren: true,
-                }),
-                rhs: Box::new(Expr::BinaryOp {
-                    op: Operators::Mul,
-                    lhs: Box::new(Expr::Number(5.0)),
-                    rhs: Box::new(Expr::Variable("x".into())),
-                    paren: false,
-                }),
+                lhs: Box::new(Expr::Number(5.)),
+                rhs: Box::new(Expr::Variable("x".into())),
                 paren: false,
             });
+            // with paren -> 5x, without parent -> 15x
             assert_eq!(result, expected);
         }
 
@@ -1745,14 +1841,6 @@ mod tests {
         }
 
         #[test]
-        fn test_postfix_followed_by_paren_eval() {
-            let expr = "3!(2x)";
-            let poly = Polynomial::parse(expr).unwrap();
-            let evaluated_result = poly.eval_univariate(2).unwrap();
-            assert_eq!(evaluated_result, 24.);
-        }
-
-        #[test]
         fn test_unary_prefix_inside_parens_missing_rhs() {
             let expr = "(-)";
             let tok_str = lexer(expr).unwrap();
@@ -1789,16 +1877,11 @@ mod tests {
 
         #[test]
         fn test_folding_operations_2() {
-            let expr = "0^0 + 5 / 1";
+            let expr = "0^0 + 5 / 1"; // 1 + 5 = 6
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
             println!("{result:?}");
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Add,
-                lhs: Box::new(Expr::Number(1.)),
-                rhs: Box::new(Expr::Number(5.)),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(6.));
             assert_eq!(result, expected);
         }
 
@@ -1815,15 +1898,11 @@ mod tests {
         #[test]
         fn test_folding_operations_4() {
             let expr = "(0x^0 + 5) + 5 / 1";
+            // (0(1) + 5) + 5 -> 5 + 5 = 10
             let tok_str = lexer(expr).unwrap();
             let result = parser(tok_str).unwrap();
             println!("{result:?}");
-            let expected = Polynomial::new(Expr::BinaryOp {
-                op: Operators::Add,
-                lhs: Box::new(Expr::Number(5.)),
-                rhs: Box::new(Expr::Number(5.)),
-                paren: false,
-            });
+            let expected = Polynomial::new(Expr::Number(10.));
 
             assert_eq!(result, expected);
         }
@@ -1836,25 +1915,6 @@ mod tests {
             println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
-        }
-        #[test]
-        fn test_failing_substitution_expression() {
-            let expr = "x^3-3xy+5";
-            let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
-            let evaluated_result = eval_advanced_polynomial(&parsed_result, &[("x", 5)]);
-            assert!(evaluated_result.is_err());
-        }
-        #[test]
-        fn test_eval_expression() {
-            let expr = "x^3-3xy+5!";
-            let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
-            let evaluated_result =
-                eval_advanced_polynomial(&parsed_result, &[("x", 5), ("y", 5)]).unwrap();
-            println!("{}", parsed_result);
-            println!("{}", evaluated_result);
-            assert_eq!(evaluated_result, 170.0);
         }
 
         #[test]
@@ -1878,14 +1938,45 @@ mod tests {
             println!("{:?}", evaluated_result);
             assert!(evaluated_result.is_err());
         }
+    }
+    // ---------------------------
+    // Test Evaluation
+    // ---------------------------
+    mod test_eval {
+        use super::*;
+
+        #[test]
+        fn test_postfix_followed_by_paren_eval() {
+            let expr = "3!(2x)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_univariate(2).unwrap();
+            assert_eq!(evaluated_result, 24.);
+        }
+
+        #[test]
+        fn test_failing_substitution_expression() {
+            let expr = "x^3-3xy+5";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result = eval_advanced_polynomial(&parsed_result, &[("x", 5)]);
+            assert!(evaluated_result.is_err());
+        }
+
+        #[test]
+        fn test_eval_expression() {
+            let expr = "x^3-3xy+5!";
+            let tok_str = lexer(expr).unwrap();
+            let parsed_result = parser(tok_str).unwrap();
+            let evaluated_result =
+                eval_advanced_polynomial(&parsed_result, &[("x", 5), ("y", 5)]).unwrap();
+            assert_eq!(evaluated_result, 170.0);
+        }
 
         #[test]
         fn test_univariant_evaluation() {
             let expr = "z^3-3z+5!";
             let poly = Polynomial::parse(expr).unwrap();
             let evaluated_result = poly.eval_univariate(10).unwrap();
-            println!("{}", poly);
-            println!("{:?}", evaluated_result);
             assert_eq!(evaluated_result, 1090.);
         }
 
@@ -1894,8 +1985,6 @@ mod tests {
             let expr = "-3x+5y!";
             let poly = Polynomial::parse(expr).unwrap();
             let evaluated_result = poly.eval_univariate(1);
-            println!("{}", poly);
-            println!("{:?}", evaluated_result);
             assert!(evaluated_result.is_err());
         }
 
@@ -1904,19 +1993,7 @@ mod tests {
             let expr = "-3+5!";
             let poly = Polynomial::parse(expr).unwrap();
             let evaluated_result = poly.eval_univariate(1).unwrap();
-            println!("{}", poly);
-            println!("{:?}", evaluated_result);
             assert_eq!(evaluated_result, 117.0);
-        }
-
-        #[test]
-        fn test_multivariant_expression() {
-            let expr = "2x+3y!";
-            let poly = Polynomial::parse(expr).unwrap();
-            let evaluated_result = poly.eval_multivariate(&[("x", 2), ("y", 1)]).unwrap();
-            println!("{}", poly);
-            println!("{:?}", evaluated_result);
-            assert_eq!(evaluated_result, 7.0);
         }
 
         #[test]
@@ -1924,9 +2001,27 @@ mod tests {
             let expr = "2x+3y!";
             let poly = Polynomial::parse(expr).unwrap();
             let evaluated_result = poly.eval_multivariate(&[("x", 2)]);
-            println!("{}", poly);
-            println!("{:?}", evaluated_result);
             assert!(evaluated_result.is_err());
+        }
+
+        #[test]
+        fn test_multivariant_expression() {
+            let expr = "2x+3y!";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_multivariate(&[("x", 2), ("y", 1)]).unwrap();
+            assert_eq!(evaluated_result, 7.0);
+        }
+
+        #[test]
+        fn test_function_eval() {
+            let expr = "sin(3x)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let evaluated_result = poly.eval_multivariate(&[("x", 30)]).unwrap();
+
+            let decimals = 6;
+            let rounded =
+                (evaluated_result * 10_f64.powi(decimals)).round() / 10_f64.powi(decimals);
+            assert_eq!(rounded, 0.893997);
         }
     }
     // ---------------------------
@@ -1937,21 +2032,21 @@ mod tests {
 
         #[test]
         fn test_display_format() {
-            let expr = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let expr = "4x + 2 - 5x^2 * 4y^4 / 6z^6";
             let tok_str = lexer(expr).unwrap();
             let parsed = parser(tok_str).unwrap();
             let display_str = format!("{parsed}");
-            let expected_str = "4x + 2 - 5x^2 * 4x^4 / 6x^6";
+            let expected_str = "4x + 2 - 5x^2 * 4y^4 / (6z^6)";
             assert_eq!(display_str, expected_str);
         }
 
         #[test]
         fn test_display_with_parentheses() {
-            let expr = "4x + (2 - 5x^2) * 4x^4 / 6x^6";
+            let expr = "4x + (2 - 5x^2) * 4x^4 / 6y^6";
             let tok_str = lexer(expr).unwrap();
             let parsed = parser(tok_str).unwrap();
             let display_str = format!("{parsed}");
-            let expected_str = "4x + (2 - 5x^2) * 4x^4 / 6x^6";
+            let expected_str = "4x + (2 - 5x^2) * 4x^4 / (6y^6)";
             assert_eq!(display_str, expected_str);
         }
 

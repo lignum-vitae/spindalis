@@ -1,10 +1,10 @@
 use crate::derivatives::intermediate::partial_derivative;
 use crate::integrals::intermediate_indefinite::indefinite_integral_intermediate;
+use crate::polynomials::PolynomialError;
 use crate::polynomials::intermediate::{
     eval_intermediate_polynomial, parse_intermediate_polynomial,
 };
 use crate::polynomials::structs::PolynomialTraits;
-use crate::polynomials::{PolynomialError, Term};
 
 #[derive(Debug, PartialEq)]
 pub struct IntermediatePolynomial {
@@ -12,9 +12,27 @@ pub struct IntermediatePolynomial {
     pub variables: Vec<String>,
 }
 
-impl IntermediatePolynomial {
-    pub fn is_empty(&self) -> bool {
-        self.terms.is_empty()
+#[derive(Debug, Clone, PartialEq)]
+pub struct Term {
+    pub coefficient: f64,
+    pub variables: Vec<(String, f64)>,
+}
+impl std::fmt::Display for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 1. Print the coefficient if it's not 1.0 (unless there are no variables)
+        let has_vars = !self.variables.is_empty();
+        if self.coefficient != 1.0 || !has_vars {
+            write!(f, "{}", self.coefficient)?;
+        }
+
+        // 2. Print variables and their exponents
+        for (var, exp) in &self.variables {
+            write!(f, "{}", var)?;
+            if *exp != 1.0 {
+                write!(f, "^{}", exp)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -26,6 +44,10 @@ impl std::ops::Deref for IntermediatePolynomial {
 }
 
 impl IntermediatePolynomial {
+    pub fn is_empty(&self) -> bool {
+        self.terms.is_empty()
+    }
+
     pub fn sort_poly(&mut self) {
         // Sort variables inside each individual term
         for term in &mut self.terms {
