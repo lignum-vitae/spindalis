@@ -30,6 +30,8 @@ pub mod polynomials {
 
     // Parsers and evaluators as functions
     pub use core::advanced::eval_advanced_polynomial;
+    pub use core::advanced::lexer;
+    pub use core::advanced::parse_advanced_polynomial;
     pub use core::intermediate::eval_intermediate_polynomial;
     pub use core::intermediate::parse_intermediate_polynomial;
     pub use core::simple::eval_simple_polynomial;
