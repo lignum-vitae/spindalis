@@ -28,7 +28,8 @@ pub mod polynomials {
     // Error Enums
     pub use core::PolynomialError;
 
-    // Parsers and evaluators
+    // Parsers and evaluators as functions
+    pub use core::advanced::eval_advanced_polynomial;
     pub use core::intermediate::eval_intermediate_polynomial;
     pub use core::intermediate::parse_intermediate_polynomial;
     pub use core::simple::eval_simple_polynomial;

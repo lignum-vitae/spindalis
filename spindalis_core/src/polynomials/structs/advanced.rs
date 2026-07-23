@@ -1,7 +1,7 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::advanced::{Constants, Evaluator, Functions, Operators, Token};
 use crate::polynomials::advanced::{
-    eval_advanced_polynomial, extract_univariate_variable, lexer, parser,
+    eval_advanced_polynomial, extract_univariate_variable, lexer, parse_advanced_polynomial,
 };
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -157,16 +157,17 @@ impl std::fmt::Display for Expr {
                             Self::Number(n),
                             Self::BinaryOp {
                                 op: Operators::Caret,
+                                lhs: base,
                                 ..
                             },
-                        ) => Some(format!("{n}{rhs}")),
+                        ) if !matches!(**base, Self::Number(_)) => Some(format!("{n}{rhs}")),
                         (Self::Variable(v), Self::Number(n)) => Some(format!("{v}{n}")),
                         (Self::Constant(c), Self::Number(n)) => Some(format!("{c}{n}")),
                         (Self::Variable(v1), Self::Variable(v2)) => Some(format!("{v1}{v2}")),
                         _ => None,
                     };
                 } else if *op == Operators::Caret {
-                    let wrap_paren = |node: &Self| {
+                    let wrap_base = |node: &Self| {
                         if *paren {
                             format!("({node})")
                         } else {
@@ -175,7 +176,11 @@ impl std::fmt::Display for Expr {
                     };
 
                     let (l, r) = (&**lhs, &**rhs);
-                    implied = Some(format!("{}^{r}", wrap_paren(l)));
+                    let formatted_r = match r {
+                        Self::Number(_) => format!("{r}"),
+                        _ => format!("({r})"),
+                    };
+                    implied = Some(format!("{}^{formatted_r}", wrap_base(l)));
 
                     if let Some(s) = implied {
                         return write!(f, "{s}");
@@ -211,7 +216,7 @@ impl std::fmt::Display for Expr {
 impl Polynomial {
     pub fn parse(input: &str) -> Result<Polynomial, PolynomialError> {
         let tokens = lexer(input)?;
-        parser(tokens)
+        parse_advanced_polynomial(tokens)
     }
 
     pub fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>

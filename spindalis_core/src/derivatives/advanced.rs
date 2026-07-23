@@ -312,6 +312,7 @@ impl<'a> Visitor for Differentiator<'a> {
                     rhs: Box::new(right),
                     paren,
                 };
+
                 let new_paren = matches!(rhs, Expr::BinaryOp { .. });
                 let quotient_rule = Expr::BinaryOp {
                     op: Operators::Div,
@@ -373,9 +374,96 @@ impl<'a> Visitor for Differentiator<'a> {
                 func: Functions::Cos,
                 inner: Box::new(value.clone()),
             },
-            _ => Expr::Function {
-                func: *func,
-                inner: Box::new(value.clone()),
+            Functions::Cos => Expr::UnaryOpPrefix {
+                op: Operators::Sub,
+                value: Box::new(Expr::Function {
+                    func: Functions::Sin,
+                    inner: Box::new(value.clone()),
+                }),
+            },
+            Functions::Tan => Expr::BinaryOp {
+                op: Operators::Caret,
+                lhs: Box::new(Expr::Function {
+                    func: Functions::Sec,
+                    inner: Box::new(value.clone()),
+                }),
+                rhs: Box::new(Expr::Number(2.)),
+                paren: false,
+            },
+            Functions::Cot => Expr::UnaryOpPrefix {
+                op: Operators::Sub,
+                value: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(Expr::Function {
+                        func: Functions::Csc,
+                        inner: Box::new(value.clone()),
+                    }),
+                    rhs: Box::new(Expr::Number(2.)),
+                    paren: false,
+                }),
+            },
+            Functions::Sec => Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Function {
+                    func: Functions::Sec,
+                    inner: Box::new(value.clone()),
+                }),
+                rhs: Box::new(Expr::Function {
+                    func: Functions::Tan,
+                    inner: Box::new(value.clone()),
+                }),
+                paren: false,
+            },
+            Functions::Csc => Expr::UnaryOpPrefix {
+                op: Operators::Sub,
+                value: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(Expr::Function {
+                        func: Functions::Csc,
+                        inner: Box::new(value.clone()),
+                    }),
+                    rhs: Box::new(Expr::Function {
+                        func: Functions::Cot,
+                        inner: Box::new(value.clone()),
+                    }),
+                    paren: false,
+                }),
+            },
+            /* Log with no arguments is Log_e(var) not Log_10(var)
+            Functions::Log => Expr::BinaryOp {
+                op: Operators::Div,
+                lhs: Box::new(Expr::Number(1.)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Mul,
+                    lhs: Box::new(value.clone()),
+                    rhs: Box::new(Expr::Function {
+                        func: Functions::Ln,
+                        inner: Box::new(Expr::Number(BASE OF LOG)),
+                    }),
+                    paren: true,
+                }),
+                paren: false,
+            },
+            */
+            Functions::Ln | Functions::Log => Expr::BinaryOp {
+                op: Operators::Div,
+                lhs: Box::new(Expr::Number(1.)),
+                rhs: Box::new(value.clone()),
+                paren: false,
+            },
+            Functions::Sqrt => Expr::BinaryOp {
+                op: Operators::Mul,
+                lhs: Box::new(Expr::Number(0.5)),
+                rhs: Box::new(Expr::BinaryOp {
+                    op: Operators::Caret,
+                    lhs: Box::new(value.clone()),
+                    rhs: Box::new(Expr::UnaryOpPrefix {
+                        op: Operators::Sub,
+                        value: Box::new(Expr::Number(0.5)),
+                    }),
+                    paren: false,
+                }),
+                paren: false,
             },
         };
 
@@ -388,7 +476,7 @@ impl<'a> Visitor for Differentiator<'a> {
                 paren: false,
             };
         };
-        Some(res)
+        Some(fold_operations(res))
     }
 
     fn visit_unary_prefix(&self, op: &Operators, value: &Expr) -> Option<Expr> {
@@ -715,7 +803,6 @@ mod tests {
     fn many_vars() {
         let parsed = Polynomial::parse("4xyz - 7yz").unwrap();
         let zeroed = remove_extra_vars(parsed.expr, "x");
-        println!("{zeroed}");
         let result = fold_operations(zeroed);
         let expected = Polynomial::parse("4xyz").unwrap();
 

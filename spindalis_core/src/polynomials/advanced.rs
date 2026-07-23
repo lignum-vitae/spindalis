@@ -203,8 +203,11 @@ token_from_str! {
         Cos => "cos",
         Tan => "tan",
         Cot => "cot",
+        Sec => "sec",
+        Csc => "csc",
         Log => "log",
         Ln => "ln",
+        Sqrt => "sqrt"
     }
 }
 
@@ -343,7 +346,7 @@ fn implied_multiplication_pass(token_stream: &mut Vec<Token>) {
     // 4x^2 == (4·x^2)
     // The CDot Operator is a special temporary token with a unique binding power
     // to ensure that 4x^2 is treated as a single unit.
-    // This is later replaced with the Mul operator in the parser function.
+    // This is later replaced with the Mul operator in the parse_advanced_polynomial function.
     let mut idx = 0;
     loop {
         if idx >= token_stream.len() {
@@ -404,7 +407,10 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
                     None => return Err(PolynomialError::UnexpectedEndOfTokens),
                 }
             }
-            let inner = parse_expr(token_stream, 5.0)?;
+            token_stream.next();
+            let inner = parse_expr(token_stream, 0.0)?;
+            ensure(token_stream, &Token::RParen)?;
+
             Ok(Expr::Function {
                 func,
                 inner: Box::new(inner),
@@ -468,7 +474,7 @@ fn parse_expr(token_stream: &mut TokenStream, min_bind_pow: f64) -> Result<Expr,
     Ok(left)
 }
 
-pub fn parser(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
+pub fn parse_advanced_polynomial(token_stream: Vec<Token>) -> Result<Polynomial, PolynomialError> {
     let mut tokens = token_stream;
     implied_multiplication_pass(&mut tokens);
     let mut token_stream = tokens.into_iter().peekable();
@@ -534,6 +540,32 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
                     _,
                     _,
                 ) => Expr::Number(0.),
+
+                // 1 / x / y -> y / x
+                (
+                    Operators::Div,
+                    Expr::BinaryOp {
+                        op: Operators::Div,
+                        lhs: dlhs,
+                        rhs: drhs,
+                        ..
+                    },
+                    r,
+                ) => {
+                    let numerator = Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(*dlhs),
+                        rhs: Box::new(r),
+                        paren: false,
+                    };
+                    let folded_numerator = fold_operations(numerator);
+                    Expr::BinaryOp {
+                        op: Operators::Div,
+                        lhs: Box::new(folded_numerator),
+                        rhs: Box::new(*drhs),
+                        paren: false,
+                    }
+                }
 
                 // (-3)/2 -> -(3/2), (-3x)*2 -> -(3x*2)
                 (
@@ -970,8 +1002,10 @@ impl Visitor for Evaluator {
                 Functions::Cos => value.cos(),
                 Functions::Tan => value.tan(),
                 Functions::Cot => 1.0 / value.tan(),
-                Functions::Ln => value.ln(),
-                Functions::Log => value.log10(),
+                Functions::Sec => 1.0 / value.cos(),
+                Functions::Csc => 1.0 / value.sin(),
+                Functions::Ln | Functions::Log => value.ln(),
+                Functions::Sqrt => value.sqrt(),
             };
             return Some(res);
         }
@@ -1122,14 +1156,14 @@ mod tests {
     // ---------------------------
     // Parsing tests
     // ---------------------------
-    mod parser_tests {
+    mod parse_advanced_polynomial_tests {
         use super::*;
 
         #[test]
         fn test_number_parse() {
             let expr = "4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Number(4.0));
             assert_eq!(result, expected);
         }
@@ -1138,7 +1172,7 @@ mod tests {
         fn test_variable_parse() {
             let expr = "x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Variable("x".into()));
             assert_eq!(result, expected);
         }
@@ -1147,7 +1181,7 @@ mod tests {
         fn test_phi_parse() {
             let expr = "phi";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Constant(Constants::Phi));
             assert_eq!(result, expected);
         }
@@ -1156,7 +1190,7 @@ mod tests {
         fn test_phi_parse_2() {
             let expr = "ϕ";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Constant(Constants::Phi));
             assert_eq!(result, expected);
         }
@@ -1165,7 +1199,7 @@ mod tests {
         fn test_pi_parse() {
             let expr = "pi";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Constant(Constants::Pi));
             assert_eq!(result, expected);
         }
@@ -1174,7 +1208,7 @@ mod tests {
         fn test_pi_parse_2() {
             let expr = "π";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Constant(Constants::Pi));
             assert_eq!(result, expected);
         }
@@ -1183,7 +1217,7 @@ mod tests {
         fn test_exponents_parse() {
             let expr = "x^2";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Caret,
                 lhs: Box::new(Expr::Variable("x".into())),
@@ -1197,7 +1231,7 @@ mod tests {
         fn test_integer_coefficient_parse() {
             let expr = "4x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
@@ -1211,7 +1245,7 @@ mod tests {
         fn test_float_coefficient_parse() {
             let expr = "4.2x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.2)),
@@ -1225,7 +1259,7 @@ mod tests {
         fn test_basic_expression_parse() {
             let expr = "4x+2";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::BinaryOp {
@@ -1244,7 +1278,7 @@ mod tests {
         fn test_function_parsing() {
             let expr = "sin(4)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Function {
                 func: Functions::Sin,
                 inner: Box::new(Expr::Number(4.0)),
@@ -1256,7 +1290,7 @@ mod tests {
         fn test_int_float_expression_parse() {
             let expr = "4x^2 + 2.3x^3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
 
             let l_child = Expr::BinaryOp {
                 op: Operators::Mul,
@@ -1295,7 +1329,7 @@ mod tests {
         fn test_complex_expression_parse() {
             let expr = "4x + 2 - 5x^2 * 4y^4 / 6z^6";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
 
             /* --- Left side of subtraction: (4 * x) + 2 --- */
             let fmul_left = Expr::BinaryOp {
@@ -1381,7 +1415,7 @@ mod tests {
         fn test_zero_x_parse() {
             let expr = "0x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
         }
@@ -1390,7 +1424,7 @@ mod tests {
         fn test_zero_parse() {
             let expr = "0";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::Number(0.0));
             assert_eq!(result, expected);
         }
@@ -1399,7 +1433,7 @@ mod tests {
         fn test_multivariate_expression_parse() {
             let expr = "4xy + 4x^2 - 2y + 4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
 
             // 4xy = (4 * x) * y
             let term_4xy = Expr::BinaryOp {
@@ -1465,7 +1499,7 @@ mod tests {
         fn test_valid_multiple_exponents() {
             let expr = "4x^2^3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(4.0)),
@@ -1489,7 +1523,7 @@ mod tests {
         fn test_parsing_parentheses() {
             let expr = "(3+2) / 4";
             let tkn_str = lexer(expr).unwrap();
-            let result = parser(tkn_str).unwrap();
+            let result = parse_advanced_polynomial(tkn_str).unwrap();
             let expected = Polynomial::new(Expr::Number(1.25));
             assert_eq!(result, expected);
         }
@@ -1498,7 +1532,7 @@ mod tests {
         fn test_parsing_no_parents() {
             let expr = "3 + 2 / 4";
             let tkn_str = lexer(expr).unwrap();
-            let result = parser(tkn_str).unwrap();
+            let result = parse_advanced_polynomial(tkn_str).unwrap();
             let expected = Polynomial::new(Expr::Number(3.5));
             assert_eq!(result, expected);
         }
@@ -1507,7 +1541,7 @@ mod tests {
         fn test_nested_parens() {
             let expr = "(3 - (4-2)) * 5x";
             let tkn_str = lexer(expr).unwrap();
-            let result = parser(tkn_str).unwrap();
+            let result = parse_advanced_polynomial(tkn_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::Number(5.)),
@@ -1522,7 +1556,7 @@ mod tests {
         fn test_unary_prefix() {
             let expr = "-3x + 4";
             let tkn_str = lexer(expr).unwrap();
-            let result = parser(tkn_str).unwrap();
+            let result = parse_advanced_polynomial(tkn_str).unwrap();
 
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
@@ -1545,7 +1579,7 @@ mod tests {
         fn test_postfix_unary_simple() {
             let expr = "4!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::Number(4.0)),
@@ -1557,7 +1591,7 @@ mod tests {
         fn test_postfix_unary_variable() {
             let expr = "x!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::Variable("x".into())),
@@ -1569,7 +1603,7 @@ mod tests {
         fn test_postfix_unary_chained() {
             let expr = "4!!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::UnaryOpPostfix {
@@ -1584,7 +1618,7 @@ mod tests {
         fn test_postfix_unary_with_binary() {
             let expr = "3! + 2";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::UnaryOpPostfix {
@@ -1601,7 +1635,7 @@ mod tests {
         fn test_postfix_unary_with_parens() {
             let expr = "(2+1)!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::UnaryOpPostfix {
                 op: Operators::Fac,
                 value: Box::new(Expr::BinaryOp {
@@ -1619,7 +1653,7 @@ mod tests {
         fn test_invalid_expression() {
             let expr = "4 +++ 3x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1628,7 +1662,7 @@ mod tests {
         fn test_missing_right_hand() {
             let expr = "4x +";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1637,7 +1671,7 @@ mod tests {
         fn test_missing_left_hand() {
             let expr = "+ 3x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1646,7 +1680,7 @@ mod tests {
         fn test_only_operator() {
             let expr = "+";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1655,7 +1689,7 @@ mod tests {
         fn test_invalid_multiple_exponents() {
             let expr = "4x^^^2";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1664,7 +1698,7 @@ mod tests {
         fn test_missing_closing_paren() {
             let expr = "(4x + 2 / 4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1673,7 +1707,7 @@ mod tests {
         fn test_missing_opening_paren() {
             let expr = "4x + 2) / 4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1682,7 +1716,7 @@ mod tests {
         fn test_missing_opening_paren_end_with_closing_paren() {
             let expr = "4x + 2)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             println!("{result:?}");
             assert!(result.is_err());
         }
@@ -1691,7 +1725,7 @@ mod tests {
         fn test_missing_func_paren() {
             let expr = "sin 4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1699,7 +1733,7 @@ mod tests {
         fn test_missing_func_closing_paren() {
             let expr = "sin(4";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1707,7 +1741,7 @@ mod tests {
         fn test_unary_prefix_only_minus_is_allowed() {
             let expr = "+3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1715,7 +1749,7 @@ mod tests {
         fn test_unary_prefix_invalid_operator_mul() {
             let expr = "*3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1723,7 +1757,7 @@ mod tests {
         fn test_unary_prefix_invalid_operator_div() {
             let expr = "/3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1731,7 +1765,7 @@ mod tests {
         fn test_unary_prefix_invalid_operator_caret() {
             let expr = "^3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1739,7 +1773,7 @@ mod tests {
         fn test_unary_prefix_invalid_operator_rem() {
             let expr = "%3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1747,7 +1781,7 @@ mod tests {
         fn test_unary_prefix_missing_rhs() {
             let expr = "-";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1755,7 +1789,7 @@ mod tests {
         fn test_unary_prefix_cannot_be_followed_by_rparen() {
             let expr = "-)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1763,7 +1797,7 @@ mod tests {
         fn test_unary_prefix_cannot_be_followed_by_binary_operator() {
             let expr = "-+3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1771,7 +1805,7 @@ mod tests {
         fn test_postfix_unary_cannot_start_expression() {
             let expr = "!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1779,7 +1813,7 @@ mod tests {
         fn test_postfix_unary_cannot_follow_binary_operator() {
             let expr = "3+!2";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1787,7 +1821,7 @@ mod tests {
         fn test_postfix_unary_cannot_follow_lparen() {
             let expr = "(!2)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1795,7 +1829,7 @@ mod tests {
         fn test_postfix_unary_cannot_follow_prefix_minus() {
             let expr = "-!3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1803,7 +1837,7 @@ mod tests {
         fn test_postfix_unary_cannot_apply_to_empty_parens() {
             let expr = "()!";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1811,7 +1845,7 @@ mod tests {
         fn test_postfix_unary_extra_token_after_factorial() {
             let expr = "3!x";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1819,7 +1853,7 @@ mod tests {
         fn test_postfix_unary_invalid_following_unclosed_lparen() {
             let expr = "3!(";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1827,7 +1861,7 @@ mod tests {
         fn test_postfix_followed_by_paren() {
             let expr = "3!(2)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Mul,
                 lhs: Box::new(Expr::UnaryOpPostfix {
@@ -1844,7 +1878,7 @@ mod tests {
         fn test_unary_prefix_inside_parens_missing_rhs() {
             let expr = "(-)";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
 
@@ -1852,14 +1886,14 @@ mod tests {
         fn test_unary_prefix_after_binary_operator_missing_rhs() {
             let expr = "3*-";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str);
+            let result = parse_advanced_polynomial(tok_str);
             assert!(result.is_err());
         }
         #[test]
         fn test_folding_operations() {
             let expr = "4x+2^0-0x^3";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             println!("{result:?}");
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
@@ -1879,7 +1913,7 @@ mod tests {
         fn test_folding_operations_2() {
             let expr = "0^0 + 5 / 1"; // 1 + 5 = 6
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(6.));
             assert_eq!(result, expected);
@@ -1889,7 +1923,7 @@ mod tests {
         fn test_folding_operations_3() {
             let expr = "0^5 + 5 / 1";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(5.));
             assert_eq!(result, expected);
@@ -1900,7 +1934,7 @@ mod tests {
             let expr = "(0x^0 + 5) + 5 / 1";
             // (0(1) + 5) + 5 -> 5 + 5 = 10
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(10.));
 
@@ -1911,7 +1945,7 @@ mod tests {
         fn test_folding_operations_5() {
             let expr = "(0x^0 * 32) * 5 / 1";
             let tok_str = lexer(expr).unwrap();
-            let result = parser(tok_str).unwrap();
+            let result = parse_advanced_polynomial(tok_str).unwrap();
             println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
@@ -1921,7 +1955,7 @@ mod tests {
         fn test_univariance_of_an_expression() {
             let expr = "x^3-3x+5!";
             let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
+            let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result = extract_univariate_variable(&parsed_result.expr).unwrap();
             println!("{}", parsed_result);
             println!("{}", evaluated_result);
@@ -1932,7 +1966,7 @@ mod tests {
         fn test_too_many_variables_expression() {
             let expr = "x^3-3y+5!";
             let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
+            let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result = extract_univariate_variable(&parsed_result.expr);
             println!("{}", parsed_result);
             println!("{:?}", evaluated_result);
@@ -1957,7 +1991,7 @@ mod tests {
         fn test_failing_substitution_expression() {
             let expr = "x^3-3xy+5";
             let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
+            let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result = eval_advanced_polynomial(&parsed_result, &[("x", 5)]);
             assert!(evaluated_result.is_err());
         }
@@ -1966,7 +2000,7 @@ mod tests {
         fn test_eval_expression() {
             let expr = "x^3-3xy+5!";
             let tok_str = lexer(expr).unwrap();
-            let parsed_result = parser(tok_str).unwrap();
+            let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result =
                 eval_advanced_polynomial(&parsed_result, &[("x", 5), ("y", 5)]).unwrap();
             assert_eq!(evaluated_result, 170.0);
@@ -2034,7 +2068,7 @@ mod tests {
         fn test_display_format() {
             let expr = "4x + 2 - 5x^2 * 4y^4 / 6z^6";
             let tok_str = lexer(expr).unwrap();
-            let parsed = parser(tok_str).unwrap();
+            let parsed = parse_advanced_polynomial(tok_str).unwrap();
             let display_str = format!("{parsed}");
             let expected_str = "4x + 2 - 5x^2 * 4y^4 / (6z^6)";
             assert_eq!(display_str, expected_str);
@@ -2044,7 +2078,7 @@ mod tests {
         fn test_display_with_parentheses() {
             let expr = "4x + (2 - 5x^2) * 4x^4 / 6y^6";
             let tok_str = lexer(expr).unwrap();
-            let parsed = parser(tok_str).unwrap();
+            let parsed = parse_advanced_polynomial(tok_str).unwrap();
             let display_str = format!("{parsed}");
             let expected_str = "4x + (2 - 5x^2) * 4x^4 / (6y^6)";
             assert_eq!(display_str, expected_str);

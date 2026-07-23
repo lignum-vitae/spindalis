@@ -12,7 +12,6 @@ mod tests {
             3.0, // x^1 term
             2.0, // x^2 term
         ];
-
         assert_eq!(coeffs, result);
         assert_eq!(coeffs_macro, result);
     }
@@ -71,9 +70,7 @@ mod tests {
         let coeffs = parse_simple_polynomial("2x^2 + 3x + 4").unwrap();
         let coeffs_macro = parse_simple_polynomial!(2 x^2 + 3 x + 4);
         assert_eq!(coeffs, coeffs_macro);
-
         let result = eval_simple_polynomial(2.0, &coeffs);
-
         // 2*4 + 3*2 + 4 = 8 + 6 + 4 = 18
         assert_eq!(result, 18.0);
     }
@@ -83,9 +80,7 @@ mod tests {
         let coeffs = parse_simple_polynomial("-x^2 + 4x - 5").unwrap();
         let coeffs_macro = parse_simple_polynomial!(-x ^ 2 + 4 x - 5);
         assert_eq!(coeffs, coeffs_macro);
-
         let result = eval_simple_polynomial(3.0, &coeffs);
-
         // -9 + 12 - 5 = -2
         assert_eq!(result, -2.0);
     }
@@ -101,11 +96,9 @@ mod tests {
         let coeffs = parse_simple_polynomial("x^3 - 2x + 1").unwrap();
         let coeffs_macro = parse_simple_polynomial!(x^3 - 2 x + 1);
         assert_eq!(coeffs, coeffs_macro);
-
         let result_at_2 = eval_simple_polynomial(2.0, &coeffs);
         // 8 - 4 + 1 = 5
         assert_eq!(result_at_2, 5.0);
-
         let result_at_0 = eval_simple_polynomial(0.0, &coeffs);
         assert_eq!(result_at_0, 1.0);
     }

@@ -31,7 +31,6 @@ mod tests {
             coefficient: 4.0,
             variables: vec![("x".into(), 2.0), ("y".into(), 3.0)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -45,7 +44,6 @@ mod tests {
             coefficient: 1.0,
             variables: vec![("x".into(), 3.0)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -59,7 +57,6 @@ mod tests {
             coefficient: -2.0,
             variables: vec![("x".into(), 2.0)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -73,7 +70,6 @@ mod tests {
             coefficient: -1.0,
             variables: vec![("x".into(), 2.0)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -114,7 +110,6 @@ mod tests {
             coefficient: 5.0,
             variables: vec![("x".into(), 1.0)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -123,7 +118,6 @@ mod tests {
     fn test_parse_invalid_power_returns_none() {
         let expr = "2x^a";
         let result = parse_intermediate_polynomial(expr);
-
         assert!(result.is_err());
     }
 
@@ -138,7 +132,6 @@ mod tests {
             coefficient: 5.0,
             variables: vec![("x".into(), 0.5)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -152,7 +145,6 @@ mod tests {
             coefficient: 5.0,
             variables: vec![("x".into(), -0.5)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -161,7 +153,6 @@ mod tests {
     fn test_parse_err_decimal() {
         let expr = "5x^-0.5.0";
         let result = parse_intermediate_polynomial(expr);
-
         assert!(result.is_err());
     }
 
@@ -176,7 +167,6 @@ mod tests {
             coefficient: 5.0,
             variables: vec![("x".into(), 0.5)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -190,7 +180,6 @@ mod tests {
             coefficient: 5.0,
             variables: vec![("x".into(), 0.5)],
         }];
-
         assert_eq!(terms, result);
         assert_eq!(terms_macro, result);
     }
@@ -199,7 +188,6 @@ mod tests {
     fn test_parse_err_fraction() {
         let expr = "5x^0.5/1.0/1.0";
         let result = parse_intermediate_polynomial(expr);
-
         assert!(result.is_err());
     }
 
@@ -221,9 +209,7 @@ mod tests {
                 variables: vec![],
             },
         ];
-
         let vars = vec![("x", 2)];
-
         let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         // 3*2^2 - 2*2 + 5 = 12 - 4 + 5 = 13
         assert_eq!(result, 13.0);
@@ -241,7 +227,6 @@ mod tests {
                 variables: vec![("y".to_string(), 1.0)],
             }, // 4y
         ];
-
         let vars = vec![("x", 3), ("y", 2)];
         let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         // 2*3*2^2 + 4*2 = 2*3*4 + 8 = 24 + 8 = 32
@@ -254,10 +239,8 @@ mod tests {
             coefficient: 1.0,
             variables: vec![("x".to_string(), 0.5)],
         }];
-
         let mut vars = HashMap::new();
         vars.insert("x".to_string(), 16.0);
-
         let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 4.0);
     }
@@ -268,7 +251,6 @@ mod tests {
             coefficient: 1.0,
             variables: vec![("z".to_string(), 1.0)],
         }];
-
         let vars: Vec<(&str, f64)> = vec![];
         let result = eval_intermediate_polynomial(&terms, &vars);
         assert!(matches!(
@@ -285,7 +267,6 @@ mod tests {
                 variables: vec![],
             }, // constant term
         ];
-
         let vars: Vec<(&str, f64)> = vec![];
         let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 7.5);
@@ -297,9 +278,7 @@ mod tests {
             coefficient: 1.0,
             variables: vec![("x".to_string(), -0.5)],
         }];
-
         let vars = [("x", 16)];
-
         let result = eval_intermediate_polynomial(&terms, &vars).unwrap();
         assert_eq!(result, 0.25);
     }
