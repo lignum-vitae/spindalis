@@ -9,7 +9,6 @@ mod tests {
         let parsed = SimplePolynomial::parse("64x ^ 3 - 144x ^ 2 + 108x - 27").unwrap();
         let result = definite_integral(&parsed, -3.0, 5.0, 5).unwrap();
         let expected = 2056_f64;
-
         assert!(
             (result - expected).abs() < 1e-5,
             "Expected {expected} but got {result}. Difference is too large.",
@@ -21,7 +20,6 @@ mod tests {
         let parsed = IntermediatePolynomial::parse("64x ^ 3 - 144x ^ 2 + 108x - 27").unwrap();
         let result = romberg_definite(&parsed, -3.0, 5.0, 100, 1e-5).unwrap();
         let expected = 2056_f64;
-
         assert!(
             (result - expected).abs() < 1e-5,
             "Expected {expected} but got {result}. Difference is too large.",

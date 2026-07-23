@@ -3,8 +3,7 @@ pub mod intermediate;
 pub mod simple;
 
 pub mod structs;
-
-pub use intermediate::Term;
+pub use structs::intermediate::Term;
 
 use advanced::Token;
 

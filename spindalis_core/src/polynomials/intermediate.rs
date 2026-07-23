@@ -1,29 +1,6 @@
-use crate::polynomials::{PolynomialError, structs::IntermediatePolynomial};
+use crate::polynomials::PolynomialError;
+use crate::polynomials::{Term, structs::IntermediatePolynomial};
 use std::collections::{HashMap, HashSet};
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Term {
-    pub coefficient: f64,
-    pub variables: Vec<(String, f64)>,
-}
-impl std::fmt::Display for Term {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // 1. Print the coefficient if it's not 1.0 (unless there are no variables)
-        let has_vars = !self.variables.is_empty();
-        if self.coefficient != 1.0 || !has_vars {
-            write!(f, "{}", self.coefficient)?;
-        }
-
-        // 2. Print variables and their exponents
-        for (var, exp) in &self.variables {
-            write!(f, "{}", var)?;
-            if *exp != 1.0 {
-                write!(f, "^{}", exp)?;
-            }
-        }
-        Ok(())
-    }
-}
 
 static SPECIAL_CHARS: &[char] = &['.', '/', '-'];
 

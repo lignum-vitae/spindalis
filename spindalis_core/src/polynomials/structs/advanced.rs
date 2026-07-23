@@ -1,13 +1,7 @@
-use crate::derivatives::advanced::{
-    derive_binary_operation, derive_constants, derive_function, derive_numbers,
-    derive_postfix_operation, derive_prefix_operation, derive_variables,
-};
 use crate::polynomials::PolynomialError;
-use crate::polynomials::advanced::{Constants, Expr, Functions, Operators, Token, eval_variables};
+use crate::polynomials::advanced::{Constants, Evaluator, Functions, Operators, Token};
 use crate::polynomials::advanced::{
-    eval_advanced_polynomial, eval_binary_operation, eval_constants, eval_function, eval_numbers,
-    eval_postfix_operation, eval_prefix_operation, extract_univariate_variable, lexer, parser,
-    walk_ast,
+    eval_advanced_polynomial, extract_univariate_variable, lexer, parse_advanced_polynomial,
 };
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -18,6 +12,7 @@ pub type TokenStream = Peekable<IntoIter<Token>>;
 pub struct Polynomial {
     pub expr: Expr,
 }
+
 impl Polynomial {
     pub fn new(expr: Expr) -> Self {
         Self { expr }
@@ -29,73 +24,191 @@ impl std::fmt::Display for Polynomial {
     }
 }
 
-pub enum PolyResult {
-    Float(f64),
-    Expression(Expr),
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expr {
+    Number(f64),
+    Variable(String),
+    Constant(Constants),
+    Function {
+        func: Functions,
+        inner: Box<Self>,
+    },
+    UnaryOpPrefix {
+        op: Operators,
+        value: Box<Self>,
+    },
+    UnaryOpPostfix {
+        op: Operators,
+        value: Box<Self>,
+    },
+    BinaryOp {
+        op: Operators,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
+        paren: bool,
+    },
 }
 
-#[allow(dead_code)] // Remove after Derive and Integrate are implemented
-pub(crate) enum AstOperation {
-    Eval,
-    Derive,
-    Integrate,
+pub trait Visitor {
+    type Output;
+
+    fn visit_binary_op(&self, op: &Operators, lhs: &Expr, rhs: &Expr, paren: bool) -> Self::Output;
+    fn visit_unary_prefix(&self, op: &Operators, value: &Expr) -> Self::Output;
+    fn visit_unary_postfix(&self, op: &Operators, value: &Expr) -> Self::Output;
+    fn visit_function(&self, func: &Functions, inner: &Expr) -> Self::Output;
+    fn visit_constant(&self, c: &Constants) -> Self::Output;
+    fn visit_number(&self, val: f64) -> Self::Output;
+    fn visit_variable(&self, var: &str) -> Self::Output;
 }
 
-impl AstOperation {
-    pub fn handle_binary_operation(
+impl Expr {
+    pub fn map(
         &self,
-        op: &Operators,
-        lhs: &Expr,
-        rhs: &Expr,
-        paren: &bool,
-    ) -> Option<PolyResult> {
+        f: &mut impl FnMut(&Expr) -> Result<Expr, PolynomialError>,
+    ) -> Result<Expr, PolynomialError> {
         match self {
-            AstOperation::Eval => eval_binary_operation(op, lhs, rhs, paren),
-            AstOperation::Derive => derive_binary_operation(op, lhs, rhs, paren),
-            AstOperation::Integrate => todo!(),
+            // recursively walks down the polynomial for operators
+            Expr::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => Ok(Expr::BinaryOp {
+                op: *op,
+                lhs: Box::new(lhs.map(f)?),
+                rhs: Box::new(rhs.map(f)?),
+                paren: *paren,
+            }),
+            Expr::UnaryOpPrefix { op, value } => Ok(Expr::UnaryOpPrefix {
+                op: *op,
+                value: Box::new(value.map(f)?),
+            }),
+            Expr::UnaryOpPostfix { op, value } => Ok(Expr::UnaryOpPostfix {
+                op: *op,
+                value: Box::new(value.map(f)?),
+            }),
+            Expr::Function { func, inner } => Ok(Expr::Function {
+                func: *func,
+                inner: Box::new(inner.map(f)?),
+            }),
+            // This allows for extension of variants with f.
+            x => f(x),
         }
     }
-    pub fn handle_constants(&self, cnst: &Constants) -> Option<PolyResult> {
+    pub fn visit(&self, f: &mut impl FnMut(&Expr)) {
+        f(self);
         match self {
-            AstOperation::Eval => eval_constants(cnst),
-            AstOperation::Derive => derive_constants(cnst),
-            AstOperation::Integrate => todo!(),
-        }
-    }
-    pub fn handle_function(&self, func: &Functions, value: &Expr) -> Option<PolyResult> {
-        match self {
-            AstOperation::Eval => eval_function(func, value),
-            AstOperation::Derive => derive_function(func, value),
-            AstOperation::Integrate => todo!(),
-        }
-    }
-    pub fn handle_postfix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
-        match self {
-            AstOperation::Eval => eval_postfix_operation(op, value),
-            AstOperation::Derive => derive_postfix_operation(op, value),
-            AstOperation::Integrate => todo!(),
-        }
-    }
-    pub fn handle_prefix_operation(&self, op: &Operators, value: &Expr) -> Option<PolyResult> {
-        match self {
-            AstOperation::Eval => eval_prefix_operation(op, value),
-            AstOperation::Derive => derive_prefix_operation(op, value),
-            AstOperation::Integrate => todo!(),
-        }
-    }
-    pub fn handle_numbers(&self, value: &f64) -> Option<PolyResult> {
-        match self {
-            AstOperation::Eval => eval_numbers(value),
-            AstOperation::Derive => derive_numbers(value),
-            AstOperation::Integrate => todo!(),
+            Expr::BinaryOp { lhs, rhs, .. } => {
+                lhs.visit(f);
+                rhs.visit(f);
+            }
+            Expr::UnaryOpPrefix { value, .. }
+            | Expr::UnaryOpPostfix { value, .. }
+            | Expr::Function { inner: value, .. } => {
+                value.visit(f);
+            }
+            _ => {}
         }
     }
 
-    pub fn handle_variables(&self, value: &String) -> Option<PolyResult> {
+    pub fn accept<V: Visitor>(&self, visitor: &V) -> V::Output {
         match self {
-            AstOperation::Eval => eval_variables(value),
-            AstOperation::Derive => derive_variables(value),
-            AstOperation::Integrate => todo!(),
+            Expr::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => visitor.visit_binary_op(op, lhs, rhs, *paren),
+            Expr::UnaryOpPrefix { op, value } => visitor.visit_unary_prefix(op, value),
+            Expr::UnaryOpPostfix { op, value } => visitor.visit_unary_postfix(op, value),
+            Expr::Function { func, inner } => visitor.visit_function(func, inner),
+            Expr::Constant(c) => visitor.visit_constant(c),
+            Expr::Number(val) => visitor.visit_number(*val),
+            Expr::Variable(var) => visitor.visit_variable(var),
+        }
+    }
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number(n) => write!(f, "{n}"),
+            Self::Variable(v) => write!(f, "{v}"),
+            Self::Constant(c) => write!(f, "{c}"),
+            Self::Function { func, inner } => write!(f, "{func}({inner})"),
+            Self::UnaryOpPrefix { op, value } => write!(f, "{op}{value}"),
+            Self::UnaryOpPostfix { op, value } => write!(f, "{value}{op}"),
+            Self::BinaryOp {
+                op,
+                lhs,
+                rhs,
+                paren,
+            } => {
+                // 4 * x   -> 4x
+                // 5 * x^2 -> 5x^2
+                // 2 * π   -> 2π
+                let mut implied: Option<String> = None;
+
+                if *op == Operators::Mul {
+                    implied = match (&**lhs, &**rhs) {
+                        (Self::Number(n), Self::Variable(v)) => Some(format!("{n}{v}")),
+                        (Self::Number(n), Self::Constant(c)) => Some(format!("{n}{c}")),
+                        (
+                            Self::Number(n),
+                            Self::BinaryOp {
+                                op: Operators::Caret,
+                                lhs: base,
+                                ..
+                            },
+                        ) if !matches!(**base, Self::Number(_)) => Some(format!("{n}{rhs}")),
+                        (Self::Variable(v), Self::Number(n)) => Some(format!("{v}{n}")),
+                        (Self::Constant(c), Self::Number(n)) => Some(format!("{c}{n}")),
+                        (Self::Variable(v1), Self::Variable(v2)) => Some(format!("{v1}{v2}")),
+                        _ => None,
+                    };
+                } else if *op == Operators::Caret {
+                    let wrap_base = |node: &Self| {
+                        if *paren {
+                            format!("({node})")
+                        } else {
+                            node.to_string()
+                        }
+                    };
+
+                    let (l, r) = (&**lhs, &**rhs);
+                    let formatted_r = match r {
+                        Self::Number(_) => format!("{r}"),
+                        _ => format!("({r})"),
+                    };
+                    implied = Some(format!("{}^{formatted_r}", wrap_base(l)));
+
+                    if let Some(s) = implied {
+                        return write!(f, "{s}");
+                    }
+                } else if *op == Operators::Div {
+                    implied = match (&**lhs, &**rhs) {
+                        (l, r @ Expr::BinaryOp { op: rhs_op, .. })
+                            if *rhs_op != Operators::Caret =>
+                        {
+                            Some(format!("{l} / ({r})"))
+                        }
+                        (l, r) => Some(format!("{l} / {r}")),
+                    };
+                }
+
+                if let Some(s) = implied {
+                    if *paren {
+                        return write!(f, "({s})");
+                    }
+                    return write!(f, "{s}");
+                }
+
+                if *paren {
+                    write!(f, "({lhs} {op} {rhs})")
+                } else {
+                    write!(f, "{lhs} {op} {rhs}")
+                }
+            }
         }
     }
 }
@@ -103,7 +216,7 @@ impl AstOperation {
 impl Polynomial {
     pub fn parse(input: &str) -> Result<Polynomial, PolynomialError> {
         let tokens = lexer(input)?;
-        parser(tokens)
+        parse_advanced_polynomial(tokens)
     }
 
     pub fn eval_univariate<F>(&self, point: F) -> Result<f64, PolynomialError>
@@ -113,11 +226,11 @@ impl Polynomial {
         let variable = match extract_univariate_variable(&self.expr) {
             Ok(var) => var,
             Err(PolynomialError::MissingVariable) => {
-                if let Some(PolyResult::Float(result)) = walk_ast(&self.expr, &AstOperation::Eval) {
-                    return Ok(result);
-                } else {
+                let eval = Evaluator;
+                let Some(result) = &self.expr.accept(&eval) else {
                     return Err(PolynomialError::MissingVariable);
                 };
+                return Ok(*result);
             }
             Err(e @ PolynomialError::TooManyVariables { .. }) => return Err(e),
             Err(e) => return Err(e), // Catches any error not explicitly mentioned above

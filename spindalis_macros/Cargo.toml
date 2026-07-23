@@ -11,5 +11,5 @@ license = "MIT"
 proc-macro = true
 
 [dependencies]
-quote = "1.0.41"
+quote = "1.0.47"
 spindalis_core = { path = "../spindalis_core", version = ">=0.2.0" }
