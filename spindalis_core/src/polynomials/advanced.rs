@@ -284,7 +284,12 @@ where
                             tokens.push(Token::Constant(x));
                         } else {
                             for char in temp.chars() {
-                                tokens.push(Token::Variable(char.to_string()));
+                                let char = char.to_string();
+                                if let Ok(x) = Constants::from_str(&char) {
+                                    tokens.push(Token::Constant(x));
+                                } else {
+                                    tokens.push(Token::Variable(char));
+                                }
                             }
                         }
                     }
@@ -1127,7 +1132,6 @@ mod tests {
             ];
 
             for i in 0..expected.len() {
-                println!("{:?} {:?}", result[i], expected[i]);
                 assert_eq!(result[i], expected[i]);
             }
         }
@@ -1147,7 +1151,6 @@ mod tests {
             ];
 
             for i in 0..expected.len() {
-                println!("{:?} {:?}", result[i], expected[i]);
                 assert_eq!(result[i], expected[i]);
             }
         }
@@ -1654,7 +1657,6 @@ mod tests {
             let expr = "4 +++ 3x";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1663,7 +1665,6 @@ mod tests {
             let expr = "4x +";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1672,7 +1673,6 @@ mod tests {
             let expr = "+ 3x";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1681,7 +1681,6 @@ mod tests {
             let expr = "+";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1690,7 +1689,6 @@ mod tests {
             let expr = "4x^^^2";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1699,7 +1697,6 @@ mod tests {
             let expr = "(4x + 2 / 4";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1708,7 +1705,6 @@ mod tests {
             let expr = "4x + 2) / 4";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1717,7 +1713,6 @@ mod tests {
             let expr = "4x + 2)";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str);
-            println!("{result:?}");
             assert!(result.is_err());
         }
 
@@ -1894,7 +1889,6 @@ mod tests {
             let expr = "4x+2^0-0x^3";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str).unwrap();
-            println!("{result:?}");
             let expected = Polynomial::new(Expr::BinaryOp {
                 op: Operators::Add,
                 lhs: Box::new(Expr::BinaryOp {
@@ -1914,7 +1908,6 @@ mod tests {
             let expr = "0^0 + 5 / 1"; // 1 + 5 = 6
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str).unwrap();
-            println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(6.));
             assert_eq!(result, expected);
         }
@@ -1924,7 +1917,6 @@ mod tests {
             let expr = "0^5 + 5 / 1";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str).unwrap();
-            println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(5.));
             assert_eq!(result, expected);
         }
@@ -1935,7 +1927,6 @@ mod tests {
             // (0(1) + 5) + 5 -> 5 + 5 = 10
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str).unwrap();
-            println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(10.));
 
             assert_eq!(result, expected);
@@ -1946,7 +1937,6 @@ mod tests {
             let expr = "(0x^0 * 32) * 5 / 1";
             let tok_str = lexer(expr).unwrap();
             let result = parse_advanced_polynomial(tok_str).unwrap();
-            println!("{result:?}");
             let expected = Polynomial::new(Expr::Number(0.));
             assert_eq!(result, expected);
         }
@@ -1957,8 +1947,6 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result = extract_univariate_variable(&parsed_result.expr).unwrap();
-            println!("{}", parsed_result);
-            println!("{}", evaluated_result);
             assert_eq!(evaluated_result, String::from("x"));
         }
 
@@ -1968,8 +1956,6 @@ mod tests {
             let tok_str = lexer(expr).unwrap();
             let parsed_result = parse_advanced_polynomial(tok_str).unwrap();
             let evaluated_result = extract_univariate_variable(&parsed_result.expr);
-            println!("{}", parsed_result);
-            println!("{:?}", evaluated_result);
             assert!(evaluated_result.is_err());
         }
     }

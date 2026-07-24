@@ -95,6 +95,14 @@ where
                                 paren,
                             }
                         }
+                    } else if op == Operators::Caret {
+                        // Handles e^x and 3^x
+                        Expr::BinaryOp {
+                            op,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                            paren,
+                        }
                     } else {
                         Expr::BinaryOp {
                             op,
@@ -272,6 +280,26 @@ impl<'a> Visitor for Differentiator<'a> {
                 Some(fold_operations(res))
             }
             Operators::Mul => {
+                if *lhs == Expr::Constant(Constants::E)
+                    || matches!(lhs, Expr::BinaryOp { op: Operators::Caret, lhs: l, .. } if **l == Expr::Constant(Constants::E))
+                {
+                    return Some(Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(lhs.clone()),
+                        rhs: Box::new(derived_rhs),
+                        paren: false,
+                    });
+                }
+                if *rhs == Expr::Constant(Constants::E)
+                    || matches!(rhs, Expr::BinaryOp { op: Operators::Caret, lhs: l, .. } if **l == Expr::Constant(Constants::E))
+                {
+                    return Some(Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(derived_lhs),
+                        rhs: Box::new(rhs.clone()),
+                        paren: false,
+                    });
+                }
                 let left = Expr::BinaryOp {
                     op,
                     lhs: Box::new(lhs.clone()),
@@ -330,6 +358,33 @@ impl<'a> Visitor for Differentiator<'a> {
             Operators::Caret => {
                 let new_exp;
                 let exp = rhs;
+
+                if *lhs == Expr::Constant(Constants::E) {
+                    return Some(Expr::BinaryOp {
+                        op: Operators::Caret,
+                        lhs: Box::new(lhs.clone()),
+                        rhs: Box::new(exp.clone()),
+                        paren,
+                    });
+                }
+
+                let variable: String = self.var.to_string();
+                if *exp == Expr::Variable(variable) {
+                    return Some(Expr::BinaryOp {
+                        op: Operators::Mul,
+                        lhs: Box::new(Expr::Function {
+                            func: Functions::Ln,
+                            inner: Box::new(lhs.clone()),
+                        }),
+                        rhs: Box::new(Expr::BinaryOp {
+                            op: Operators::Caret,
+                            lhs: Box::new(lhs.clone()),
+                            rhs: Box::new(exp.clone()),
+                            paren: false,
+                        }),
+                        paren: false,
+                    });
+                }
                 if let Expr::Number(val) = exp {
                     new_exp = Expr::Number(val - 1.);
                 } else {
