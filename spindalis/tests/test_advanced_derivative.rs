@@ -232,6 +232,62 @@ mod tests {
     }
 
     #[test]
+    fn e_x_deriv() {
+        let parsed = Polynomial::parse("e^x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("e^x").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn e_a_deriv() {
+        let parsed = Polynomial::parse("3x + e^a").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("3").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn plus_e_x_deriv() {
+        let parsed = Polynomial::parse("3x + e^x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("3 + e^x").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn mul_e_a_deriv() {
+        let parsed = Polynomial::parse("3xe^a").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("3e^a").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn a_x_deriv() {
+        let parsed = Polynomial::parse("a^x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("ln(a)*a^x").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn num_a_x_deriv() {
+        let parsed = Polynomial::parse("3a^x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("3 * ln(a)*a^x").unwrap();
+        assert_eq!(result.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn num_a_b_x_deriv() {
+        let parsed = Polynomial::parse("3ba^x").unwrap();
+        let result = advanced_derivative(&parsed, "x").unwrap();
+        let expected = Polynomial::parse("3b * ln(a)*a^x").unwrap();
+        assert_eq!(result.to_string(), expected.to_string());
+    }
+
+    #[test]
     fn sqrt_deriv() {
         let parsed = Polynomial::parse("sqrt(3x)").unwrap();
         let result = advanced_derivative(&parsed, "x").unwrap();
