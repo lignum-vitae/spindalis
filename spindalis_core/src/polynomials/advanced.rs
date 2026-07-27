@@ -1,5 +1,6 @@
 use crate::polynomials::PolynomialError;
 use crate::polynomials::structs::advanced::{Expr, Polynomial, TokenStream, Visitor};
+use crate::utils::factorial::factorial_f64;
 use std::collections::{BTreeSet, HashMap};
 use std::f64;
 use std::str::FromStr;
@@ -687,6 +688,16 @@ pub(crate) fn fold_operations(expr: Expr) -> Expr {
                     paren: false,
                 }),
 
+                // e^ln(x) = x
+                (
+                    Operators::Caret,
+                    Expr::Constant(Constants::E),
+                    Expr::Function {
+                        func: Functions::Ln | Functions::Log,
+                        inner: inner_value,
+                    },
+                ) => fold_operations(*inner_value),
+
                 // Variable exponent division: y^a / y^b -> 1, y^k, or 1/y^k
                 (Operators::Div, l, r) => {
                     let mut num_factors = Vec::new();
@@ -941,13 +952,6 @@ pub fn extract_univariate_variable(expr: &Expr) -> Result<String, PolynomialErro
     }
 }
 
-fn factorial_f64(n: f64) -> f64 {
-    if n < 0.0 {
-        return f64::NAN;
-    }
-    let n_int = n.floor() as u64;
-    (1..=n_int).fold(1.0, |acc, x| acc * x as f64)
-}
 pub(crate) struct Evaluator;
 
 impl Visitor for Evaluator {
@@ -1031,6 +1035,7 @@ impl Visitor for Evaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::rounding::round_f64;
 
     // ---------------------------
     // Tokenizing tests
@@ -2039,9 +2044,164 @@ mod tests {
             let evaluated_result = poly.eval_multivariate(&[("x", 30)]).unwrap();
 
             let decimals = 6;
-            let rounded =
-                (evaluated_result * 10_f64.powi(decimals)).round() / 10_f64.powi(decimals);
+            let rounded = round_f64(evaluated_result, decimals);
             assert_eq!(rounded, 0.893997);
+        }
+    }
+    // ---------------------------
+    // Test Folding
+    // ---------------------------
+    mod folding {
+        use super::*;
+
+        #[test]
+        fn mul_0() {
+            let expr = "x * 0";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("0").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn mul_1() {
+            let expr = "x * 1";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn mul_0_1() {
+            let expr = "0 * 1";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("0").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn pow_x_0() {
+            let expr = "x^0";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("1").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn pow_x_1() {
+            let expr = "x^1";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn sub_x_0() {
+            let expr = "x - 0";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn sub_0_x() {
+            let expr = "0 - x";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("-x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn div_x_1() {
+            let expr = "x/1";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn three_div_x_div_y() {
+            let expr = "3/x/y";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("3y/x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn e_power_of_ln() {
+            let expr = "e^ln(x)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn e_power_of_ln_3x_pow_0() {
+            let expr = "e^ln(3x^0)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("3").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn arithmetic() {
+            let expr = "2+4*10-6/2";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("39").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn div_exponents() {
+            let expr = "y^3/y^3";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("1").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn div_exponents_2() {
+            let expr = "y^4/y^3";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("y").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
+        }
+
+        #[test]
+        fn div_exponents_multivar() {
+            let expr = "y^4/(xy^3)";
+            let poly = Polynomial::parse(expr).unwrap();
+            let folded = fold_operations(poly.expr);
+            let expected = Polynomial::parse("y/x").unwrap();
+
+            assert_eq!(Polynomial { expr: folded }, expected);
         }
     }
     // ---------------------------
