@@ -11,7 +11,7 @@
 ///
 /// - **`TOLERANCE` (1e-4) & `ABSOLUTE_CAP` (1e-3):** Tuned specifically for
 ///   approximate symmetric matrices (e.g., those generated via $AA^T$).
-///   Single-precision (`f64`) rounding error in $AA^T$ constructions prevents
+///   Single-precision (`f32`) rounding error in $AA^T$ constructions prevents
 ///   stricter convergence.
 ///   *(Note: While diagonal averaging/rectification could theoretically clean up
 ///   minor symmetry drift prior to decomposition, it is generally cleaner to
