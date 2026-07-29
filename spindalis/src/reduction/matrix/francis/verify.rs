@@ -1,5 +1,7 @@
 use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
-use crate::reduction::matrix::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
+use crate::reduction::matrix::francis::givens::{
+    apply_g_left, apply_gt_right, implicit_givens_rotation,
+};
 #[rustfmt::skip]
 use crate::reduction::matrix::francis::primitives::{
     params,
@@ -374,7 +376,12 @@ mod test_hessenberg_reconstructions {
                 "dim={dim}: R' R not orthogonal, got {rtr}"
             );
             // R' H R ~= original
-            let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
+            let reconstruct = rotation
+                .transpose()
+                .dot(&kernel)
+                .unwrap()
+                .dot(&rotation)
+                .unwrap();
             assert!(
                 approx_vector_eq(&flat(&reconstruct), &flat(&original)),
                 "dim={dim}: reconstruction mismatch, got {reconstruct} expected {original}"
@@ -419,7 +426,12 @@ mod test_hessenberg_reconstructions {
             }
 
             // R' H R ~= original
-            let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
+            let reconstruct = rotation
+                .transpose()
+                .dot(&kernel)
+                .unwrap()
+                .dot(&rotation)
+                .unwrap();
             assert!(
                 approx_vector_eq(&flat(&reconstruct), &flat(&original)),
                 "dim={dim}: symmetric reconstruction mismatch"
@@ -448,7 +460,12 @@ mod test_hessenberg_reconstructions {
 
         let rrt = rotation.dot(&rotation.transpose()).unwrap();
         let rtr = rotation.transpose().dot(&rotation).unwrap();
-        let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
+        let reconstruct = rotation
+            .transpose()
+            .dot(&kernel)
+            .unwrap()
+            .dot(&rotation)
+            .unwrap();
 
         let ortho_ok = approx_vector_eq(&flat(&rrt), &flat(&identity))
             && approx_vector_eq(&flat(&rtr), &flat(&identity));
@@ -496,7 +513,12 @@ mod test_hessenberg_reconstructions {
 
         let rrt = rotation.dot(&rotation.transpose()).unwrap();
         let rtr = rotation.transpose().dot(&rotation).unwrap();
-        let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
+        let reconstruct = rotation
+            .transpose()
+            .dot(&kernel)
+            .unwrap()
+            .dot(&rotation)
+            .unwrap();
 
         let ortho_ok = approx_vector_eq(&flat(&rrt), &flat(&identity))
             && approx_vector_eq(&flat(&rtr), &flat(&identity));

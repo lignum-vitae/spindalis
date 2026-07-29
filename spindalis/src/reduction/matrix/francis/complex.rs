@@ -1,4 +1,6 @@
-use crate::reduction::matrix::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
+use crate::reduction::matrix::francis::givens::{
+    apply_g_left, apply_gt_right, implicit_givens_rotation,
+};
 #[rustfmt::skip]
 use crate::reduction::matrix::francis::primitives::{
     params,
