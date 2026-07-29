@@ -36,7 +36,6 @@ pub fn apply_g_left(
     // G * A
     // alpha, beta, gamma, delta,
     // c, s, -s, c
-    // let (m, n) = (a.dims[0], a.dims[1]);
     for k in 0..range {
         let r1 = i * stride;
         let r2 = j * stride;

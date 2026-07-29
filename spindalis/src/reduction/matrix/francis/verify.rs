@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::givens::{
     apply_g_left, apply_gt_right, implicit_givens_rotation,
@@ -15,7 +16,7 @@ use crate::reduction::matrix::francis::primitives::{
 };
 
 #[rustfmt::skip]
-pub fn full_decomp_sym(
+fn full_decomp_sym(
     h: &mut [f64],
     r: &mut [f64],
     mut range: usize,
@@ -63,7 +64,7 @@ pub fn full_decomp_sym(
     }
     range <= 1
 }
-pub fn full_decomp_cpx(
+fn full_decomp_cpx(
     h: &mut [f64],
     r: &mut [f64],
     w: &mut [f64],
@@ -147,7 +148,7 @@ pub fn full_decomp_cpx(
 /// * size: static number of rows for rotations
 /// * range: number of rows in active window
 /// * stride: stride of the data format
-pub fn full_francis_iteration_cpx(
+fn full_francis_iteration_cpx(
     h: &mut [f64],
     r: &mut [f64],
     p: &mut [f64],
@@ -184,7 +185,7 @@ pub fn full_francis_iteration_cpx(
         lapply_householder(&mut r[offset..], proj, w, tau, bound, size, stride);
     }
 }
-pub fn full_francis_iteration_cpx_2x2(
+fn full_francis_iteration_cpx_2x2(
     h: &mut [f64],
     r: &mut [f64],
     size: usize,
@@ -207,7 +208,7 @@ pub fn full_francis_iteration_cpx_2x2(
 /// * stride: stride of the data format
 /// * tl: top left of the window for the eigens
 /// * bl: bottom left of the window for the eigens
-pub fn full_francis_iteration_sym(
+fn full_francis_iteration_sym(
     h: &mut [f64],
     r: &mut [f64],
     size: usize,
@@ -239,7 +240,7 @@ pub fn full_francis_iteration_sym(
 /// * rows: number of rows
 /// * cols: number of cols
 /// * stride: stride of the data
-pub fn full_hessenberg(
+fn full_hessenberg(
     h: &mut [f64],
     r: &mut [f64],
     p: &mut [f64],

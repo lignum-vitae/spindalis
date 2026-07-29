@@ -6,6 +6,11 @@ const DEFAULT_MAX_ITERS: usize = 100;
 const DEFAULT_TOLERANCE: f64 = 1e-10;
 const DEFAULT_ABSOLUTE: f64 = 1e-12;
 
+// Recommended parameters in constants
+// Note: For real-world inputs like A^T*A covariance matrices, explicit forming
+// squares condition numbers, so a pre-QR step or an explicit symmetrization
+// pass on the tridiagonal output can help keep float drift in check.
+
 pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
     if matrix.height != matrix.width {
         return Err(SolverError::NonSquareMatrix);
@@ -28,10 +33,8 @@ pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
         DEFAULT_TOLERANCE,
         DEFAULT_ABSOLUTE,
     );
-
     Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
 }
-
 pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
     if matrix.height != matrix.width {
         return Err(SolverError::NonSquareMatrix);
@@ -42,7 +45,6 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     let mut h: Vec<f64> = matrix.rows().flatten().copied().collect();
     let mut p = vec![0f64; n];
     let mut w = vec![0f64; n];
-
     francis_qr_cpx(
         &mut h,
         &mut p,
@@ -53,15 +55,8 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
         DEFAULT_MAX_ITERS,
         DEFAULT_TOLERANCE,
     );
-
     Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
 }
-
-// Recommended parameters in constants
-// Note: For real-world inputs like A^T*A covariance matrices, explicit forming
-// squares condition numbers, so a pre-QR step or an explicit symmetrization
-// pass on the tridiagonal output can help keep float drift in check.
-
 /// francis_qr_sym
 ///
 /// * h: householder
