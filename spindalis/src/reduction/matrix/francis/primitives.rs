@@ -180,7 +180,6 @@ pub fn deflate(
     e2: &mut usize,
     tl: &mut usize,
     bl: &mut usize,
-    // stall: &mut usize,
     curriter: &mut usize,
 ) {
     let shift = amount * stride + amount;
@@ -189,7 +188,6 @@ pub fn deflate(
     *e2 = e2.saturating_sub(shift);
     *tl = tl.saturating_sub(shift);
     *bl = bl.saturating_sub(shift);
-    // *stall = 0;
     *curriter = curriter.saturating_sub(MAX_ITERS >> 1);
 }
 pub fn complex_eig_pair(h: &mut [f64], tl: usize, bl: usize) -> bool {

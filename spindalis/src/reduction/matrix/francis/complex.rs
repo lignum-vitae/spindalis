@@ -12,6 +12,10 @@ use crate::reduction::matrix::francis::primitives::{
     lapply_householder,
     rapply_householder,
 };
+
+pub const EXCEPTION_SHIFT_OFFSET: usize = 8;
+pub const EXCEPTION_SHIFT_PERIOD: usize = 12;
+
 pub fn decomp_cpx(
     h: &mut [f64],
     p: &mut [f64],
@@ -74,7 +78,7 @@ pub fn decomp_cpx(
         } else {
             if range == 2 {
                 francis_iteration_cpx_2x2(h, size, stride, tl, bl);
-            } else if (stall + 8) % 12 == 0 {
+            } else if (stall + EXCEPTION_SHIFT_OFFSET) % EXCEPTION_SHIFT_PERIOD == 0 {
                 exception_shift(h, w, stride, range, tl, bl);
                 francis_iteration_cpx(h, p, w, size, range, stride);
             } else {
