@@ -1,3 +1,6 @@
+use crate::reduction::matrix::francis::constants::{
+    EXCEPTION_SHIFT_OFFSET, EXCEPTION_SHIFT_PERIOD,
+};
 use crate::reduction::matrix::francis::givens::{
     apply_g_left, apply_gt_right, implicit_givens_rotation,
 };
@@ -12,9 +15,6 @@ use crate::reduction::matrix::francis::primitives::{
     lapply_householder,
     rapply_householder,
 };
-
-pub const EXCEPTION_SHIFT_OFFSET: usize = 8;
-pub const EXCEPTION_SHIFT_PERIOD: usize = 12;
 
 pub fn decomp_cpx(
     h: &mut [f64],

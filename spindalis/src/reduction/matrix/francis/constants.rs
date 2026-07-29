@@ -24,6 +24,9 @@ pub const TOLERANCE: f64 = 1e-4;
 pub const ABSOLUTE_CAP: f64 = 1e-3;
 pub const EPSILON: f64 = 1e-21;
 
+pub const EXCEPTION_SHIFT_OFFSET: usize = 8;
+pub const EXCEPTION_SHIFT_PERIOD: usize = 12;
+
 // // -------------------------------------------------------------------------
 // // **Strict Precision Profile** (Alternative for high-precision synthetic inputs)
 // // -------------------------------------------------------------------------
