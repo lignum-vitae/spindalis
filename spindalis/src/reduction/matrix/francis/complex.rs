@@ -1,6 +1,6 @@
-use crate::decomposition::sgivens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
+use crate::reduction::matrix::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
 #[rustfmt::skip]
-use crate::decomposition::francis::primitives::{
+use crate::reduction::matrix::francis::primitives::{
     params,
     deflate,
     eigen,
@@ -11,13 +11,13 @@ use crate::decomposition::francis::primitives::{
     rapply_householder,
 };
 pub fn decomp_cpx(
-    h: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    w: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize,
     max_iters: usize,
-    tolerance: f32,
+    tolerance: f64,
 ) {
     let s = range * stride;
     // error 1 supra-diagonal above the first real eigen
@@ -26,7 +26,7 @@ pub fn decomp_cpx(
     let mut e2 = s.saturating_sub(stride + stride + 2);
     let mut tl = s.saturating_sub(stride + 2);
     let mut bl = s.saturating_sub(2);
-    let p = &mut [0f32; 3];
+    let p = &mut [0f64; 3];
     let mut curriter = 0;
     let mut stall = 0;
     while range > 0 && curriter < max_iters {
@@ -92,9 +92,9 @@ pub fn decomp_cpx(
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn francis_iteration_cpx(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
@@ -102,7 +102,7 @@ pub fn francis_iteration_cpx(
     let bound = range.min(3);
     let p = &mut p[..bound];
     let tau = params(&mut w[..bound], p);
-    if tau != 0f32 {
+    if tau != 0f64 {
         rapply_householder(h, p, w, tau, size, bound, stride);
         lapply_householder(h, p, w, tau, bound, range, stride);
     }
@@ -114,7 +114,7 @@ pub fn francis_iteration_cpx(
         let proj = &mut p[..bound];
         let tau = params(slice, proj);
         offset += stride;
-        if tau == 0f32 {
+        if tau == 0f64 {
             continue;
         }
         rapply_householder(&mut t[o..], proj, w, tau, size - o, bound, stride);
@@ -129,7 +129,7 @@ pub fn francis_iteration_cpx(
 /// * stride: stride of the data format
 /// * tl : top-left of the eigen-pair
 /// * bl : bottom-left of the eigen-pair
-pub fn francis_iteration_cpx_2x2(h: &mut [f32], size: usize, stride: usize, tl: usize, bl: usize) {
+pub fn francis_iteration_cpx_2x2(h: &mut [f64], size: usize, stride: usize, tl: usize, bl: usize) {
     let eig = eigen(h[tl], h[tl + 1], h[bl], h[bl + 1]);
     let (_, cosine, sine) = implicit_givens_rotation(h[0] - eig, h[1]);
     apply_gt_right(h, 0, 1, stride, size, cosine, sine);

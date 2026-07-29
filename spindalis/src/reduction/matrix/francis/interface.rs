@@ -1,4 +1,4 @@
-use crate::decomposition::francis::{complex, primitives, symmetric};
+use crate::reduction::matrix::francis::{complex, primitives, symmetric};
 
 // Recommended parameters in constants
 // Note: For real-world inputs like A^T*A covariance matrices, explicit forming
@@ -16,15 +16,15 @@ use crate::decomposition::francis::{complex, primitives, symmetric};
 /// * tolerance: error tolerance which is used as a bound for non relative error
 /// * absolute: absolute bound on error minimum should be less than tolerance
 pub fn francis_qr_sym(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     range: usize,
     size: usize,
     stride: usize,
     max_iters: usize,
-    tolerance: f32,
-    absolute: f32,
+    tolerance: f64,
+    absolute: f64,
 ) {
     primitives::hessenberg(h, p, w, size, range, stride);
     symmetric::decomp_sym(h, range, size, stride, max_iters, tolerance, absolute);
@@ -39,34 +39,94 @@ pub fn francis_qr_sym(
 /// * max_iters: number of iterations per eigen vector recoups half on success
 /// * tolerance: error tolerance which is used as a bound for non relative error
 pub fn francis_qr_cpx(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     range: usize,
     size: usize,
     stride: usize,
     max_iters: usize,
-    tolerance: f32,
+    tolerance: f64,
 ) {
     primitives::hessenberg(h, p, w, size, range, stride);
     complex::decomp_cpx(h, w, range, size, stride, max_iters, tolerance);
 }
-
+#[cfg(test)]
 mod test_francis_interface {
     use super::*;
 
-    use crate::decomposition::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
-    use crate::equality::approximate::approx_scalar_eq;
-    use crate::random::generation::{generate_approx_symmetric_vector, generate_random_vector};
-    fn trace(data: &[f32], n: usize, stride: usize) -> f32 {
+    use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+    use rand::prelude::*;
+
+    use rand_distr::StandardNormal;
+    fn approx_scalar_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() < TOLERANCE
+    }
+    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
+        let n = a.len();
+        let mut error = 0f64;
+        for i in 0..n {
+            if a[i].is_nan() || b[i].is_nan() {
+                return false;
+            }
+            error += (a[i] - b[i]).abs();
+        }
+        error / (n as f64).sqrt() < TOLERANCE
+    }
+    //  NOTE: This should also be weighted towards the size of the dimensionality
+    //  of the decomposition ie the condition number not a flat tolerance level
+    fn generate_random_vector(n: usize) -> Vec<f64> {
+        let mut rng = rand::rng();
+        let mut data = vec![0f64; n];
+        for i in 0..n {
+            data[i] = rng.sample(StandardNormal);
+        }
+        data
+    }
+    fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
+        let mut vector = vec![0f64; m * n];
+        let mut idx = 0;
+        for _ in 0..m {
+            vector[idx] = 1f64;
+            idx += 1 + n;
+        }
+        vector
+    }
+    fn generate_strict_symmetric_vector(n: usize) -> Vec<f64> {
+        let mut data = generate_random_vector(n * n);
+        for i in 0..n {
+            for j in 0..i {
+                let val = data[i * n + j];
+                data[j * n + i] = val;
+            }
+        }
+        data
+    }
+    /// Creates some f64 style noise in order to replicate working with matrices
+    pub fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
+        let a = generate_random_vector(n * n); // flat, row-major, stride = n
+        let mut result = vec![0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let mut sum = 0f64;
+                for k in 0..n {
+                    // A[i][k] * A[j][k]  ==  (A * A^T)[i][j]
+                    sum += a[i * n + k] * a[j * n + k];
+                }
+                result[i * n + j] = sum;
+            }
+        }
+        result
+    }
+    fn trace(data: &[f64], n: usize, stride: usize) -> f64 {
         (0..n).map(|i| data[i * stride + i]).sum()
     }
     fn check_francis_qr_sym() -> (bool, bool) {
         let c = 6;
         let stride = c;
         let mut h = generate_approx_symmetric_vector(c);
-        let mut p = vec![0f32; c];
-        let mut w = vec![0f32; c];
+        let mut p = vec![0f64; c];
+        let mut w = vec![0f64; c];
 
         let original_trace = trace(&h, c, stride);
 
@@ -90,8 +150,8 @@ mod test_francis_interface {
         let c = 6;
         let stride = c;
         let mut h = generate_random_vector(c * c);
-        let mut p = vec![0f32; c];
-        let mut w = vec![0f32; c];
+        let mut p = vec![0f64; c];
+        let mut w = vec![0f64; c];
 
         let original_trace = trace(&h, c, stride);
 

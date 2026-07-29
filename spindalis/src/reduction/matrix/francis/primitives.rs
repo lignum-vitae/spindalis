@@ -1,4 +1,4 @@
-use crate::decomposition::francis::constants::{EPSILON, MAX_ITERS};
+use crate::reduction::matrix::francis::constants::{EPSILON, MAX_ITERS};
 /// params
 /// takes in data forom a matrix slice
 /// zeros the incoming data and creates the householder vec
@@ -8,9 +8,9 @@ use crate::decomposition::francis::constants::{EPSILON, MAX_ITERS};
 ///
 /// * v: matrix slice data
 /// * w: sized workspace vector
-pub fn params(v: &mut [f32], w: &mut [f32]) -> f32 {
+pub fn params(v: &mut [f64], w: &mut [f64]) -> f64 {
     debug_assert_eq!(v.len(), w.len());
-    let mut max_element = 0f32;
+    let mut max_element = 0f64;
     for val in v.iter() {
         let v = val.abs();
         if v > max_element {
@@ -18,25 +18,25 @@ pub fn params(v: &mut [f32], w: &mut [f32]) -> f32 {
         };
     }
     if max_element.abs() < EPSILON {
-        w[0] = 1f32;
-        return 0f32;
+        w[0] = 1f64;
+        return 0f64;
     }
-    let mut magnitude_squared = 0f32;
-    let inv_max_element = 1f32 / max_element;
+    let mut magnitude_squared = 0f64;
+    let inv_max_element = 1f64 / max_element;
     for (val, gbg) in v.iter_mut().zip(w.iter_mut()) {
         *val *= inv_max_element;
         magnitude_squared += *val * *val;
         *gbg = *val;
-        *val = 0f32;
+        *val = 0f64;
     }
     let g = w[0].signum() * magnitude_squared.sqrt();
     let scale = w[0] + g;
-    let inv_scale = 1f32 / scale;
+    let inv_scale = 1f64 / scale;
     for val in w[1..].iter_mut() {
         *val *= inv_scale;
     }
     v[0] = -g * max_element;
-    w[0] = 1f32;
+    w[0] = 1f64;
     scale / g
 }
 /// lapply_householder
@@ -53,10 +53,10 @@ pub fn params(v: &mut [f32], w: &mut [f32]) -> f32 {
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn lapply_householder(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
-    tau: f32,
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
+    tau: f64,
     rows: usize,
     cols: usize,
     stride: usize,
@@ -106,10 +106,10 @@ pub fn lapply_householder(
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn rapply_householder(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
-    tau: f32,
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
+    tau: f64,
     rows: usize,
     cols: usize,
     stride: usize,
@@ -146,9 +146,9 @@ pub fn rapply_householder(
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn hessenberg(
-    h: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     rows: usize,
     cols: usize,
     stride: usize,
@@ -165,7 +165,7 @@ pub fn hessenberg(
         let proj = &mut p[..split_range];
         let tau = params(slice, proj);
         offset += stride;
-        if tau == 0f32 {
+        if tau == 0f64 {
             continue;
         }
         rapply_householder(&mut t[o..], proj, w, tau, rows - o, split_range, stride);
@@ -192,8 +192,8 @@ pub fn deflate(
     // *stall = 0;
     *curriter = curriter.saturating_sub(MAX_ITERS >> 1);
 }
-pub fn complex_eig_pair(h: &mut [f32], tl: usize, bl: usize) -> bool {
-    let d = (h[tl] - h[bl + 1]) / 2f32;
+pub fn complex_eig_pair(h: &mut [f64], tl: usize, bl: usize) -> bool {
+    let d = (h[tl] - h[bl + 1]) / 2f64;
     d * d + h[tl + 1] * h[bl] < EPSILON
 }
 /// double_shift
@@ -205,8 +205,8 @@ pub fn complex_eig_pair(h: &mut [f32], tl: usize, bl: usize) -> bool {
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn double_shift(
-    h: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    w: &mut [f64],
     stride: usize,
     _range: usize,
     tl: usize,
@@ -239,8 +239,8 @@ pub fn double_shift(
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn exception_shift(
-    h: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    w: &mut [f64],
     stride: usize,
     _range: usize,
     tl: usize,
@@ -265,11 +265,11 @@ pub fn exception_shift(
     w[1] = h01 * (h00 + h11 - trace);
     w[2] = h01 * h12;
 }
-pub fn eigen(m00: f32, m01: f32, m10: f32, m11: f32) -> f32 {
-    let d = (m00 - m11) / 2f32;
+pub fn eigen(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
+    let d = (m00 - m11) / 2f64;
     let discriminate = d * d + m10 * m01;
     if discriminate >= -EPSILON {
-        m11 + d - d.signum() * discriminate.max(0f32).sqrt()
+        m11 + d - d.signum() * discriminate.max(0f64).sqrt()
     } else {
         m11 + d
     }

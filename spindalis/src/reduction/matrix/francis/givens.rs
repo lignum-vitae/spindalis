@@ -1,37 +1,37 @@
-pub fn implicit_givens_rotation(a: f32, b: f32) -> (f32, f32, f32) {
-    let t: f32;
-    let tt: f32;
-    let s: f32;
-    let c: f32;
-    let r: f32;
+pub fn implicit_givens_rotation(a: f64, b: f64) -> (f64, f64, f64) {
+    let t: f64;
+    let tt: f64;
+    let s: f64;
+    let c: f64;
+    let r: f64;
 
-    if a == 0f32 {
-        c = 0f32;
-        s = 1f32;
+    if a == 0f64 {
+        c = 0f64;
+        s = 1f64;
         r = b;
     } else if b.abs() > a.abs() {
         t = a / b;
-        tt = (1f32 + t * t).sqrt();
-        s = 1f32 / tt;
+        tt = (1f64 + t * t).sqrt();
+        s = 1f64 / tt;
         c = s * t;
         r = b * tt;
     } else {
         t = b / a;
-        tt = (1f32 + t * t).sqrt();
-        c = 1f32 / tt;
+        tt = (1f64 + t * t).sqrt();
+        c = 1f64 / tt;
         s = c * t;
         r = a * tt;
     }
     (r, c, s)
 }
 pub fn apply_g_left(
-    a: &mut [f32],
+    a: &mut [f64],
     i: usize,
     j: usize,
     stride: usize,
     range: usize,
-    c: f32,
-    s: f32,
+    c: f64,
+    s: f64,
 ) {
     // G * A
     // alpha, beta, gamma, delta,
@@ -49,13 +49,13 @@ pub fn apply_g_left(
     }
 }
 pub fn apply_gt_left(
-    a: &mut [f32],
+    a: &mut [f64],
     i: usize,
     j: usize,
     stride: usize,
     range: usize,
-    c: f32,
-    s: f32,
+    c: f64,
+    s: f64,
 ) {
     // G' * A
     // transpose the negative sine
@@ -73,13 +73,13 @@ pub fn apply_gt_left(
     }
 }
 pub fn apply_g_right(
-    a: &mut [f32],
+    a: &mut [f64],
     i: usize,
     j: usize,
     stride: usize,
     range: usize,
-    c: f32,
-    s: f32,
+    c: f64,
+    s: f64,
 ) {
     // A * G
     // alpha, beta, gamma, delta,
@@ -96,13 +96,13 @@ pub fn apply_g_right(
     }
 }
 pub fn apply_gt_right(
-    a: &mut [f32],
+    a: &mut [f64],
     i: usize,
     j: usize,
     stride: usize,
     range: usize,
-    c: f32,
-    s: f32,
+    c: f64,
+    s: f64,
 ) {
     // A * G'
     // alpha, beta, gamma, delta,

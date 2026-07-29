@@ -1,7 +1,7 @@
-use crate::decomposition::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
-use crate::decomposition::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
+use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+use crate::reduction::matrix::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
 #[rustfmt::skip]
-use crate::decomposition::francis::primitives::{
+use crate::reduction::matrix::francis::primitives::{
     params,
     deflate,
     eigen,
@@ -14,8 +14,8 @@ use crate::decomposition::francis::primitives::{
 
 #[rustfmt::skip]
 pub fn full_decomp_sym(
-    h: &mut [f32],
-    r: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize
@@ -62,9 +62,9 @@ pub fn full_decomp_sym(
     range <= 1
 }
 pub fn full_decomp_cpx(
-    h: &mut [f32],
-    r: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
+    w: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize,
@@ -77,7 +77,7 @@ pub fn full_decomp_cpx(
     let mut curriter = 0;
     let _he1 = h[e1];
     let _he2 = h[e2];
-    let p = &mut [0f32; 3];
+    let p = &mut [0f64; 3];
     let mut stall = 0;
     while range > 0 && curriter < MAX_ITERS {
         curriter += 1;
@@ -146,10 +146,10 @@ pub fn full_decomp_cpx(
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn full_francis_iteration_cpx(
-    h: &mut [f32],
-    r: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
@@ -159,7 +159,7 @@ pub fn full_francis_iteration_cpx(
     let bound = range.min(3);
     let p = &mut p[..bound];
     let tau = params(&mut w[..bound], p);
-    if tau != 0f32 {
+    if tau != 0f64 {
         rapply_householder(h, p, w, tau, size, bound, stride);
         lapply_householder(h, p, w, tau, bound, range, stride);
         // ----------------- tracking the rotation matrix
@@ -173,7 +173,7 @@ pub fn full_francis_iteration_cpx(
         let proj = &mut p[..bound];
         let tau = params(slice, proj);
         offset += stride;
-        if tau == 0f32 {
+        if tau == 0f64 {
             continue;
         }
         rapply_householder(&mut t[o..], proj, w, tau, size - o, bound, stride);
@@ -183,8 +183,8 @@ pub fn full_francis_iteration_cpx(
     }
 }
 pub fn full_francis_iteration_cpx_2x2(
-    h: &mut [f32],
-    r: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
     size: usize,
     stride: usize,
     tl: usize,
@@ -206,8 +206,8 @@ pub fn full_francis_iteration_cpx_2x2(
 /// * tl: top left of the window for the eigens
 /// * bl: bottom left of the window for the eigens
 pub fn full_francis_iteration_sym(
-    h: &mut [f32],
-    r: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
@@ -238,10 +238,10 @@ pub fn full_francis_iteration_sym(
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn full_hessenberg(
-    h: &mut [f32],
-    r: &mut [f32],
-    p: &mut [f32],
-    w: &mut [f32],
+    h: &mut [f64],
+    r: &mut [f64],
+    p: &mut [f64],
+    w: &mut [f64],
     rows: usize,
     cols: usize,
     stride: usize,
@@ -258,7 +258,7 @@ pub fn full_hessenberg(
         let proj = &mut p[..split_range];
         let tau = params(slice, proj);
         offset += stride;
-        if tau == 0f32 {
+        if tau == 0f64 {
             continue;
         }
         rapply_householder(&mut t[o..], proj, w, tau, rows - o, split_range, stride);
@@ -266,16 +266,84 @@ pub fn full_hessenberg(
         lapply_householder(&mut r[offset..], proj, w, tau, active_range, cols, stride);
     }
 }
+#[cfg(test)]
 mod test_hessenberg_reconstructions {
     use super::*;
+    use rand::prelude::*;
 
-    use crate::algebra::ndmethods::matrix_mult;
-    use crate::equality::approximate::approx_vector_eq;
-    use crate::random::generation::{
-        generate_approx_symmetric_vector, generate_identity_vector, generate_random_vector,
-    };
-    use crate::structure::ndarray::NdArray;
+    use jedvek::Matrix2D;
+    use rand_distr::StandardNormal;
+    //  NOTE: This should also be weighted towards the size of the dimensionality
+    //  of the decomposition ie the condition number not a flat tolerance level
+    const TOLERANCE: f64 = 1e-2;
+    // NOTE for spindalis maintainers: Matrix2D has no public way to get at
+    // `inner` as one flat buffer (only per-row slices via rows()/rows_mut(),
+    // or (row,col) indexing). Every reconstruction check below has to build
+    // fresh Matrix2Ds via from_flat and read them back out via
+    // rows().flatten() to compare — a `from_vec`-style constructor that
+    // takes ownership without the from_flat padding/validation path, or an
+    // `as_slice`/`as_mut_slice` pair, would let this skip the copies.
 
+    fn to_matrix(data: &[f64], rows: usize, cols: usize) -> Matrix2D<f64> {
+        Matrix2D::from_flat(data.to_vec(), 0.0, rows, cols).unwrap()
+    }
+    fn flat(m: &Matrix2D<f64>) -> Vec<f64> {
+        m.rows().flatten().copied().collect()
+    }
+    fn generate_random_vector(n: usize) -> Vec<f64> {
+        let mut rng = rand::rng();
+        let mut data = vec![0f64; n];
+        for i in 0..n {
+            data[i] = rng.sample(StandardNormal);
+        }
+        data
+    }
+    pub fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
+        let mut vector = vec![0f64; m * n];
+        let mut idx = 0;
+        for _ in 0..m {
+            vector[idx] = 1f64;
+            idx += 1 + n;
+        }
+        vector
+    }
+    // fn generate_strict_symmetric_vector(n: usize) -> Vec<f64> {
+    //     let mut data = generate_random_vector(n * n);
+    //     for i in 0..n {
+    //         for j in 0..i {
+    //             let val = data[i * n + j];
+    //             data[j * n + i] = val;
+    //         }
+    //     }
+    //     data
+    // }
+    /// Creates some f64 style noise in order to replicate working with matrices
+    pub fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
+        let a = generate_random_vector(n * n); // flat, row-major, stride = n
+        let mut result = vec![0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let mut sum = 0f64;
+                for k in 0..n {
+                    // A[i][k] * A[j][k]  ==  (A * A^T)[i][j]
+                    sum += a[i * n + k] * a[j * n + k];
+                }
+                result[i * n + j] = sum;
+            }
+        }
+        result
+    }
+    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
+        let n = a.len();
+        let mut error = 0f64;
+        for i in 0..n {
+            if a[i].is_nan() || b[i].is_nan() {
+                return false;
+            }
+            error += (a[i] - b[i]).abs();
+        }
+        error / (n as f64).sqrt() < TOLERANCE
+    }
     #[test]
     fn test_hessenberg_reconstruct_general() {
         for dim in [1, 2, 4, 7] {
@@ -283,43 +351,33 @@ mod test_hessenberg_reconstructions {
             let stride = dim;
             let mut h = generate_random_vector(rows * cols);
             let mut r = generate_identity_vector(rows, cols);
-            let mut p = vec![0f32; cols];
-            let mut w = vec![0f32; rows];
-            let original = NdArray {
-                dims: vec![rows, cols],
-                data: h.clone(),
-            };
+            let mut p = vec![0f64; cols];
+            let mut w = vec![0f64; rows];
+            let original = to_matrix(&h, rows, cols);
+
             full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
-            let kernel = NdArray {
-                dims: vec![rows, cols],
-                data: h.clone(),
-            };
-            let rotation = NdArray {
-                dims: vec![rows, cols],
-                data: r.clone(),
-            };
+
+            let kernel = to_matrix(&h, rows, cols);
+            let rotation = to_matrix(&r, rows, cols);
+            let identity = Matrix2D::identity(dim);
+
             // R R' ~= I
-            let rrt = matrix_mult(&rotation, &rotation.transpose());
-            let identity = generate_identity_vector(rows, cols);
+            let rrt = rotation.dot(&rotation.transpose()).unwrap();
             assert!(
-                approx_vector_eq(&rrt.data, &identity),
-                "dim={dim}: R R' not orthogonal, got {:?}",
-                rrt.data
+                approx_vector_eq(&flat(&rrt), &flat(&identity)),
+                "dim={dim}: R R' not orthogonal, got {rrt}"
             );
             // R' R ~= I
-            let rtr = matrix_mult(&rotation.transpose(), &rotation);
+            let rtr = rotation.transpose().dot(&rotation).unwrap();
             assert!(
-                approx_vector_eq(&rtr.data, &identity),
-                "dim={dim}: R' R not orthogonal, got {:?}",
-                rtr.data
+                approx_vector_eq(&flat(&rtr), &flat(&identity)),
+                "dim={dim}: R' R not orthogonal, got {rtr}"
             );
             // R' H R ~= original
-            let reconstruct = matrix_mult(&rotation.transpose(), &matrix_mult(&kernel, &rotation));
+            let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
             assert!(
-                approx_vector_eq(&reconstruct.data, &original.data),
-                "dim={dim}: reconstruction mismatch, got {:?} expected {:?}",
-                reconstruct.data,
-                original.data
+                approx_vector_eq(&flat(&reconstruct), &flat(&original)),
+                "dim={dim}: reconstruction mismatch, got {reconstruct} expected {original}"
             );
         }
     }
@@ -330,27 +388,22 @@ mod test_hessenberg_reconstructions {
             let stride = dim;
             let mut h = generate_approx_symmetric_vector(dim);
             let mut r = generate_identity_vector(rows, cols);
-            let mut p = vec![0f32; cols];
-            let mut w = vec![0f32; rows];
-            let original = NdArray {
-                dims: vec![rows, cols],
-                data: h.clone(),
-            };
+            let mut p = vec![0f64; cols];
+            let mut w = vec![0f64; rows];
+            let original = to_matrix(&h, rows, cols);
+
             full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
-            let kernel = NdArray {
-                dims: vec![rows, cols],
-                data: h.clone(),
-            };
-            let rotation = NdArray {
-                dims: vec![rows, cols],
-                data: r.clone(),
-            };
-            let identity = generate_identity_vector(rows, cols);
-            let rrt = matrix_mult(&rotation, &rotation.transpose());
+
+            let kernel = to_matrix(&h, rows, cols);
+            let rotation = to_matrix(&r, rows, cols);
+            let identity = Matrix2D::identity(dim);
+
+            let rrt = rotation.dot(&rotation.transpose()).unwrap();
             assert!(
-                approx_vector_eq(&rrt.data, &identity),
+                approx_vector_eq(&flat(&rrt), &flat(&identity)),
                 "dim={dim}: R R' not orthogonal"
             );
+
             // symmetric-specific: hessenberg of a symmetric matrix should be
             // tridiagonal, i.e. zero below the first subdiagonal
             for i in 0..rows {
@@ -364,53 +417,46 @@ mod test_hessenberg_reconstructions {
                     }
                 }
             }
+
             // R' H R ~= original
-            let reconstruct = matrix_mult(&rotation.transpose(), &matrix_mult(&kernel, &rotation));
+            let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
             assert!(
-                approx_vector_eq(&reconstruct.data, &original.data),
+                approx_vector_eq(&flat(&reconstruct), &flat(&original)),
                 "dim={dim}: symmetric reconstruction mismatch"
             );
         }
     }
+
     fn check_decomp_sym_reconstruct() -> (bool, bool) {
-        // returns (converged, reconstruction_ok)
         let c = 6;
         let (rows, cols) = (c, c);
         let stride = c;
 
         let mut h = generate_approx_symmetric_vector(rows);
         let mut r = generate_identity_vector(rows, cols);
-        let mut p = vec![0f32; cols];
-        let mut w = vec![0f32; rows];
+        let mut p = vec![0f64; cols];
+        let mut w = vec![0f64; rows];
 
-        let original = NdArray {
-            dims: vec![rows, cols],
-            data: h.clone(),
-        };
+        let original = to_matrix(&h, rows, cols);
 
         full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
         let converged = full_decomp_sym(&mut h, &mut r, c, c, c);
 
-        let kernel = NdArray {
-            dims: vec![rows, cols],
-            data: h.clone(),
-        };
-        let rotation = NdArray {
-            dims: vec![rows, cols],
-            data: r.clone(),
-        };
+        let kernel = to_matrix(&h, rows, cols);
+        let rotation = to_matrix(&r, rows, cols);
+        let identity = Matrix2D::identity(c);
 
-        let identity = generate_identity_vector(rows, cols);
-        let rrt = matrix_mult(&rotation, &rotation.transpose());
-        let rtr = matrix_mult(&rotation.transpose(), &rotation);
-        let reconstruct = matrix_mult(&rotation.transpose(), &matrix_mult(&kernel, &rotation));
+        let rrt = rotation.dot(&rotation.transpose()).unwrap();
+        let rtr = rotation.transpose().dot(&rotation).unwrap();
+        let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
 
-        let ortho_ok =
-            approx_vector_eq(&rrt.data, &identity) && approx_vector_eq(&rtr.data, &identity);
-        let recon_ok = approx_vector_eq(&reconstruct.data, &original.data);
+        let ortho_ok = approx_vector_eq(&flat(&rrt), &flat(&identity))
+            && approx_vector_eq(&flat(&rtr), &flat(&identity));
+        let recon_ok = approx_vector_eq(&flat(&reconstruct), &flat(&original));
 
         (converged, ortho_ok && recon_ok)
     }
+
     #[rustfmt::skip]
     #[test]
     fn test_symmetric_reconstruct() {
@@ -428,45 +474,37 @@ mod test_hessenberg_reconstructions {
         assert!(convergence_failures < 10, "too many convergence failures: {convergence_failures}");
         assert!(reconstruction_failures < 10, "too many reconstruction failures: {reconstruction_failures}");
     }
+
     fn check_decomp_cpx_reconstruct() -> (bool, bool) {
-        // returns (converged, reconstruction_ok)
         let c = 6;
         let (rows, cols) = (c, c);
         let stride = c;
 
         let mut h = generate_random_vector(rows * cols);
         let mut r = generate_identity_vector(rows, cols);
-        let mut p = vec![0f32; cols];
-        let mut w = vec![0f32; rows];
+        let mut p = vec![0f64; cols];
+        let mut w = vec![0f64; rows];
 
-        let original = NdArray {
-            dims: vec![rows, cols],
-            data: h.clone(),
-        };
+        let original = to_matrix(&h, rows, cols);
 
         full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
         let converged = full_decomp_cpx(&mut h, &mut r, &mut w, c, c, c);
 
-        let kernel = NdArray {
-            dims: vec![rows, cols],
-            data: h.clone(),
-        };
-        let rotation = NdArray {
-            dims: vec![rows, cols],
-            data: r.clone(),
-        };
+        let kernel = to_matrix(&h, rows, cols);
+        let rotation = to_matrix(&r, rows, cols);
+        let identity = Matrix2D::identity(c);
 
-        let identity = generate_identity_vector(rows, cols);
-        let rrt = matrix_mult(&rotation, &rotation.transpose());
-        let rtr = matrix_mult(&rotation.transpose(), &rotation);
-        let reconstruct = matrix_mult(&rotation.transpose(), &matrix_mult(&kernel, &rotation));
+        let rrt = rotation.dot(&rotation.transpose()).unwrap();
+        let rtr = rotation.transpose().dot(&rotation).unwrap();
+        let reconstruct = rotation.transpose().dot(&kernel).unwrap().dot(&rotation).unwrap();
 
-        let ortho_ok =
-            approx_vector_eq(&rrt.data, &identity) && approx_vector_eq(&rtr.data, &identity);
-        let recon_ok = approx_vector_eq(&reconstruct.data, &original.data);
+        let ortho_ok = approx_vector_eq(&flat(&rrt), &flat(&identity))
+            && approx_vector_eq(&flat(&rtr), &flat(&identity));
+        let recon_ok = approx_vector_eq(&flat(&reconstruct), &flat(&original));
 
         (converged, ortho_ok && recon_ok)
     }
+
     #[rustfmt::skip]
     #[test]
     fn test_complex_reconstruct() {
@@ -476,15 +514,11 @@ mod test_hessenberg_reconstructions {
 
         for _ in 0..trials {
             let (converged, reconstructed) = check_decomp_cpx_reconstruct();
-            if !converged {
-                convergence_failures += 1;
-            }
-            if !reconstructed {
-                reconstruction_failures += 1;
-            }
+            if !converged { convergence_failures += 1; }
+            if !reconstructed { reconstruction_failures += 1; }
         }
         println!("cpx: {convergence_failures} convergence failures, {reconstruction_failures} reconstruction failures / {trials}");
-        assert!( convergence_failures < 10, "too many convergence failures: {convergence_failures}");
-        assert!( reconstruction_failures < 10, "too many reconstruction failures: {reconstruction_failures}");
+        assert!(convergence_failures < 10, "too many convergence failures: {convergence_failures}");
+        assert!(reconstruction_failures < 10, "too many reconstruction failures: {reconstruction_failures}");
     }
 }

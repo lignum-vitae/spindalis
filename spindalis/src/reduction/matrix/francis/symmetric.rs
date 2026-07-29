@@ -1,19 +1,19 @@
-use crate::decomposition::sgivens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
+use crate::reduction::matrix::francis::givens::{apply_g_left, apply_gt_right, implicit_givens_rotation};
 #[rustfmt::skip]
-use crate::decomposition::francis::primitives::{
+use crate::reduction::matrix::francis::primitives::{
     deflate,
     eigen,
 };
 
 #[rustfmt::skip]
 pub fn decomp_sym(
-    h: &mut [f32],
+    h: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize,
     max_iters:usize,
-    tolerance: f32,
-    absolute: f32,
+    tolerance: f64,
+    absolute: f64,
 ) {
     let s = range * stride;
     // error 1 supra-diagonal above the first real eigen
@@ -62,7 +62,7 @@ pub fn decomp_sym(
 /// * tl: top left of the window for the eigens
 /// * bl: bottom left of the window for the eigens
 pub fn francis_iteration_sym(
-    h: &mut [f32],
+    h: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
