@@ -14,6 +14,7 @@ use crate::reduction::matrix::francis::primitives::{
 };
 pub fn decomp_cpx(
     h: &mut [f64],
+    p: &mut [f64],
     w: &mut [f64],
     mut range: usize,
     size: usize,
@@ -21,6 +22,7 @@ pub fn decomp_cpx(
     max_iters: usize,
     tolerance: f64,
 ) {
+    p.fill(0f64);
     let s = range * stride;
     // error 1 supra-diagonal above the first real eigen
     // error 2 supra-diagonal above the second complex real eigen
@@ -28,7 +30,6 @@ pub fn decomp_cpx(
     let mut e2 = s.saturating_sub(stride + stride + 2);
     let mut tl = s.saturating_sub(stride + 2);
     let mut bl = s.saturating_sub(2);
-    let p = &mut [0f64; 3];
     let mut curriter = 0;
     let mut stall = 0;
     while range > 0 && curriter < max_iters {

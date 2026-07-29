@@ -66,12 +66,14 @@ fn full_decomp_sym(
 }
 fn full_decomp_cpx(
     h: &mut [f64],
+    p: &mut [f64],
     r: &mut [f64],
     w: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize,
 ) -> bool {
+    p.fill(0f64);
     let s = range * stride;
     let mut e1 = s.saturating_sub(stride + 1);
     let mut e2 = s.saturating_sub(stride + stride + 2);
@@ -80,7 +82,6 @@ fn full_decomp_cpx(
     let mut curriter = 0;
     let _he1 = h[e1];
     let _he2 = h[e2];
-    let p = &mut [0f64; 3];
     let mut stall = 0;
     while range > 0 && curriter < MAX_ITERS {
         curriter += 1;
@@ -499,7 +500,7 @@ mod test_hessenberg_reconstructions {
         let original = to_matrix(&h, rows, cols);
 
         full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
-        let converged = full_decomp_cpx(&mut h, &mut r, &mut w, c, c, c);
+        let converged = full_decomp_cpx(&mut h, &mut p, &mut r, &mut w, c, c, c);
 
         let kernel = to_matrix(&h, rows, cols);
         let rotation = to_matrix(&r, rows, cols);
