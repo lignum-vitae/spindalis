@@ -278,13 +278,17 @@ mod test_hessenberg_reconstructions {
     //  NOTE: This should also be weighted towards the size of the dimensionality
     //  of the decomposition ie the condition number not a flat tolerance level
     const TOLERANCE: f64 = 1e-2;
-    // NOTE for spindalis maintainers: Matrix2D has no public way to get at
-    // `inner` as one flat buffer (only per-row slices via rows()/rows_mut(),
-    // or (row,col) indexing). Every reconstruction check below has to build
-    // fresh Matrix2Ds via from_flat and read them back out via
-    // rows().flatten() to compare — a `from_vec`-style constructor that
-    // takes ownership without the from_flat padding/validation path, or an
-    // `as_slice`/`as_mut_slice` pair, would let this skip the copies.
+    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
+        let n = a.len();
+        let mut error = 0f64;
+        for i in 0..n {
+            if a[i].is_nan() || b[i].is_nan() {
+                return false;
+            }
+            error += (a[i] - b[i]).abs();
+        }
+        error / (n as f64).sqrt() < TOLERANCE
+    }
 
     fn to_matrix(data: &[f64], rows: usize, cols: usize) -> Matrix2D<f64> {
         Matrix2D::from_flat(data.to_vec(), 0.0, rows, cols).unwrap()
@@ -300,7 +304,7 @@ mod test_hessenberg_reconstructions {
         }
         data
     }
-    pub fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
+    fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
         let mut vector = vec![0f64; m * n];
         let mut idx = 0;
         for _ in 0..m {
@@ -320,7 +324,7 @@ mod test_hessenberg_reconstructions {
     //     data
     // }
     /// Creates some f64 style noise in order to replicate working with matrices
-    pub fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
+    fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
         let a = generate_random_vector(n * n); // flat, row-major, stride = n
         let mut result = vec![0f64; n * n];
         for i in 0..n {
@@ -334,17 +338,6 @@ mod test_hessenberg_reconstructions {
             }
         }
         result
-    }
-    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
-        let n = a.len();
-        let mut error = 0f64;
-        for i in 0..n {
-            if a[i].is_nan() || b[i].is_nan() {
-                return false;
-            }
-            error += (a[i] - b[i]).abs();
-        }
-        error / (n as f64).sqrt() < TOLERANCE
     }
     #[test]
     fn test_hessenberg_reconstruct_general() {
