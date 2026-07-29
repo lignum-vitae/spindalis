@@ -1,4 +1,61 @@
 use crate::reduction::matrix::francis::{complex, primitives, symmetric};
+use crate::solvers::SolverError;
+use jedvek::Matrix2D;
+
+const DEFAULT_MAX_ITERS: usize = 100;
+const DEFAULT_TOLERANCE: f64 = 1e-10;
+const DEFAULT_ABSOLUTE: f64 = 1e-12;
+
+pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
+    if matrix.height != matrix.width {
+        return Err(SolverError::NonSquareMatrix);
+    }
+    let n = matrix.height;
+    let stride = n;
+
+    let mut h: Vec<f64> = matrix.rows().flatten().copied().collect();
+    let mut p = vec![0f64; n];
+    let mut w = vec![0f64; n];
+
+    francis_qr_sym(
+        &mut h,
+        &mut p,
+        &mut w,
+        n,
+        n,
+        stride,
+        DEFAULT_MAX_ITERS,
+        DEFAULT_TOLERANCE,
+        DEFAULT_ABSOLUTE,
+    );
+
+    Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
+}
+
+pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
+    if matrix.height != matrix.width {
+        return Err(SolverError::NonSquareMatrix);
+    }
+    let n = matrix.height;
+    let stride = n;
+
+    let mut h: Vec<f64> = matrix.rows().flatten().copied().collect();
+    let mut p = vec![0f64; n];
+    let mut w = vec![0f64; n];
+
+    francis_qr_cpx(
+        &mut h,
+        &mut p,
+        &mut w,
+        n,
+        n,
+        stride,
+        DEFAULT_MAX_ITERS,
+        DEFAULT_TOLERANCE,
+    );
+
+    Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
+}
 
 // Recommended parameters in constants
 // Note: For real-world inputs like A^T*A covariance matrices, explicit forming
@@ -62,19 +119,6 @@ mod test_francis_interface {
     fn approx_scalar_eq(a: f64, b: f64) -> bool {
         (a - b).abs() < TOLERANCE
     }
-    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
-        let n = a.len();
-        let mut error = 0f64;
-        for i in 0..n {
-            if a[i].is_nan() || b[i].is_nan() {
-                return false;
-            }
-            error += (a[i] - b[i]).abs();
-        }
-        error / (n as f64).sqrt() < TOLERANCE
-    }
-    //  NOTE: This should also be weighted towards the size of the dimensionality
-    //  of the decomposition ie the condition number not a flat tolerance level
     fn generate_random_vector(n: usize) -> Vec<f64> {
         let mut rng = rand::rng();
         let mut data = vec![0f64; n];
@@ -83,27 +127,8 @@ mod test_francis_interface {
         }
         data
     }
-    fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
-        let mut vector = vec![0f64; m * n];
-        let mut idx = 0;
-        for _ in 0..m {
-            vector[idx] = 1f64;
-            idx += 1 + n;
-        }
-        vector
-    }
-    fn generate_strict_symmetric_vector(n: usize) -> Vec<f64> {
-        let mut data = generate_random_vector(n * n);
-        for i in 0..n {
-            for j in 0..i {
-                let val = data[i * n + j];
-                data[j * n + i] = val;
-            }
-        }
-        data
-    }
     /// Creates some f64 style noise in order to replicate working with matrices
-    pub fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
+    fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
         let a = generate_random_vector(n * n); // flat, row-major, stride = n
         let mut result = vec![0f64; n * n];
         for i in 0..n {
