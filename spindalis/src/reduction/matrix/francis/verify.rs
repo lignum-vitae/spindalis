@@ -80,8 +80,6 @@ fn full_decomp_cpx(
     let mut tl = s.saturating_sub(stride + 2);
     let mut bl = s.saturating_sub(2);
     let mut curriter = 0;
-    let _he1 = h[e1];
-    let _he2 = h[e2];
     let mut stall = 0;
     while range > 0 && curriter < MAX_ITERS {
         curriter += 1;
