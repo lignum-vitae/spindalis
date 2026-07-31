@@ -64,7 +64,7 @@ fn decomp_sym_with_rotation(
 }
 fn decomp_cpx_with_rotation(
     hess_lin_matrix: &mut [f64],
-    house_params: &mut [f64],
+    projection: &mut [f64],
     rotation: &mut [f64],
     workspace: &mut [f64],
     mut range: usize,
@@ -122,10 +122,10 @@ fn decomp_cpx_with_rotation(
                 francis_iteration_cpx_2x2_with_rotation(hess_lin_matrix, rotation, size, stride, top_left, bottom_left);
             } else if (stall + EXCEPTION_SHIFT_OFFSET).is_multiple_of(EXCEPTION_SHIFT_PERIOD) {
                 exception_shift(hess_lin_matrix, workspace, stride, range, top_left, bottom_left);
-                francis_iteration_cpx_with_rotation(hess_lin_matrix, rotation, house_params, workspace, size, range, stride);
+                francis_iteration_cpx_with_rotation(hess_lin_matrix, rotation, projection, workspace, size, range, stride);
             } else {
                 double_shift(hess_lin_matrix, workspace, stride, range, top_left, bottom_left);
-                francis_iteration_cpx_with_rotation(hess_lin_matrix, rotation, house_params, workspace, size, range, stride);
+                francis_iteration_cpx_with_rotation(hess_lin_matrix, rotation, projection, workspace, size, range, stride);
             }
             stall += 1;
         }
@@ -144,27 +144,27 @@ fn decomp_cpx_with_rotation(
 fn francis_iteration_cpx_with_rotation(
     hess_lin_matrix: &mut [f64],
     rotation: &mut [f64],
-    house_params: &mut [f64],
+    projection: &mut [f64],
     workspace: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
 ) {
     let bound = range.min(3);
-    let house_params = &mut house_params[..bound];
-    let tau = params(&mut workspace[..bound], house_params);
+    let projection = &mut projection[..bound];
+    let tau = params(&mut workspace[..bound], projection);
     if tau != 0f64 {
-        rapply_householder(hess_lin_matrix, house_params, workspace, tau, size, bound, stride);
-        lapply_householder(hess_lin_matrix, house_params, workspace, tau, bound, range, stride);
+        rapply_householder(hess_lin_matrix, projection, workspace, tau, size, bound, stride);
+        lapply_householder(hess_lin_matrix, projection, workspace, tau, bound, range, stride);
         // ----------------- tracking the rotation matrix
-        lapply_householder(rotation, house_params, workspace, tau, bound, size, stride);
+        lapply_householder(rotation, projection, workspace, tau, bound, size, stride);
     }
     let mut offset = 0;
     for o in 1..range.saturating_sub(1) {
         let bound = bound.min(stride - o);
         let (slice, target) = hess_lin_matrix.split_at_mut(offset + stride);
         let slice = &mut slice[offset + o..offset + o + bound];
-        let proj = &mut house_params[..bound];
+        let proj = &mut projection[..bound];
         let tau = params(slice, proj);
         offset += stride;
         if tau == 0f64 {
@@ -234,7 +234,7 @@ fn francis_iteration_sym_with_rotation(
 fn hessenberg_with_rotation(
     hess_lin_matrix: &mut [f64],
     rotation: &mut [f64],
-    house_params: &mut [f64],
+    projection: &mut [f64],
     workspace: &mut [f64],
     rows: usize,
     cols: usize,
@@ -249,7 +249,7 @@ fn hessenberg_with_rotation(
         split_range -= 1;
         let (slice, target) = hess_lin_matrix.split_at_mut(offset + stride);
         let slice = &mut slice[offset + o..offset + cols];
-        let proj = &mut house_params[..split_range];
+        let proj = &mut projection[..split_range];
         let tau = params(slice, proj);
         offset += stride;
         if tau == 0f64 {

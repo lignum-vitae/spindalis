@@ -106,8 +106,8 @@ pub fn francis_iteration_cpx(
     stride: usize,
 ) {
     let bound = range.min(3);
-    let p = &mut projection[..bound];
-    let tau = params(&mut workspace[..bound], p);
+    let projection = &mut projection[..bound];
+    let tau = params(&mut workspace[..bound], projection);
     if tau != 0f64 {
         rapply_householder(hess_lin_matrix, projection, workspace, tau, size, bound, stride);
         lapply_householder(hess_lin_matrix, projection, workspace, tau, bound, range, stride);
