@@ -1,4 +1,3 @@
-#![allow(clippy::needless_range_loop)]
 use crate::reduction::matrix::francis::constants::{EPSILON, MAX_ITERS};
 /// params
 /// takes in data forom a matrix slice
