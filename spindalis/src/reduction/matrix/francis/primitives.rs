@@ -287,3 +287,72 @@ pub fn eigen(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
         m11 + d
     }
 }
+
+#[cfg(test)]
+mod test_verify_correspondance_complex {
+use jedvek::Matrix2D;
+    use super::*;
+    use crate::reduction::matrix::francis::constants::{MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::hessenberg::hessenberg_reduction;
+    use crate::reduction::matrix::francis::verify::{
+        decomp_cpx_with_rotation, hessenberg_with_rotation,
+    };
+    use rand::prelude::*;
+    use rand_distr::StandardNormal;
+    #[test]
+    fn test_hessenberg_parity_up_to_sign_flip() {
+
+        let test_matrices = vec![
+            Matrix2D::from(&[[1.0, 5.0, 7.0], [3.0, 0.0, 6.0], [4.0, 3.0, 1.0]]),
+            Matrix2D::from(&[
+                [1.0, 2.0, 3.0, 4.0],
+                [2.0, 1.0, 2.0, 3.0],
+                [3.0, 2.0, 1.0, 2.0],
+                [4.0, 3.0, 2.0, 1.0],
+            ]),
+        ];
+
+        for mat in test_matrices {
+            let n = mat.height;
+            let stride = n;
+
+            // Compute reference result
+            let (expected_h, _expected_q) = hessenberg_reduction(&mat).unwrap();
+
+            // Compute slice-based result using your function
+            let mat_t = mat.transpose();
+            let mut h_slice: Vec<f64> = mat_t.rows().flatten().copied().collect();
+            let mut p = vec![0.0; n];
+            let mut w = vec![0.0; n];
+
+            hessenberg(&mut h_slice, &mut p, &mut w, n, n, stride);
+
+            let computed_h_t = Matrix2D::from_flat(h_slice, 0.0, n, n).unwrap();
+            let computed_h = computed_h_t.transpose();
+
+            // Verify magnitudes match (accounting for Householder sign conventions)
+            for r in 0..n {
+                for c in 0..n {
+                    let val_comp = computed_h[(r, c)];
+                    let val_exp = expected_h[(r, c)];
+
+                    // Elements below the subdiagonal should be approximately zero for both
+                    if r > c + 1 {
+                        assert!(val_comp.abs() < 1e-10, "Computed lower element non-zero at ({}, {})", r, c);
+                        assert!(val_exp.abs() < 1e-10, "Expected lower element non-zero at ({}, {})", r, c);
+                    } else {
+                        // Magnitudes must match within a tight threshold
+                        let diff = (val_comp.abs() - val_exp.abs()).abs();
+                        assert!(
+                            diff < 1e-7,
+                            "Magnitude mismatch at ({}, {}): computed={}, expected={}",
+                            r, c, val_comp, val_exp
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+

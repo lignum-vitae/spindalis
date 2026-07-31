@@ -75,15 +75,7 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     );
     Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
 }
-/// francis_qr_sym
-///
-/// * p: projection vector
-/// * w: workspace for a givens rotation
-/// * range: number of rows in active window
-/// * size: static number of rows for rotations
-/// * max_iters: number of iterations per eigen vector recoups half on success
-/// * tolerance: error tolerance which is used as a bound for non relative error
-/// * absolute: absolute bound on error minimum should be less than tolerance
+
 pub fn francis_qr_sym(
     lin_matrix: &mut [f64],
     projection: &mut [f64],
@@ -100,15 +92,6 @@ pub fn francis_qr_sym(
         lin_matrix, range, size, stride, max_iters, tolerance, absolute,
     );
 }
-/// francis_qr_complex
-///
-/// * h: householder
-/// * p: projection vector
-/// * w: workspace for a givens rotation
-/// * range: number of rows in active window
-/// * size: static number of rows for rotations
-/// * max_iters: number of iterations per eigen vector recoups half on success
-/// * tolerance: error tolerance which is used as a bound for non relative error
 pub fn francis_qr_cpx(
     lin_matrix: &mut [f64],
     projection: &mut [f64],

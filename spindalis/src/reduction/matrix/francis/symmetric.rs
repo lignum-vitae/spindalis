@@ -177,7 +177,6 @@ mod test_verify_correspondance_symmetric {
                 TOLERANCE,
                 ABSOLUTE_CAP,
             );
-
             // --- rotation-tracking decomp_sym_with_rotation path ---
             let mut h_rot = base.clone();
             let mut r_rot = generate_identity_vector(rows, cols);
@@ -187,7 +186,6 @@ mod test_verify_correspondance_symmetric {
                 &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
             );
             decomp_sym_with_rotation(&mut h_rot, &mut r_rot, dim, dim, stride);
-
             assert!(
                 approx_slice_eq(&h_plain, &h_rot, 1e-6),
                 "dim={dim}: decomp_sym and decomp_sym_with_rotation diverged\nplain: {h_plain:?}\nrot:   {h_rot:?}"
