@@ -501,7 +501,6 @@ mod test_hessenberg_reconstructions {
             );
         }
     }
-
     fn check_decomp_sym_reconstruct() -> (bool, bool) {
         let c = 6;
         let (rows, cols) = (c, c);
@@ -536,7 +535,6 @@ mod test_hessenberg_reconstructions {
 
         (converged, ortho_ok && recon_ok)
     }
-
     #[rustfmt::skip]
     #[test]
     fn test_symmetric_reconstruct() {
@@ -554,7 +552,6 @@ mod test_hessenberg_reconstructions {
         assert!(convergence_failures < 10, "too many convergence failures: {convergence_failures}");
         assert!(reconstruction_failures < 10, "too many reconstruction failures: {reconstruction_failures}");
     }
-
     fn check_decomp_cpx_reconstruct() -> (bool, bool) {
         let c = 6;
         let (rows, cols) = (c, c);
@@ -589,7 +586,6 @@ mod test_hessenberg_reconstructions {
 
         (converged, ortho_ok && recon_ok)
     }
-
     #[rustfmt::skip]
     #[test]
     fn test_complex_reconstruct() {
