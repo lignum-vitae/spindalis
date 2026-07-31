@@ -96,7 +96,9 @@ pub fn francis_qr_sym(
     absolute: f64,
 ) {
     primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
-    symmetric::decomp_sym(lin_matrix, range, size, stride, max_iters, tolerance, absolute);
+    symmetric::decomp_sym(
+        lin_matrix, range, size, stride, max_iters, tolerance, absolute,
+    );
 }
 /// francis_qr_complex
 ///
@@ -118,7 +120,9 @@ pub fn francis_qr_cpx(
     tolerance: f64,
 ) {
     primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
-    complex::decomp_cpx(lin_matrix, projection, workspace, range, size, stride, max_iters, tolerance);
+    complex::decomp_cpx(
+        lin_matrix, projection, workspace, range, size, stride, max_iters, tolerance,
+    );
 }
 #[cfg(test)]
 mod test_francis_interface {

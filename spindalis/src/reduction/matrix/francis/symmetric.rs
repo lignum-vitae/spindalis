@@ -71,7 +71,12 @@ pub fn francis_iteration_sym(
     top_left: usize,
     bottom_left: usize,
 ) {
-    let eig = eigen(hess_lin_matrix[top_left], hess_lin_matrix[top_left + 1], hess_lin_matrix[bottom_left], hess_lin_matrix[bottom_left + 1]);
+    let eig = eigen(
+        hess_lin_matrix[top_left],
+        hess_lin_matrix[top_left + 1],
+        hess_lin_matrix[bottom_left],
+        hess_lin_matrix[bottom_left + 1],
+    );
     let (_, cosine, sine) = implicit_givens_rotation(hess_lin_matrix[0] - eig, hess_lin_matrix[1]);
     apply_gt_right(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
     apply_g_left(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
@@ -79,17 +84,28 @@ pub fn francis_iteration_sym(
         let row = o * stride;
         let s1 = o + 1;
         let s2 = o + 2;
-        let (_, cosine, sine) = implicit_givens_rotation(hess_lin_matrix[row + s1], hess_lin_matrix[row + s2]);
-        apply_gt_right(&mut hess_lin_matrix[row..], s1, s2, stride, range - o, cosine, sine);
+        let (_, cosine, sine) =
+            implicit_givens_rotation(hess_lin_matrix[row + s1], hess_lin_matrix[row + s2]);
+        apply_gt_right(
+            &mut hess_lin_matrix[row..],
+            s1,
+            s2,
+            stride,
+            range - o,
+            cosine,
+            sine,
+        );
         apply_g_left(hess_lin_matrix, s1, s2, stride, range, cosine, sine);
     }
 }
 #[cfg(test)]
 mod test_verify_correspondance_symmetric {
     use super::*;
-    use crate::reduction::matrix::francis::primitives::{hessenberg};
-    use crate::reduction::matrix::francis::verify::{decomp_sym_with_rotation, hessenberg_with_rotation};
     use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::francis::verify::{
+        decomp_sym_with_rotation, hessenberg_with_rotation,
+    };
     use rand::prelude::*;
     use rand_distr::StandardNormal;
 
@@ -152,14 +168,24 @@ mod test_verify_correspondance_symmetric {
             let mut p_plain = vec![0f64; cols];
             let mut w_plain = vec![0f64; rows];
             hessenberg(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
-            decomp_sym(&mut h_plain, dim, dim, stride, MAX_ITERS, TOLERANCE, ABSOLUTE_CAP);
+            decomp_sym(
+                &mut h_plain,
+                dim,
+                dim,
+                stride,
+                MAX_ITERS,
+                TOLERANCE,
+                ABSOLUTE_CAP,
+            );
 
             // --- rotation-tracking decomp_sym_with_rotation path ---
             let mut h_rot = base.clone();
             let mut r_rot = generate_identity_vector(rows, cols);
             let mut p_rot = vec![0f64; cols];
             let mut w_rot = vec![0f64; rows];
-            hessenberg_with_rotation(&mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride);
+            hessenberg_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
             decomp_sym_with_rotation(&mut h_rot, &mut r_rot, dim, dim, stride);
 
             assert!(

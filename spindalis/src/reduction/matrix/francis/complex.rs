@@ -109,8 +109,24 @@ pub fn francis_iteration_cpx(
     let projection = &mut projection[..bound];
     let tau = params(&mut workspace[..bound], projection);
     if tau != 0f64 {
-        rapply_householder(hess_lin_matrix, projection, workspace, tau, size, bound, stride);
-        lapply_householder(hess_lin_matrix, projection, workspace, tau, bound, range, stride);
+        rapply_householder(
+            hess_lin_matrix,
+            projection,
+            workspace,
+            tau,
+            size,
+            bound,
+            stride,
+        );
+        lapply_householder(
+            hess_lin_matrix,
+            projection,
+            workspace,
+            tau,
+            bound,
+            range,
+            stride,
+        );
     }
     let mut offset = 0;
     for o in 1..range.saturating_sub(1) {
@@ -123,8 +139,24 @@ pub fn francis_iteration_cpx(
         if tau == 0f64 {
             continue;
         }
-        rapply_householder(&mut target[o..], proj, workspace, tau, size - o, bound, stride);
-        lapply_householder(&mut hess_lin_matrix[offset..], proj, workspace, tau, bound, range, stride);
+        rapply_householder(
+            &mut target[o..],
+            proj,
+            workspace,
+            tau,
+            size - o,
+            bound,
+            stride,
+        );
+        lapply_householder(
+            &mut hess_lin_matrix[offset..],
+            proj,
+            workspace,
+            tau,
+            bound,
+            range,
+            stride,
+        );
     }
 }
 /// francis_iteration_cpx_2x2
@@ -135,8 +167,19 @@ pub fn francis_iteration_cpx(
 /// * stride: stride of the data format
 /// * top_left : top-left of the eigen-pair
 /// * bottom_left : bottom-left of the eigen-pair
-pub fn francis_iteration_cpx_2x2(hess_lin_matrix: &mut [f64], size: usize, stride: usize, top_left: usize, bottom_left: usize) {
-    let eig = eigen(hess_lin_matrix[top_left], hess_lin_matrix[top_left + 1], hess_lin_matrix[bottom_left], hess_lin_matrix[bottom_left + 1]);
+pub fn francis_iteration_cpx_2x2(
+    hess_lin_matrix: &mut [f64],
+    size: usize,
+    stride: usize,
+    top_left: usize,
+    bottom_left: usize,
+) {
+    let eig = eigen(
+        hess_lin_matrix[top_left],
+        hess_lin_matrix[top_left + 1],
+        hess_lin_matrix[bottom_left],
+        hess_lin_matrix[bottom_left + 1],
+    );
     let (_, cosine, sine) = implicit_givens_rotation(hess_lin_matrix[0] - eig, hess_lin_matrix[1]);
     apply_gt_right(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
     apply_g_left(hess_lin_matrix, 0, 1, stride, 2, cosine, sine);
@@ -145,9 +188,11 @@ pub fn francis_iteration_cpx_2x2(hess_lin_matrix: &mut [f64], size: usize, strid
 #[cfg(test)]
 mod test_verify_correspondance_complex {
     use super::*;
-    use crate::reduction::matrix::francis::primitives::{hessenberg};
-    use crate::reduction::matrix::francis::verify::{decomp_cpx_with_rotation, hessenberg_with_rotation};
-    use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::constants::{MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::francis::verify::{
+        decomp_cpx_with_rotation, hessenberg_with_rotation,
+    };
     use rand::prelude::*;
     use rand_distr::StandardNormal;
 
@@ -159,7 +204,6 @@ mod test_verify_correspondance_complex {
         }
         data
     }
-
     fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
         let mut vector = vec![0f64; m * n];
         let mut idx = 0;
@@ -169,7 +213,6 @@ mod test_verify_correspondance_complex {
         }
         vector
     }
-
     // A * A^T so it's complex (with float noise, like the other tests)
     fn generate_approx_complex_vector(n: usize) -> Vec<f64> {
         let a = generate_random_vector(n * n);
@@ -185,7 +228,6 @@ mod test_verify_correspondance_complex {
         }
         result
     }
-
     fn approx_slice_eq(a: &[f64], b: &[f64], tolerance: f64) -> bool {
         assert_eq!(a.len(), b.len());
         a.iter().zip(b.iter()).all(|(x, y)| {
@@ -195,7 +237,6 @@ mod test_verify_correspondance_complex {
             (x - y).abs() < tolerance
         })
     }
-
     #[test]
     fn test_decomp_cpx_matches_decomp_cpx_with_rotation() {
         // 5 random shapes
@@ -210,18 +251,28 @@ mod test_verify_correspondance_complex {
             let mut p_plain = vec![0f64; cols];
             let mut w_plain = vec![0f64; rows.max(3)];
             hessenberg(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
-            w_plain.fill(0f64);
-            decomp_cpx(&mut h_plain, &mut p_plain, &mut w_plain, dim, dim, stride, MAX_ITERS, TOLERANCE);
+            decomp_cpx(
+                &mut h_plain,
+                &mut p_plain,
+                &mut w_plain,
+                dim,
+                dim,
+                stride,
+                MAX_ITERS,
+                TOLERANCE,
+            );
 
             // --- rotation-tracking decomp_cpx_with_rotation path ---
             let mut h_rot = base.clone();
             let mut r_rot = generate_identity_vector(rows, cols);
             let mut p_rot = vec![0f64; cols];
             let mut w_rot = vec![0f64; rows.max(3)];
-            w_rot.fill(0f64);
-            hessenberg_with_rotation(&mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride);
-            w_rot.fill(0f64);
-            decomp_cpx_with_rotation(&mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride);
+            hessenberg_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
+            decomp_cpx_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
 
             assert!(
                 approx_slice_eq(&h_plain, &h_rot, 1e-6),

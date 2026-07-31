@@ -168,8 +168,24 @@ pub fn hessenberg(
         if tau == 0f64 {
             continue;
         }
-        rapply_householder(&mut t[o..], proj, workspace, tau, rows - o, split_range, stride);
-        lapply_householder(&mut hess_lin_matrix[offset..], proj, workspace, tau, active_range, cols, stride);
+        rapply_householder(
+            &mut t[o..],
+            proj,
+            workspace,
+            tau,
+            rows - o,
+            split_range,
+            stride,
+        );
+        lapply_householder(
+            &mut hess_lin_matrix[offset..],
+            proj,
+            workspace,
+            tau,
+            active_range,
+            cols,
+            stride,
+        );
     }
 }
 pub fn deflate(
@@ -214,7 +230,10 @@ pub fn double_shift(
     // M = H^2 - H(u1 + u2) +Iu1 *u2;
     // M = H^2 - H *trace +I * det;
     let (m00, m01) = (hess_lin_matrix[top_left], hess_lin_matrix[top_left + 1]);
-    let (m10, m11) = (hess_lin_matrix[bottom_left], hess_lin_matrix[bottom_left + 1]);
+    let (m10, m11) = (
+        hess_lin_matrix[bottom_left],
+        hess_lin_matrix[bottom_left + 1],
+    );
 
     let (h00, h01) = (hess_lin_matrix[0], hess_lin_matrix[1]);
     let (h10, h11) = (hess_lin_matrix[stride], hess_lin_matrix[stride + 1]);
