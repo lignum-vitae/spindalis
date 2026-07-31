@@ -78,7 +78,7 @@ pub fn decomp_cpx(
         } else {
             if range == 2 {
                 francis_iteration_cpx_2x2(h, size, stride, tl, bl);
-            } else if (stall + EXCEPTION_SHIFT_OFFSET) % EXCEPTION_SHIFT_PERIOD == 0 {
+            } else if (stall + EXCEPTION_SHIFT_OFFSET).is_multiple_of(EXCEPTION_SHIFT_PERIOD) {
                 exception_shift(h, w, stride, range, tl, bl);
                 francis_iteration_cpx(h, p, w, size, range, stride);
             } else {

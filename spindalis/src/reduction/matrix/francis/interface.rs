@@ -6,6 +6,24 @@ const DEFAULT_MAX_ITERS: usize = 100;
 const DEFAULT_TOLERANCE: f64 = 1e-10;
 const DEFAULT_ABSOLUTE: f64 = 1e-12;
 
+// TODO: make test which enforces that the full_* or renamed fns are direct mirrors
+// without any epsilon ie they should be direct copies for all matrices
+
+// INVARIANT: every "full_*" function in this file is a 1:1 mirror of its
+// non-"full_" counterpart (same reduction logic, same reflectors, same
+// order of operations) — the only difference is that "full_*" versions
+// additionally accumulate the rotation/Q matrix, at ~2x the flop cost.
+// Non-"full_" versions exist purely for callers who don't need Q.
+//
+// If you change the core reduction logic in one member of a pair, you
+// MUST make the identical change in its counterpart. There is currently
+// no compiler-level enforcement of this — a change to only one side will
+// build and pass unrelated tests silently.
+//
+// Enforced only by: <name of the N-random-matrix agreement test(s)>.
+// Run that test after touching ANY function here before considering
+// the change complete.
+
 // Recommended parameters in constants
 // Note: For real-world inputs like A^T*A covariance matrices, explicit forming
 // squares condition numbers, so a pre-QR step or an explicit symmetrization

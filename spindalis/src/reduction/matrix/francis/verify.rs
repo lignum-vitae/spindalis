@@ -1,4 +1,7 @@
 #![allow(unused)]
+use crate::reduction::matrix::francis::constants::{
+    EXCEPTION_SHIFT_OFFSET, EXCEPTION_SHIFT_PERIOD,
+};
 use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::givens::{
     apply_g_left, apply_gt_right, implicit_givens_rotation,
@@ -14,7 +17,6 @@ use crate::reduction::matrix::francis::primitives::{
     lapply_householder,
     rapply_householder,
 };
-
 #[rustfmt::skip]
 fn full_decomp_sym(
     h: &mut [f64],
@@ -123,8 +125,7 @@ fn full_decomp_cpx(
         } else {
             if range == 2 {
                 full_francis_iteration_cpx_2x2(h, r, size, stride, tl, bl);
-            // } else if stall > 0 && (stall + 4) % 10 == 0 {
-            } else if (stall + 8) % 12 == 0 {
+            } else if (stall + EXCEPTION_SHIFT_OFFSET).is_multiple_of(EXCEPTION_SHIFT_PERIOD) {
                 // } else if (stall + 4) % 10 == 0 {
                 // } else if stall == 6 {
                 exception_shift(h, w, stride, range, tl, bl);
