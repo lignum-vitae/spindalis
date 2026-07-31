@@ -1,4 +1,3 @@
-#![allow(unused)]
 use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::constants::{
     EXCEPTION_SHIFT_OFFSET, EXCEPTION_SHIFT_PERIOD,
