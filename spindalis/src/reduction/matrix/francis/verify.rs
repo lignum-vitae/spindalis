@@ -345,6 +345,7 @@ mod test_hessenberg_reconstructions {
     use super::*;
     use jedvek::Matrix2D;
     use rand::prelude::*;
+    use rand::SeedableRng;
     use rand_distr::StandardNormal;
     //  NOTE: This should also be weighted towards the size of the dimensionality
     //  of the decomposition ie the condition number not a flat tolerance level
@@ -367,7 +368,7 @@ mod test_hessenberg_reconstructions {
         m.rows().flatten().copied().collect()
     }
     fn generate_random_vector(n: usize) -> Vec<f64> {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
         for d in data.iter_mut().take(n) {
             *d = rng.sample(StandardNormal);

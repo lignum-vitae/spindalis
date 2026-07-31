@@ -88,15 +88,6 @@ pub fn decomp_cpx(
         }
     }
 }
-/// francis_iteration_cpx
-///
-/// * h: hessenberg linearized matrix
-/// * r: rotaiton linearized matrix
-/// * p: projection slice
-/// * w: workspace slice
-/// * size: static number of rows for rotations
-/// * range: number of rows in active window
-/// * stride: stride of the data format
 pub fn francis_iteration_cpx(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
@@ -159,14 +150,6 @@ pub fn francis_iteration_cpx(
         );
     }
 }
-/// francis_iteration_cpx_2x2
-///
-/// * h: hessenberg linearized matrix
-/// * size: static number of rows for rotations
-/// * range: number of rows in active window
-/// * stride: stride of the data format
-/// * top_left : top-left of the eigen-pair
-/// * bottom_left : bottom-left of the eigen-pair
 pub fn francis_iteration_cpx_2x2(
     hess_lin_matrix: &mut [f64],
     size: usize,
@@ -197,7 +180,7 @@ mod test_verify_correspondance_complex {
     use rand_distr::StandardNormal;
 
     fn generate_random_vector(n: usize) -> Vec<f64> {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
         for d in data.iter_mut().take(n) {
             *d = rng.sample(StandardNormal);

@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 use crate::reduction::matrix::francis::constants::{EPSILON, MAX_ITERS};
 /// params
 /// takes in data forom a matrix slice
@@ -68,11 +69,7 @@ pub fn lapply_householder(
     // w := u'A;
     // R -= t*uw';
     let mut roffset = 0;
-    for j in 0..cols {
-        // let scalar = p[0];
-        // scalar implicitly 1
-        workspace[j] = hess_lin_matrix[j];
-    }
+    workspace[..cols].copy_from_slice(&hess_lin_matrix[..cols]);
     for i in 1..rows {
         roffset += stride;
         let scalar = projection[i];
@@ -290,16 +287,9 @@ pub fn eigen(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
 
 #[cfg(test)]
 mod test_verify_correspondance_complex {
-    use super::*;
-    use crate::reduction::matrix::francis::constants::{MAX_ITERS, TOLERANCE};
     use crate::reduction::matrix::francis::primitives::hessenberg;
-    use crate::reduction::matrix::francis::verify::{
-        decomp_cpx_with_rotation, hessenberg_with_rotation,
-    };
     use crate::reduction::matrix::hessenberg::hessenberg_reduction;
     use jedvek::Matrix2D;
-    use rand::prelude::*;
-    use rand_distr::StandardNormal;
     #[test]
     fn test_hessenberg_parity_up_to_sign_flip() {
         let test_matrices = vec![

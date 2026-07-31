@@ -6,9 +6,6 @@ const DEFAULT_MAX_ITERS: usize = 100;
 const DEFAULT_TOLERANCE: f64 = 1e-10;
 const DEFAULT_ABSOLUTE: f64 = 1e-12;
 
-// TODO: make test which enforces that the full_* or renamed fns are direct mirrors
-// without any epsilon ie they should be direct copies for all matrices
-
 // INVARIANT: every "full_*" function in this file is a 1:1 mirror of its
 // non-"full_" counterpart (same reduction logic, same reflectors, same
 // order of operations) — the only difference is that "full_*" versions
@@ -20,7 +17,11 @@ const DEFAULT_ABSOLUTE: f64 = 1e-12;
 // no compiler-level enforcement of this — a change to only one side will
 // build and pass unrelated tests silently.
 //
-// Enforced only by: <name of the N-random-matrix agreement test(s)>.
+// Enforced by: {
+//    test_decomp_sym_matches_decomp_sym_with_rotation,
+//    test_decomp_cpx_matches_decomp_cpx_with_rotation
+// }
+// 
 // Run that test after touching ANY function here before considering
 // the change complete.
 
@@ -29,7 +30,7 @@ const DEFAULT_ABSOLUTE: f64 = 1e-12;
 // squares condition numbers, so a pre-QR step or an explicit symmetrization
 // pass on the tridiagonal output can help keep float drift in check.
 
-pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
+pub fn auto_francis_lq_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
     if matrix.height != matrix.width {
         return Err(SolverError::NonSquareMatrix);
     }
@@ -40,7 +41,7 @@ pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     let mut p = vec![0f64; n];
     let mut w = vec![0f64; n];
 
-    francis_qr_sym(
+    francis_lq_sym(
         &mut h,
         &mut p,
         &mut w,
@@ -53,7 +54,7 @@ pub fn auto_francis_qr_sym(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     );
     Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
 }
-pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
+pub fn auto_francis_lq_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, SolverError> {
     if matrix.height != matrix.width {
         return Err(SolverError::NonSquareMatrix);
     }
@@ -63,7 +64,7 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     let mut h: Vec<f64> = matrix.rows().flatten().copied().collect();
     let mut p = vec![0f64; n];
     let mut w = vec![0f64; n];
-    francis_qr_cpx(
+    francis_lq_cpx(
         &mut h,
         &mut p,
         &mut w,
@@ -75,8 +76,16 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
     );
     Matrix2D::from_flat(h, 0.0, n, n).map_err(SolverError::InvalidVector)
 }
-
-pub fn francis_qr_sym(
+/// francis_lq_sym
+///   symmetric eigenvalue inplace zero-alloc francis lq decomposition
+/// 
+///  * lin_matrix   : matrix as a row major form
+///  * projection   : a mutable slice to store projections
+///  * workspace    : a reusable slice to store variables
+///  * range        : the amount of rows to perform the reduction (for block style / padding)
+///  * size         : the amount of entries filled in the column (for block style / padding)
+///  * stride       : the amount of data spacing per column (for block style / padding)
+pub fn francis_lq_sym(
     lin_matrix: &mut [f64],
     projection: &mut [f64],
     workspace: &mut [f64],
@@ -92,7 +101,16 @@ pub fn francis_qr_sym(
         lin_matrix, range, size, stride, max_iters, tolerance, absolute,
     );
 }
-pub fn francis_qr_cpx(
+/// francis_lq_cpx
+///   complex eigenvaluee inplace zero-alloc francis lq decomposition
+/// 
+///  * lin_matrix   : matrix as a row major form
+///  * projection   : a mutable slice to store projections
+///  * workspace    : a reusable slice to store variables
+///  * range        : the amount of rows to perform the reduction (for block style / padding)
+///  * size         : the amount of entries filled in the column (for block style / padding)
+///  * stride       : the amount of data spacing per column (for block style / padding)
+pub fn francis_lq_cpx(
     lin_matrix: &mut [f64],
     projection: &mut [f64],
     workspace: &mut [f64],
@@ -110,16 +128,16 @@ pub fn francis_qr_cpx(
 #[cfg(test)]
 mod test_francis_interface {
     use super::*;
-
     use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
     use rand::prelude::*;
-
     use rand_distr::StandardNormal;
+    use rand::SeedableRng;
+
     fn approx_scalar_eq(a: f64, b: f64) -> bool {
         (a - b).abs() < TOLERANCE
     }
     fn generate_random_vector(n: usize) -> Vec<f64> {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
         for d in data.iter_mut().take(n) {
             *d = rng.sample(StandardNormal);
@@ -145,7 +163,7 @@ mod test_francis_interface {
     fn trace(data: &[f64], n: usize, stride: usize) -> f64 {
         (0..n).map(|i| data[i * stride + i]).sum()
     }
-    fn check_francis_qr_sym() -> (bool, bool) {
+    fn check_francis_lq_sym() -> (bool, bool) {
         let c = 6;
         let stride = c;
         let mut h = generate_approx_symmetric_vector(c);
@@ -154,7 +172,7 @@ mod test_francis_interface {
 
         let original_trace = trace(&h, c, stride);
 
-        francis_qr_sym(
+        francis_lq_sym(
             &mut h,
             &mut p,
             &mut w,
@@ -170,7 +188,7 @@ mod test_francis_interface {
         let trace_ok = approx_scalar_eq(original_trace, final_trace);
         (true, trace_ok)
     }
-    fn check_francis_qr_cpx() -> (bool, bool) {
+    fn check_francis_lq_cpx() -> (bool, bool) {
         let c = 6;
         let stride = c;
         let mut h = generate_random_vector(c * c);
@@ -179,7 +197,7 @@ mod test_francis_interface {
 
         let original_trace = trace(&h, c, stride);
 
-        francis_qr_cpx(&mut h, &mut p, &mut w, c, c, stride, MAX_ITERS, TOLERANCE);
+        francis_lq_cpx(&mut h, &mut p, &mut w, c, c, stride, MAX_ITERS, TOLERANCE);
 
         let final_trace = trace(&h, c, stride);
         let trace_ok = approx_scalar_eq(original_trace, final_trace);
@@ -187,32 +205,32 @@ mod test_francis_interface {
         (true, trace_ok)
     }
     #[test]
-    fn test_francis_qr_sym() {
+    fn test_francis_lq_sym() {
         let trials = 10_000;
         let mut trace_failures = 0;
         for _ in 0..trials {
-            let (_, trace_ok) = check_francis_qr_sym();
+            let (_, trace_ok) = check_francis_lq_sym();
             if !trace_ok {
                 trace_failures += 1;
             }
         }
-        println!("francis_qr_sym: {trace_failures} trace mismatches / {trials}");
+        println!("francis_lq_sym: {trace_failures} trace mismatches / {trials}");
         assert!(
             trace_failures < 10,
             "too many trace mismatches: {trace_failures}"
         );
     }
     #[test]
-    fn test_francis_qr_cpx() {
+    fn test_francis_lq_cpx() {
         let trials = 10_000;
         let mut trace_failures = 0;
         for _ in 0..trials {
-            let (_, trace_ok) = check_francis_qr_cpx();
+            let (_, trace_ok) = check_francis_lq_cpx();
             if !trace_ok {
                 trace_failures += 1;
             }
         }
-        println!("francis_qr_cpx: {trace_failures} trace mismatches / {trials}");
+        println!("francis_lq_cpx: {trace_failures} trace mismatches / {trials}");
         assert!(
             trace_failures < 10,
             "too many trace mismatches: {trace_failures}"

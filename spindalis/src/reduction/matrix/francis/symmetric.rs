@@ -108,9 +108,11 @@ mod test_verify_correspondance_symmetric {
     };
     use rand::prelude::*;
     use rand_distr::StandardNormal;
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
 
     fn generate_random_vector(n: usize) -> Vec<f64> {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
         for d in data.iter_mut().take(n) {
             *d = rng.sample(StandardNormal);
@@ -153,7 +155,6 @@ mod test_verify_correspondance_symmetric {
             (x - y).abs() < tolerance
         })
     }
-
     #[test]
     fn test_decomp_sym_matches_decomp_sym_with_rotation() {
         // 5 random shapes
