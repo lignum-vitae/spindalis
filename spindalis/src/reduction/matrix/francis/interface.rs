@@ -1,11 +1,9 @@
+use crate::reduction::matrix::francis::constants::{
+    DEFAULT_ABSOLUTE, DEFAULT_MAX_ITERS, DEFAULT_TOLERANCE,
+};
 use crate::reduction::matrix::francis::{complex, primitives, symmetric};
 use crate::solvers::SolverError;
 use jedvek::Matrix2D;
-
-const DEFAULT_MAX_ITERS: usize = 100;
-const DEFAULT_TOLERANCE: f64 = 1e-10;
-const DEFAULT_ABSOLUTE: f64 = 1e-12;
-
 // INVARIANT: every "full_*" function in this file is a 1:1 mirror of its
 // non-"full_" counterpart (same reduction logic, same reflectors, same
 // order of operations) — the only difference is that "full_*" versions
@@ -21,7 +19,7 @@ const DEFAULT_ABSOLUTE: f64 = 1e-12;
 //    test_decomp_sym_matches_decomp_sym_with_rotation,
 //    test_decomp_cpx_matches_decomp_cpx_with_rotation
 // }
-// 
+//
 // Run that test after touching ANY function here before considering
 // the change complete.
 
@@ -78,7 +76,7 @@ pub fn auto_francis_lq_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
 }
 /// francis_lq_sym
 ///   symmetric eigenvalue inplace zero-alloc francis lq decomposition
-/// 
+///
 ///  * lin_matrix   : matrix as a row major form
 ///  * projection   : a mutable slice to store projections
 ///  * workspace    : a reusable slice to store variables
@@ -96,14 +94,14 @@ pub fn francis_lq_sym(
     tolerance: f64,
     absolute: f64,
 ) {
-    primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
+    primitives::hessenberg_lq(lin_matrix, projection, workspace, size, range, stride);
     symmetric::decomp_sym(
         lin_matrix, range, size, stride, max_iters, tolerance, absolute,
     );
 }
 /// francis_lq_cpx
 ///   complex eigenvaluee inplace zero-alloc francis lq decomposition
-/// 
+///
 ///  * lin_matrix   : matrix as a row major form
 ///  * projection   : a mutable slice to store projections
 ///  * workspace    : a reusable slice to store variables
@@ -120,7 +118,7 @@ pub fn francis_lq_cpx(
     max_iters: usize,
     tolerance: f64,
 ) {
-    primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
+    primitives::hessenberg_lq(lin_matrix, projection, workspace, size, range, stride);
     complex::decomp_cpx(
         lin_matrix, projection, workspace, range, size, stride, max_iters, tolerance,
     );
@@ -129,9 +127,9 @@ pub fn francis_lq_cpx(
 mod test_francis_interface {
     use super::*;
     use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+    use rand::SeedableRng;
     use rand::prelude::*;
     use rand_distr::StandardNormal;
-    use rand::SeedableRng;
 
     fn approx_scalar_eq(a: f64, b: f64) -> bool {
         (a - b).abs() < TOLERANCE

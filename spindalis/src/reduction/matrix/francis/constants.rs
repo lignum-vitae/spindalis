@@ -19,7 +19,10 @@
 ///
 /// - **`EPSILON` (1e-18):** Numerical floor guarding against division-by-zero
 ///   and negligible subdiagonal elements during Householder/Givens setups.
-pub const MAX_ITERS: usize = 36;
+// // -------------------------------------------------------------------------
+// // **Double Precision Profile**
+// // -------------------------------------------------------------------------
+pub const MAX_ITERS: usize = 100;
 pub const TOLERANCE: f64 = 1e-4;
 pub const ABSOLUTE_CAP: f64 = 1e-3;
 pub const EPSILON: f64 = 1e-21;
@@ -27,10 +30,15 @@ pub const EPSILON: f64 = 1e-21;
 pub const EXCEPTION_SHIFT_OFFSET: usize = 8;
 pub const EXCEPTION_SHIFT_PERIOD: usize = 12;
 
+// Used in interface.rs as default values for the Francis LQ decomp assuming fully packed matrices
+pub const DEFAULT_MAX_ITERS: usize = 100;
+pub const DEFAULT_TOLERANCE: f64 = 1e-10;
+pub const DEFAULT_ABSOLUTE: f64 = 1e-12;
+
 // // -------------------------------------------------------------------------
-// // **Strict Precision Profile** (Alternative for high-precision synthetic inputs)
+// // **Single Precision Profile**
 // // -------------------------------------------------------------------------
 // pub const MAX_ITERS: usize = 24;
-// pub const TOLERANCE: f64 = 1e-8;
-// pub const ABSOLUTE_CAP: f64 = 1e-6; // Recommended companion adjustment if strict
-// pub const EPSILON: f64 = 1e-26;
+// pub const TOLERANCE: f32 = 1e-8;
+// pub const ABSOLUTE_CAP: f32 = 1e-6; // Recommended companion adjustment if strict
+// pub const EPSILON: f32 = 1e-26;

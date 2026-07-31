@@ -172,9 +172,9 @@ pub fn francis_iteration_cpx_2x2(
 mod test_verify_correspondance_complex {
     use super::*;
     use crate::reduction::matrix::francis::constants::{MAX_ITERS, TOLERANCE};
-    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::francis::primitives::hessenberg_lq;
     use crate::reduction::matrix::francis::verify::{
-        decomp_cpx_with_rotation, hessenberg_with_rotation,
+        decomp_cpx_with_rotation, hessenberg_lq_with_rotation,
     };
     use rand::prelude::*;
     use rand_distr::StandardNormal;
@@ -233,7 +233,7 @@ mod test_verify_correspondance_complex {
             let mut h_plain = base.clone();
             let mut p_plain = vec![0f64; cols];
             let mut w_plain = vec![0f64; rows.max(3)];
-            hessenberg(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
+            hessenberg_lq(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
             decomp_cpx(
                 &mut h_plain,
                 &mut p_plain,
@@ -250,7 +250,7 @@ mod test_verify_correspondance_complex {
             let mut r_rot = generate_identity_vector(rows, cols);
             let mut p_rot = vec![0f64; cols];
             let mut w_rot = vec![0f64; rows.max(3)];
-            hessenberg_with_rotation(
+            hessenberg_lq_with_rotation(
                 &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
             );
             decomp_cpx_with_rotation(

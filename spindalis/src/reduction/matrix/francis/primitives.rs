@@ -135,14 +135,14 @@ pub fn rapply_householder(
         roffset += stride;
     }
 }
-/// hessenberg
+/// hessenberg_lq
 /// * h: matrix to create the hessenberg
 /// * p: projection vector
 /// * w: workspace vector
 /// * rows: number of rows
 /// * cols: number of cols
 /// * stride: stride of the data
-pub fn hessenberg(
+pub fn hessenberg_lq(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
     workspace: &mut [f64],
@@ -287,7 +287,7 @@ pub fn eigen(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
 
 #[cfg(test)]
 mod test_verify_correspondance_complex {
-    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::francis::primitives::hessenberg_lq;
     use crate::reduction::matrix::hessenberg::hessenberg_reduction;
     use jedvek::Matrix2D;
     #[test]
@@ -315,7 +315,7 @@ mod test_verify_correspondance_complex {
             let mut p = vec![0.0; n];
             let mut w = vec![0.0; n];
 
-            hessenberg(&mut h_slice, &mut p, &mut w, n, n, stride);
+            hessenberg_lq(&mut h_slice, &mut p, &mut w, n, n, stride);
 
             let computed_h_t = Matrix2D::from_flat(h_slice, 0.0, n, n).unwrap();
             let computed_h = computed_h_t.transpose();

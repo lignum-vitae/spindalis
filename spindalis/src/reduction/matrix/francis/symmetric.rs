@@ -102,14 +102,14 @@ pub fn francis_iteration_sym(
 mod test_verify_correspondance_symmetric {
     use super::*;
     use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
-    use crate::reduction::matrix::francis::primitives::hessenberg;
+    use crate::reduction::matrix::francis::primitives::hessenberg_lq;
     use crate::reduction::matrix::francis::verify::{
-        decomp_sym_with_rotation, hessenberg_with_rotation,
+        decomp_sym_with_rotation, hessenberg_lq_with_rotation,
     };
-    use rand::prelude::*;
-    use rand_distr::StandardNormal;
-    use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use rand::prelude::*;
+    use rand::rngs::StdRng;
+    use rand_distr::StandardNormal;
 
     fn generate_random_vector(n: usize) -> Vec<f64> {
         let mut rng = StdRng::seed_from_u64(42);
@@ -168,7 +168,7 @@ mod test_verify_correspondance_symmetric {
             let mut h_plain = base.clone();
             let mut p_plain = vec![0f64; cols];
             let mut w_plain = vec![0f64; rows];
-            hessenberg(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
+            hessenberg_lq(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
             decomp_sym(
                 &mut h_plain,
                 dim,
@@ -183,7 +183,7 @@ mod test_verify_correspondance_symmetric {
             let mut r_rot = generate_identity_vector(rows, cols);
             let mut p_rot = vec![0f64; cols];
             let mut w_rot = vec![0f64; rows];
-            hessenberg_with_rotation(
+            hessenberg_lq_with_rotation(
                 &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
             );
             decomp_sym_with_rotation(&mut h_rot, &mut r_rot, dim, dim, stride);

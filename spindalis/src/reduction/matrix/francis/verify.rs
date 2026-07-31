@@ -287,7 +287,7 @@ pub fn francis_iteration_sym_with_rotation(
         apply_g_left(rotation, s1, s2, stride, size, cosine, sine);
     }
 }
-pub fn hessenberg_with_rotation(
+pub fn hessenberg_lq_with_rotation(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
     rotation: &mut [f64],
@@ -344,8 +344,8 @@ pub fn hessenberg_with_rotation(
 mod test_hessenberg_reconstructions {
     use super::*;
     use jedvek::Matrix2D;
-    use rand::prelude::*;
     use rand::SeedableRng;
+    use rand::prelude::*;
     use rand_distr::StandardNormal;
     //  NOTE: This should also be weighted towards the size of the dimensionality
     //  of the decomposition ie the condition number not a flat tolerance level
@@ -421,7 +421,7 @@ mod test_hessenberg_reconstructions {
             let mut w = vec![0f64; rows];
             let original = to_matrix(&h, rows, cols);
 
-            hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+            hessenberg_lq_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
 
             let kernel = to_matrix(&h, rows, cols);
             let rotation = to_matrix(&r, rows, cols);
@@ -463,7 +463,7 @@ mod test_hessenberg_reconstructions {
             let mut w = vec![0f64; rows];
             let original = to_matrix(&h, rows, cols);
 
-            hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+            hessenberg_lq_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
 
             let kernel = to_matrix(&h, rows, cols);
             let rotation = to_matrix(&r, rows, cols);
@@ -515,7 +515,7 @@ mod test_hessenberg_reconstructions {
 
         let original = to_matrix(&h, rows, cols);
 
-        hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+        hessenberg_lq_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
         let converged = decomp_sym_with_rotation(&mut h, &mut r, c, c, c);
 
         let kernel = to_matrix(&h, rows, cols);
@@ -568,7 +568,7 @@ mod test_hessenberg_reconstructions {
 
         let original = to_matrix(&h, rows, cols);
 
-        hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+        hessenberg_lq_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
         let converged = decomp_cpx_with_rotation(&mut h, &mut p, &mut r, &mut w, c, c, c);
 
         let kernel = to_matrix(&h, rows, cols);
