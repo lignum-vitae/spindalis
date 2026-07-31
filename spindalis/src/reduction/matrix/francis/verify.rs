@@ -1,8 +1,8 @@
 #![allow(unused)]
+use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::constants::{
     EXCEPTION_SHIFT_OFFSET, EXCEPTION_SHIFT_PERIOD,
 };
-use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::givens::{
     apply_g_left, apply_gt_right, implicit_givens_rotation,
 };
@@ -18,233 +18,280 @@ use crate::reduction::matrix::francis::primitives::{
     rapply_householder,
 };
 #[rustfmt::skip]
-fn full_decomp_sym(
-    h: &mut [f64],
-    r: &mut [f64],
+pub fn decomp_sym_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    rotation: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize
 ) -> bool {
     let s = range * stride;
-    let mut e1 = s.saturating_sub(stride + 1);
-    let mut e2 = s.saturating_sub(stride + stride + 2);
-    let mut tl = s.saturating_sub(stride + 2);
-    let mut bl = s.saturating_sub(2);
+    let mut error1 = s.saturating_sub(stride + 1);
+    let mut error2 = s.saturating_sub(stride + stride + 2);
+    let mut top_left = s.saturating_sub(stride + 2);
+    let mut bottom_left = s.saturating_sub(2);
     let mut curriter = 0;
-    let mut error = vec![];
     while range > 1 && curriter < MAX_ITERS {
-        let scale = h[tl].abs() + h[bl+1].abs();
+        let scale = hess_lin_matrix[top_left].abs() + hess_lin_matrix[bottom_left+1].abs();
         curriter += 1;
-        if h[e1].abs() < (scale * TOLERANCE).min(ABSOLUTE_CAP) {
+        if hess_lin_matrix[error1].abs() < (scale * TOLERANCE).min(ABSOLUTE_CAP) {
             deflate(
                 1,
                 stride,
                 &mut range,
-                &mut e1,
-                &mut e2,
-                &mut tl,
-                &mut bl,
+                &mut error1,
+                &mut error2,
+                &mut top_left,
+                &mut bottom_left,
                 &mut curriter,
             );
-            error = vec![];
-        } else if h[e2].abs() < TOLERANCE && curriter == MAX_ITERS {
+        } else if hess_lin_matrix[error2].abs() < TOLERANCE && curriter == MAX_ITERS {
             deflate(
                 2,
                 stride,
                 &mut range,
-                &mut e1,
-                &mut e2,
-                &mut tl,
-                &mut bl,
+                &mut error1,
+                &mut error2,
+                &mut top_left,
+                &mut bottom_left,
                 &mut curriter,
             );
-            error = vec![];
         } else {
-            full_francis_iteration_sym(h, r, size, range, stride, tl, bl);
+            francis_iteration_sym_with_rotation(hess_lin_matrix, rotation, size, range, stride, top_left, bottom_left);
         }
-        error.push(h[e1]);
     }
     range <= 1
 }
-fn full_decomp_cpx(
-    h: &mut [f64],
-    p: &mut [f64],
-    r: &mut [f64],
-    w: &mut [f64],
+pub fn decomp_cpx_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    rotation: &mut [f64],
+    workspace: &mut [f64],
     mut range: usize,
     size: usize,
     stride: usize,
 ) -> bool {
-    p.fill(0f64);
     let s = range * stride;
-    let mut e1 = s.saturating_sub(stride + 1);
-    let mut e2 = s.saturating_sub(stride + stride + 2);
-    let mut tl = s.saturating_sub(stride + 2);
-    let mut bl = s.saturating_sub(2);
+    let mut error1 = s.saturating_sub(stride + 1);
+    let mut error2 = s.saturating_sub(stride + stride + 2);
+    let mut top_left = s.saturating_sub(stride + 2);
+    let mut bottom_left = s.saturating_sub(2);
     let mut curriter = 0;
     let mut stall = 0;
     while range > 0 && curriter < MAX_ITERS {
         curriter += 1;
-        if h[e1].abs() < TOLERANCE {
+        if hess_lin_matrix[error1].abs() < TOLERANCE {
             stall = 0;
             deflate(
                 1,
                 stride,
                 &mut range,
-                &mut e1,
-                &mut e2,
-                &mut tl,
-                &mut bl,
+                &mut error1,
+                &mut error2,
+                &mut top_left,
+                &mut bottom_left,
                 &mut curriter,
             );
-        } else if h[e2].abs() < TOLERANCE {
-            // if e2 == 0 then we are hitting eigen which should be greater than tolerance
+        } else if hess_lin_matrix[error2].abs() < TOLERANCE {
+            // if error2 == 0 then we are hitting eigen which should be greater than tolerance
             deflate(
                 2,
                 stride,
                 &mut range,
-                &mut e1,
-                &mut e2,
-                &mut tl,
-                &mut bl,
+                &mut error1,
+                &mut error2,
+                &mut top_left,
+                &mut bottom_left,
                 &mut curriter,
             );
             stall = 0;
-        } else if range == 2 && complex_eig_pair(h, tl, bl) {
+        } else if range == 2 && complex_eig_pair(hess_lin_matrix, top_left, bottom_left) {
             deflate(
                 2,
                 stride,
                 &mut range,
-                &mut e1,
-                &mut e2,
-                &mut tl,
-                &mut bl,
+                &mut error1,
+                &mut error2,
+                &mut top_left,
+                &mut bottom_left,
                 &mut curriter,
             );
             stall = 0;
         } else {
-            if range == 2 {
-                full_francis_iteration_cpx_2x2(h, r, size, stride, tl, bl);
+            if range == 2 || size <= 2 {
+                francis_iteration_cpx_2x2_with_rotation(
+                    hess_lin_matrix,
+                    rotation,
+                    size,
+                    stride,
+                    top_left,
+                    bottom_left,
+                );
             } else if (stall + EXCEPTION_SHIFT_OFFSET).is_multiple_of(EXCEPTION_SHIFT_PERIOD) {
-                // } else if (stall + 4) % 10 == 0 {
-                // } else if stall == 6 {
-                exception_shift(h, w, stride, range, tl, bl);
-                full_francis_iteration_cpx(h, r, p, w, size, range, stride, tl, bl);
+                exception_shift(hess_lin_matrix, workspace, stride, top_left);
+                francis_iteration_cpx_with_rotation(
+                    hess_lin_matrix,
+                    projection,
+                    rotation,
+                    workspace,
+                    size,
+                    range,
+                    stride,
+                );
             } else {
-                double_shift(h, w, stride, range, tl, bl);
-                full_francis_iteration_cpx(h, r, p, w, size, range, stride, tl, bl);
+                double_shift(hess_lin_matrix, workspace, stride, top_left, bottom_left);
+                francis_iteration_cpx_with_rotation(
+                    hess_lin_matrix,
+                    projection,
+                    rotation,
+                    workspace,
+                    size,
+                    range,
+                    stride,
+                );
             }
             stall += 1;
         }
     }
     range <= 1
 }
-/// francis_iteration_cpx
-///
-/// * h: hessenberg linearized matrix
-/// * r: rotaiton linearized matrix
-/// * p: projection slice
-/// * w: workspace slice
-/// * size: static number of rows for rotations
-/// * range: number of rows in active window
-/// * stride: stride of the data format
-fn full_francis_iteration_cpx(
-    h: &mut [f64],
-    r: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+pub fn francis_iteration_cpx_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    rotation: &mut [f64],
+    workspace: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
-    _tl: usize,
-    _bl: usize,
 ) {
     let bound = range.min(3);
-    let p = &mut p[..bound];
-    let tau = params(&mut w[..bound], p);
+    let projection = &mut projection[..bound];
+    let tau = params(&mut workspace[..bound], projection);
     if tau != 0f64 {
-        rapply_householder(h, p, w, tau, size, bound, stride);
-        lapply_householder(h, p, w, tau, bound, range, stride);
+        rapply_householder(
+            hess_lin_matrix,
+            projection,
+            workspace,
+            tau,
+            size,
+            bound,
+            stride,
+        );
+        lapply_householder(
+            hess_lin_matrix,
+            projection,
+            workspace,
+            tau,
+            bound,
+            range,
+            stride,
+        );
         // ----------------- tracking the rotation matrix
-        lapply_householder(r, p, w, tau, bound, size, stride);
+        lapply_householder(rotation, projection, workspace, tau, bound, size, stride);
     }
     let mut offset = 0;
     for o in 1..range.saturating_sub(1) {
         let bound = bound.min(stride - o);
-        let (slice, t) = h.split_at_mut(offset + stride);
+        let (slice, target) = hess_lin_matrix.split_at_mut(offset + stride);
         let slice = &mut slice[offset + o..offset + o + bound];
-        let proj = &mut p[..bound];
+        let proj = &mut projection[..bound];
         let tau = params(slice, proj);
         offset += stride;
         if tau == 0f64 {
             continue;
         }
-        rapply_householder(&mut t[o..], proj, w, tau, size - o, bound, stride);
-        lapply_householder(&mut h[offset..], proj, w, tau, bound, range, stride);
+        rapply_householder(
+            &mut target[o..],
+            proj,
+            workspace,
+            tau,
+            size - o,
+            bound,
+            stride,
+        );
+        lapply_householder(
+            &mut hess_lin_matrix[offset..],
+            proj,
+            workspace,
+            tau,
+            bound,
+            range,
+            stride,
+        );
         // ----------------- tracking the rotation matrix
-        lapply_householder(&mut r[offset..], proj, w, tau, bound, size, stride);
+        lapply_householder(
+            &mut rotation[offset..],
+            proj,
+            workspace,
+            tau,
+            bound,
+            size,
+            stride,
+        );
     }
 }
-fn full_francis_iteration_cpx_2x2(
-    h: &mut [f64],
-    r: &mut [f64],
+pub fn francis_iteration_cpx_2x2_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    rotation: &mut [f64],
     size: usize,
     stride: usize,
-    tl: usize,
-    bl: usize,
+    top_left: usize,
+    bottom_left: usize,
 ) {
-    let eig = eigen(h[tl], h[tl + 1], h[bl], h[bl + 1]);
-    let (_, cosine, sine) = implicit_givens_rotation(h[0] - eig, h[1]);
-    apply_gt_right(h, 0, 1, stride, size, cosine, sine);
-    apply_g_left(h, 0, 1, stride, 2, cosine, sine);
-    apply_g_left(r, 0, 1, stride, size, cosine, sine);
+    let eig = eigen(
+        hess_lin_matrix[top_left],
+        hess_lin_matrix[top_left + 1],
+        hess_lin_matrix[bottom_left],
+        hess_lin_matrix[bottom_left + 1],
+    );
+    let (_, cosine, sine) = implicit_givens_rotation(hess_lin_matrix[0] - eig, hess_lin_matrix[1]);
+    apply_gt_right(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
+    apply_g_left(hess_lin_matrix, 0, 1, stride, 2, cosine, sine);
+    apply_g_left(rotation, 0, 1, stride, size, cosine, sine);
 }
-/// full_francis_iteration_sym
-///
-/// * h: hessenberg linearized matrix
-/// * r: rotation accumulated linearized matrix
-/// * size: static number of rows for rotations
-/// * range: number of rows in active window
-/// * stride: stride of the data format
-/// * tl: top left of the window for the eigens
-/// * bl: bottom left of the window for the eigens
-fn full_francis_iteration_sym(
-    h: &mut [f64],
-    r: &mut [f64],
+pub fn francis_iteration_sym_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    rotation: &mut [f64],
     size: usize,
     range: usize,
     stride: usize,
-    tl: usize,
-    bl: usize,
+    top_left: usize,
+    bottom_left: usize,
 ) {
-    let eig = eigen(h[tl], h[tl + 1], h[bl], h[bl + 1]);
-    let (_, cosine, sine) = implicit_givens_rotation(h[0] - eig, h[1]);
-    apply_gt_right(h, 0, 1, stride, size, cosine, sine);
-    apply_g_left(h, 0, 1, stride, size, cosine, sine);
-    apply_g_left(r, 0, 1, stride, size, cosine, sine);
+    let eig = eigen(
+        hess_lin_matrix[top_left],
+        hess_lin_matrix[top_left + 1],
+        hess_lin_matrix[bottom_left],
+        hess_lin_matrix[bottom_left + 1],
+    );
+    let (_, cosine, sine) = implicit_givens_rotation(hess_lin_matrix[0] - eig, hess_lin_matrix[1]);
+    apply_gt_right(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
+    apply_g_left(hess_lin_matrix, 0, 1, stride, size, cosine, sine);
+    apply_g_left(rotation, 0, 1, stride, size, cosine, sine);
     for o in 0..range.saturating_sub(2) {
         let row = o * stride;
         let s1 = o + 1;
         let s2 = o + 2;
-        let (_, cosine, sine) = implicit_givens_rotation(h[row + s1], h[row + s2]);
-        apply_gt_right(&mut h[row..], s1, s2, stride, range - o, cosine, sine);
-        apply_g_left(h, s1, s2, stride, range, cosine, sine);
-        apply_g_left(r, s1, s2, stride, size, cosine, sine);
+        let (_, cosine, sine) =
+            implicit_givens_rotation(hess_lin_matrix[row + s1], hess_lin_matrix[row + s2]);
+        apply_gt_right(
+            &mut hess_lin_matrix[row..],
+            s1,
+            s2,
+            stride,
+            range - o,
+            cosine,
+            sine,
+        );
+        apply_g_left(hess_lin_matrix, s1, s2, stride, range, cosine, sine);
+        apply_g_left(rotation, s1, s2, stride, size, cosine, sine);
     }
 }
-/// full_hessenberg
-/// * h: matrix to create the hessenberg
-/// * r: rotation matrix should be identity on coldstart
-/// * p: projection vector
-/// * w: workspace vector
-/// * rows: number of rows
-/// * cols: number of cols
-/// * stride: stride of the data
-fn full_hessenberg(
-    h: &mut [f64],
-    r: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+pub fn hessenberg_with_rotation(
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    rotation: &mut [f64],
+    workspace: &mut [f64],
     rows: usize,
     cols: usize,
     stride: usize,
@@ -256,25 +303,49 @@ fn full_hessenberg(
     for o in 1..rows {
         active_range -= 1;
         split_range -= 1;
-        let (slice, t) = h.split_at_mut(offset + stride);
+        let (slice, target) = hess_lin_matrix.split_at_mut(offset + stride);
         let slice = &mut slice[offset + o..offset + cols];
-        let proj = &mut p[..split_range];
+        let proj = &mut projection[..split_range];
         let tau = params(slice, proj);
         offset += stride;
         if tau == 0f64 {
             continue;
         }
-        rapply_householder(&mut t[o..], proj, w, tau, rows - o, split_range, stride);
-        lapply_householder(&mut h[offset..], proj, w, tau, active_range, cols, stride);
-        lapply_householder(&mut r[offset..], proj, w, tau, active_range, cols, stride);
+        rapply_householder(
+            &mut target[o..],
+            proj,
+            workspace,
+            tau,
+            rows - o,
+            split_range,
+            stride,
+        );
+        lapply_householder(
+            &mut hess_lin_matrix[offset..],
+            proj,
+            workspace,
+            tau,
+            active_range,
+            cols,
+            stride,
+        );
+        lapply_householder(
+            &mut rotation[offset..],
+            proj,
+            workspace,
+            tau,
+            active_range,
+            cols,
+            stride,
+        );
     }
 }
 #[cfg(test)]
 mod test_hessenberg_reconstructions {
     use super::*;
-    use rand::prelude::*;
-
     use jedvek::Matrix2D;
+    use rand::prelude::*;
+    use rand::SeedableRng;
     use rand_distr::StandardNormal;
     //  NOTE: This should also be weighted towards the size of the dimensionality
     //  of the decomposition ie the condition number not a flat tolerance level
@@ -290,18 +361,17 @@ mod test_hessenberg_reconstructions {
         }
         error / (n as f64).sqrt() < TOLERANCE
     }
-
     fn to_matrix(data: &[f64], rows: usize, cols: usize) -> Matrix2D<f64> {
-        Matrix2D::from_flat(data.to_vec(), 0.0, rows, cols).unwrap()
+        Matrix2D::from_flat(data, 0.0, rows, cols).unwrap()
     }
     fn flat(m: &Matrix2D<f64>) -> Vec<f64> {
         m.rows().flatten().copied().collect()
     }
     fn generate_random_vector(n: usize) -> Vec<f64> {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
-        for i in 0..n {
-            data[i] = rng.sample(StandardNormal);
+        for d in data.iter_mut().take(n) {
+            *d = rng.sample(StandardNormal);
         }
         data
     }
@@ -351,7 +421,7 @@ mod test_hessenberg_reconstructions {
             let mut w = vec![0f64; rows];
             let original = to_matrix(&h, rows, cols);
 
-            full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
+            hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
 
             let kernel = to_matrix(&h, rows, cols);
             let rotation = to_matrix(&r, rows, cols);
@@ -393,7 +463,7 @@ mod test_hessenberg_reconstructions {
             let mut w = vec![0f64; rows];
             let original = to_matrix(&h, rows, cols);
 
-            full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
+            hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
 
             let kernel = to_matrix(&h, rows, cols);
             let rotation = to_matrix(&r, rows, cols);
@@ -445,8 +515,8 @@ mod test_hessenberg_reconstructions {
 
         let original = to_matrix(&h, rows, cols);
 
-        full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
-        let converged = full_decomp_sym(&mut h, &mut r, c, c, c);
+        hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+        let converged = decomp_sym_with_rotation(&mut h, &mut r, c, c, c);
 
         let kernel = to_matrix(&h, rows, cols);
         let rotation = to_matrix(&r, rows, cols);
@@ -498,8 +568,8 @@ mod test_hessenberg_reconstructions {
 
         let original = to_matrix(&h, rows, cols);
 
-        full_hessenberg(&mut h, &mut r, &mut p, &mut w, rows, cols, stride);
-        let converged = full_decomp_cpx(&mut h, &mut p, &mut r, &mut w, c, c, c);
+        hessenberg_with_rotation(&mut h, &mut p, &mut r, &mut w, rows, cols, stride);
+        let converged = decomp_cpx_with_rotation(&mut h, &mut p, &mut r, &mut w, c, c, c);
 
         let kernel = to_matrix(&h, rows, cols);
         let rotation = to_matrix(&r, rows, cols);

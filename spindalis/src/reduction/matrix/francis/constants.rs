@@ -19,7 +19,7 @@
 ///
 /// - **`EPSILON` (1e-18):** Numerical floor guarding against division-by-zero
 ///   and negligible subdiagonal elements during Householder/Givens setups.
-pub const MAX_ITERS: usize = 16;
+pub const MAX_ITERS: usize = 36;
 pub const TOLERANCE: f64 = 1e-4;
 pub const ABSOLUTE_CAP: f64 = 1e-3;
 pub const EPSILON: f64 = 1e-21;
