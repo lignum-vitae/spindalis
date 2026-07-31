@@ -8,8 +8,8 @@ use crate::reduction::matrix::francis::constants::{EPSILON, MAX_ITERS};
 ///
 /// * v: matrix slice data
 /// * w: sized workspace vector
-pub fn params(v: &mut [f64], w: &mut [f64]) -> f64 {
-    debug_assert_eq!(v.len(), w.len());
+pub fn params(v: &mut [f64], workspace: &mut [f64]) -> f64 {
+    debug_assert_eq!(v.len(), workspace.len());
     let mut max_element = 0f64;
     for val in v.iter() {
         let v = val.abs();
@@ -18,25 +18,25 @@ pub fn params(v: &mut [f64], w: &mut [f64]) -> f64 {
         };
     }
     if max_element.abs() < EPSILON {
-        w[0] = 1f64;
+        workspace[0] = 1f64;
         return 0f64;
     }
     let mut magnitude_squared = 0f64;
     let inv_max_element = 1f64 / max_element;
-    for (val, gbg) in v.iter_mut().zip(w.iter_mut()) {
+    for (val, gbg) in v.iter_mut().zip(workspace.iter_mut()) {
         *val *= inv_max_element;
         magnitude_squared += *val * *val;
         *gbg = *val;
         *val = 0f64;
     }
-    let g = w[0].signum() * magnitude_squared.sqrt();
-    let scale = w[0] + g;
+    let g = workspace[0].signum() * magnitude_squared.sqrt();
+    let scale = workspace[0] + g;
     let inv_scale = 1f64 / scale;
-    for val in w[1..].iter_mut() {
+    for val in workspace[1..].iter_mut() {
         *val *= inv_scale;
     }
     v[0] = -g * max_element;
-    w[0] = 1f64;
+    workspace[0] = 1f64;
     scale / g
 }
 /// lapply_householder
@@ -53,16 +53,16 @@ pub fn params(v: &mut [f64], w: &mut [f64]) -> f64 {
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn lapply_householder(
-    h: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    workspace: &mut [f64],
     tau: f64,
     rows: usize,
     cols: usize,
     stride: usize,
 ) {
-    debug_assert!(cols <= w.len());
-    debug_assert_eq!(rows, p.len());
+    debug_assert!(cols <= workspace.len());
+    debug_assert_eq!(rows, projection.len());
     // (I - tuu')A;
     // A -= t*uu'A;
     // w := u'A;
@@ -71,24 +71,24 @@ pub fn lapply_householder(
     for j in 0..cols {
         // let scalar = p[0];
         // scalar implicitly 1
-        w[j] = h[j];
+        workspace[j] = hess_lin_matrix[j];
     }
     for i in 1..rows {
         roffset += stride;
-        let scalar = p[i];
+        let scalar = projection[i];
         for j in 0..cols {
-            w[j] += scalar * h[roffset + j];
+            workspace[j] += scalar * hess_lin_matrix[roffset + j];
         }
     }
     for j in 0..cols {
-        w[j] *= tau;
-        h[j] -= w[j];
+        workspace[j] *= tau;
+        hess_lin_matrix[j] -= workspace[j];
     }
     roffset = 0;
     for i in 1..rows {
         roffset += stride;
         for j in 0..cols {
-            h[roffset + j] -= p[i] * w[j];
+            hess_lin_matrix[roffset + j] -= projection[i] * workspace[j];
         }
     }
 }
@@ -106,34 +106,34 @@ pub fn lapply_householder(
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn rapply_householder(
-    h: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    workspace: &mut [f64],
     tau: f64,
     rows: usize,
     cols: usize,
     stride: usize,
 ) {
-    debug_assert!(rows <= w.len());
-    debug_assert_eq!(cols, p.len());
+    debug_assert!(rows <= workspace.len());
+    debug_assert_eq!(cols, projection.len());
     // A(I - tuu');
     // A - t*Auu';
     // w := Au;
     // R -= t*wu;
     let mut roffset = 0;
     for i in 0..rows {
-        w[i] = h[roffset];
+        workspace[i] = hess_lin_matrix[roffset];
         for k in 1..cols {
-            w[i] += h[roffset + k] * p[k];
+            workspace[i] += hess_lin_matrix[roffset + k] * projection[k];
         }
-        w[i] *= tau;
+        workspace[i] *= tau;
         roffset += stride;
     }
     roffset = 0;
     for i in 0..rows {
-        h[roffset] -= w[i];
+        hess_lin_matrix[roffset] -= workspace[i];
         for j in 1..cols {
-            h[roffset + j] -= w[i] * p[j];
+            hess_lin_matrix[roffset + j] -= workspace[i] * projection[j];
         }
         roffset += stride;
     }
@@ -146,9 +146,9 @@ pub fn rapply_householder(
 /// * cols: number of cols
 /// * stride: stride of the data
 pub fn hessenberg(
-    h: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+    hess_lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    workspace: &mut [f64],
     rows: usize,
     cols: usize,
     stride: usize,
@@ -160,16 +160,16 @@ pub fn hessenberg(
     for o in 1..rows {
         active_range -= 1;
         split_range -= 1;
-        let (slice, t) = h.split_at_mut(offset + stride);
+        let (slice, t) = hess_lin_matrix.split_at_mut(offset + stride);
         let slice = &mut slice[offset + o..offset + cols];
-        let proj = &mut p[..split_range];
+        let proj = &mut projection[..split_range];
         let tau = params(slice, proj);
         offset += stride;
         if tau == 0f64 {
             continue;
         }
-        rapply_householder(&mut t[o..], proj, w, tau, rows - o, split_range, stride);
-        lapply_householder(&mut h[offset..], proj, w, tau, active_range, cols, stride);
+        rapply_householder(&mut t[o..], proj, workspace, tau, rows - o, split_range, stride);
+        lapply_householder(&mut hess_lin_matrix[offset..], proj, workspace, tau, active_range, cols, stride);
     }
 }
 pub fn deflate(
@@ -190,9 +190,9 @@ pub fn deflate(
     *bl = bl.saturating_sub(shift);
     *curriter = curriter.saturating_sub(MAX_ITERS >> 1);
 }
-pub fn complex_eig_pair(h: &mut [f64], tl: usize, bl: usize) -> bool {
-    let d = (h[tl] - h[bl + 1]) / 2f64;
-    d * d + h[tl + 1] * h[bl] < EPSILON
+pub fn complex_eig_pair(hess_lin_matrix: &mut [f64], tl: usize, bl: usize) -> bool {
+    let d = (hess_lin_matrix[tl] - hess_lin_matrix[bl + 1]) / 2f64;
+    d * d + hess_lin_matrix[tl + 1] * hess_lin_matrix[bl] < EPSILON
 }
 /// double_shift
 ///   - standard shift for francis iteration
@@ -203,30 +203,29 @@ pub fn complex_eig_pair(h: &mut [f64], tl: usize, bl: usize) -> bool {
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn double_shift(
-    h: &mut [f64],
-    w: &mut [f64],
+    hess_lin_matrix: &mut [f64],
+    workspace: &mut [f64],
     stride: usize,
-    _range: usize,
-    tl: usize,
-    bl: usize,
+    top_left: usize,
+    bottom_left: usize,
 ) {
     // u1 = a + bi;
     // u2 = a - bi;
     // M = H^2 - H(u1 + u2) +Iu1 *u2;
     // M = H^2 - H *trace +I * det;
-    let (m00, m01) = (h[tl], h[tl + 1]);
-    let (m10, m11) = (h[bl], h[bl + 1]);
+    let (m00, m01) = (hess_lin_matrix[top_left], hess_lin_matrix[top_left + 1]);
+    let (m10, m11) = (hess_lin_matrix[bottom_left], hess_lin_matrix[bottom_left + 1]);
 
-    let (h00, h01) = (h[0], h[1]);
-    let (h10, h11) = (h[stride], h[stride + 1]);
-    let h12 = h[stride + 2];
+    let (h00, h01) = (hess_lin_matrix[0], hess_lin_matrix[1]);
+    let (h10, h11) = (hess_lin_matrix[stride], hess_lin_matrix[stride + 1]);
+    let h12 = hess_lin_matrix[stride + 2];
 
     let trace = m00 + m11;
     let deter = m00 * m11 - m01 * m10;
 
-    w[0] = h00 * h00 + h01 * h10 - trace * h00 + deter;
-    w[1] = h01 * (h00 + h11 - trace);
-    w[2] = h01 * h12;
+    workspace[0] = h00 * h00 + h01 * h10 - trace * h00 + deter;
+    workspace[1] = h01 * (h00 + h11 - trace);
+    workspace[2] = h01 * h12;
 }
 /// exception_shift
 ///   - standard shift for francis iteration
@@ -237,31 +236,28 @@ pub fn double_shift(
 /// * range: number of rows in active window
 /// * stride: stride of the data format
 pub fn exception_shift(
-    h: &mut [f64],
-    w: &mut [f64],
+    hess_lin_matrix: &mut [f64],
+    workspace: &mut [f64],
     stride: usize,
-    _range: usize,
     tl: usize,
-    bl: usize,
 ) {
     // u1 = a + bi;
     // u2 = a - bi;
     // M = H^2 - H(u1 + u2) +Iu1 *u2;
     // M = H^2 - H *trace + I * det;
-    let (_m00, m01) = (h[tl], h[tl + 1]);
-    let (_m10, _m11) = (h[bl], h[bl + 1]);
+    let m01 = hess_lin_matrix[tl + 1];
 
-    let (h00, h01) = (h[0], h[1]);
-    let (h10, h11) = (h[stride], h[stride + 1]);
-    let h12 = h[stride + 2];
+    let (h00, h01) = (hess_lin_matrix[0], hess_lin_matrix[1]);
+    let (h10, h11) = (hess_lin_matrix[stride], hess_lin_matrix[stride + 1]);
+    let h12 = hess_lin_matrix[stride + 2];
 
     let s = m01.abs() + h01.abs();
     let trace = 2.0 * s;
     let deter = s * s;
 
-    w[0] = h00 * h00 + h01 * h10 - trace * h00 + deter;
-    w[1] = h01 * (h00 + h11 - trace);
-    w[2] = h01 * h12;
+    workspace[0] = h00 * h00 + h01 * h10 - trace * h00 + deter;
+    workspace[1] = h01 * (h00 + h11 - trace);
+    workspace[2] = h01 * h12;
 }
 pub fn eigen(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
     let d = (m00 - m11) / 2f64;

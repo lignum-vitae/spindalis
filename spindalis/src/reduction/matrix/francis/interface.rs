@@ -77,7 +77,6 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
 }
 /// francis_qr_sym
 ///
-/// * h: householder
 /// * p: projection vector
 /// * w: workspace for a givens rotation
 /// * range: number of rows in active window
@@ -86,9 +85,9 @@ pub fn auto_francis_qr_cpx(matrix: &Matrix2D<f64>) -> Result<Matrix2D<f64>, Solv
 /// * tolerance: error tolerance which is used as a bound for non relative error
 /// * absolute: absolute bound on error minimum should be less than tolerance
 pub fn francis_qr_sym(
-    h: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+    lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    workspace: &mut [f64],
     range: usize,
     size: usize,
     stride: usize,
@@ -96,8 +95,8 @@ pub fn francis_qr_sym(
     tolerance: f64,
     absolute: f64,
 ) {
-    primitives::hessenberg(h, p, w, size, range, stride);
-    symmetric::decomp_sym(h, range, size, stride, max_iters, tolerance, absolute);
+    primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
+    symmetric::decomp_sym(lin_matrix, range, size, stride, max_iters, tolerance, absolute);
 }
 /// francis_qr_complex
 ///
@@ -109,17 +108,17 @@ pub fn francis_qr_sym(
 /// * max_iters: number of iterations per eigen vector recoups half on success
 /// * tolerance: error tolerance which is used as a bound for non relative error
 pub fn francis_qr_cpx(
-    h: &mut [f64],
-    p: &mut [f64],
-    w: &mut [f64],
+    lin_matrix: &mut [f64],
+    projection: &mut [f64],
+    workspace: &mut [f64],
     range: usize,
     size: usize,
     stride: usize,
     max_iters: usize,
     tolerance: f64,
 ) {
-    primitives::hessenberg(h, p, w, size, range, stride);
-    complex::decomp_cpx(h, p, w, range, size, stride, max_iters, tolerance);
+    primitives::hessenberg(lin_matrix, projection, workspace, size, range, stride);
+    complex::decomp_cpx(lin_matrix, projection, workspace, range, size, stride, max_iters, tolerance);
 }
 #[cfg(test)]
 mod test_francis_interface {
@@ -135,8 +134,8 @@ mod test_francis_interface {
     fn generate_random_vector(n: usize) -> Vec<f64> {
         let mut rng = rand::rng();
         let mut data = vec![0f64; n];
-        for i in 0..n {
-            data[i] = rng.sample(StandardNormal);
+        for d in data.iter_mut().take(n) {
+            *d = rng.sample(StandardNormal);
         }
         data
     }
