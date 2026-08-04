@@ -42,31 +42,7 @@ pub fn apply_g_left(
         // alpha a[i*,k] + beta a[j*, k];
         let i_replace = cosine * a[r1 + k] + sine * a[r2 + k];
         // gamma a[i*,k] + delta a[j*, k];
-        let j_replace = -sine * a[r1 + k] + cosine * a[r2 + k];
-        a[r1 + k] = i_replace;
-        a[r2 + k] = j_replace;
-    }
-}
-pub fn apply_gt_left(
-    a: &mut [f64],
-    i: usize,
-    j: usize,
-    stride: usize,
-    range: usize,
-    cosine: f64,
-    sine: f64,
-) {
-    // G' * A
-    // transpose the negative sine
-    // alpha, beta, gamma, delta,
-    // c, -s, s, c
-    let r1 = i * stride;
-    let r2 = j * stride;
-    for k in 0..range {
-        // alpha a[i*,j] + beta a[j*, j];
-        let i_replace = cosine * a[r1 + k] - sine * a[r2 + k];
-        // gamma a[i*,j] + delta a[j*, j];
-        let j_replace = sine * a[r1 + k] + cosine * a[r2 + k];
+        let j_replace = - sine * a[r1 + k] + cosine * a[r2 + k];
         a[r1 + k] = i_replace;
         a[r2 + k] = j_replace;
     }
@@ -94,6 +70,21 @@ pub fn apply_g_right(
         r += stride;
     }
 }
+pub fn apply_gt_left(
+    a: &mut [f64],
+    i: usize,
+    j: usize,
+    stride: usize,
+    range: usize,
+    cosine: f64,
+    sine: f64,
+) {
+    // G' * A
+    // transpose the negative sine
+    // alpha, beta, gamma, delta,
+    // c, -s, s, c
+    apply_g_left(a, i, j, stride, range, cosine, - sine);
+}
 pub fn apply_gt_right(
     a: &mut [f64],
     i: usize,
@@ -106,13 +97,5 @@ pub fn apply_gt_right(
     // A * G'
     // alpha, beta, gamma, delta,
     // c, -s, s, c
-    for l in 0..range {
-        let r = l * stride;
-        // alpha a[l,i*] + gamma a[l, j*];
-        let i_replace = cosine * a[r + i] + sine * a[r + j];
-        // beta a[l,i*] + delta a[l, j*];
-        let j_replace = -sine * a[r + i] + cosine * a[r + j];
-        a[r + i] = i_replace;
-        a[r + j] = j_replace;
-    }
+    apply_g_right(a, i, j, stride, range, cosine, -sine);
 }
