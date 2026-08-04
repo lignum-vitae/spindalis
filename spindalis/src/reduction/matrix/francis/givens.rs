@@ -42,7 +42,7 @@ pub fn apply_g_left(
         // alpha a[i*,k] + beta a[j*, k];
         let i_replace = cosine * a[r1 + k] + sine * a[r2 + k];
         // gamma a[i*,k] + delta a[j*, k];
-        let j_replace = - sine * a[r1 + k] + cosine * a[r2 + k];
+        let j_replace = -sine * a[r1 + k] + cosine * a[r2 + k];
         a[r1 + k] = i_replace;
         a[r2 + k] = j_replace;
     }
@@ -83,7 +83,7 @@ pub fn apply_gt_left(
     // transpose the negative sine
     // alpha, beta, gamma, delta,
     // c, -s, s, c
-    apply_g_left(a, i, j, stride, range, cosine, - sine);
+    apply_g_left(a, i, j, stride, range, cosine, -sine);
 }
 pub fn apply_gt_right(
     a: &mut [f64],
