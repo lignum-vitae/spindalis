@@ -36,9 +36,9 @@ pub fn apply_g_left(
     // G * A
     // alpha, beta, gamma, delta,
     // c, s, -s, c
+    let r1 = i * stride;
+    let r2 = j * stride;
     for k in 0..range {
-        let r1 = i * stride;
-        let r2 = j * stride;
         // alpha a[i*,k] + beta a[j*, k];
         let i_replace = cosine * a[r1 + k] + sine * a[r2 + k];
         // gamma a[i*,k] + delta a[j*, k];
