@@ -1,3 +1,9 @@
+#![allow(unused)]
+
+// NOTE: Contained functions are used for testing purposes to ensure that the
+// implementaitons of symmetric eigen decomp and complex eigen decomp maintain
+// the same methods
+
 use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
 use crate::reduction::matrix::francis::constants::{
     EXCEPTION_SHIFT_OFFSET, EXCEPTION_SHIFT_PERIOD,
@@ -17,7 +23,7 @@ use crate::reduction::matrix::francis::primitives::{
     rapply_householder,
 };
 #[rustfmt::skip]
-pub fn decomp_sym_with_rotation(
+fn decomp_sym_with_rotation(
     hess_lin_matrix: &mut [f64],
     rotation: &mut [f64],
     mut range: usize,
@@ -61,7 +67,7 @@ pub fn decomp_sym_with_rotation(
     }
     range <= 1
 }
-pub fn decomp_cpx_with_rotation(
+fn decomp_cpx_with_rotation(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
     rotation: &mut [f64],
@@ -154,7 +160,7 @@ pub fn decomp_cpx_with_rotation(
     }
     range <= 1
 }
-pub fn francis_iteration_cpx_with_rotation(
+fn francis_iteration_cpx_with_rotation(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
     rotation: &mut [f64],
@@ -229,7 +235,7 @@ pub fn francis_iteration_cpx_with_rotation(
         );
     }
 }
-pub fn francis_iteration_cpx_2x2_with_rotation(
+fn francis_iteration_cpx_2x2_with_rotation(
     hess_lin_matrix: &mut [f64],
     rotation: &mut [f64],
     size: usize,
@@ -248,7 +254,7 @@ pub fn francis_iteration_cpx_2x2_with_rotation(
     apply_g_left(hess_lin_matrix, 0, 1, stride, 2, cosine, sine);
     apply_g_left(rotation, 0, 1, stride, size, cosine, sine);
 }
-pub fn francis_iteration_sym_with_rotation(
+fn francis_iteration_sym_with_rotation(
     hess_lin_matrix: &mut [f64],
     rotation: &mut [f64],
     size: usize,
@@ -286,7 +292,7 @@ pub fn francis_iteration_sym_with_rotation(
         apply_g_left(rotation, s1, s2, stride, size, cosine, sine);
     }
 }
-pub fn hessenberg_lq_with_rotation(
+fn hessenberg_lq_with_rotation(
     hess_lin_matrix: &mut [f64],
     projection: &mut [f64],
     rotation: &mut [f64],
@@ -601,5 +607,200 @@ mod test_hessenberg_reconstructions {
         println!("cpx: {convergence_failures} convergence failures, {reconstruction_failures} reconstruction failures / {trials}");
         assert!(convergence_failures < 10, "too many convergence failures: {convergence_failures}");
         assert!(reconstruction_failures < 10, "too many reconstruction failures: {reconstruction_failures}");
+    }
+}
+
+#[cfg(test)]
+mod test_verify_correspondance_complex {
+    use super::*;
+    use crate::reduction::matrix::francis::complex::decomp_cpx;
+    use crate::reduction::matrix::francis::constants::{MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::primitives::hessenberg_lq;
+    use crate::reduction::matrix::francis::verify::{
+        decomp_cpx_with_rotation, hessenberg_lq_with_rotation,
+    };
+    use rand::prelude::*;
+    use rand_distr::StandardNormal;
+
+    fn generate_random_vector(n: usize) -> Vec<f64> {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut data = vec![0f64; n];
+        for d in data.iter_mut().take(n) {
+            *d = rng.sample(StandardNormal);
+        }
+        data
+    }
+    fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
+        let mut vector = vec![0f64; m * n];
+        let mut idx = 0;
+        for _ in 0..m {
+            vector[idx] = 1f64;
+            idx += 1 + n;
+        }
+        vector
+    }
+    // A * A^T so it's complex (with float noise, like the other tests)
+    fn generate_approx_complex_vector(n: usize) -> Vec<f64> {
+        let a = generate_random_vector(n * n);
+        let mut result = vec![0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let mut sum = 0f64;
+                for k in 0..n {
+                    sum += a[i * n + k] * a[j * n + k];
+                }
+                result[i * n + j] = sum;
+            }
+        }
+        result
+    }
+    fn approx_slice_eq(a: &[f64], b: &[f64], tolerance: f64) -> bool {
+        assert_eq!(a.len(), b.len());
+        a.iter().zip(b.iter()).all(|(x, y)| {
+            if x.is_nan() || y.is_nan() {
+                return false;
+            }
+            (x - y).abs() < tolerance
+        })
+    }
+    #[test]
+    fn test_decomp_cpx_matches_decomp_cpx_with_rotation() {
+        // 5 random shapes
+        for dim in [2, 3, 5, 6, 8] {
+            let (rows, cols) = (dim, dim);
+            let stride = dim;
+
+            let base = generate_approx_complex_vector(dim);
+
+            // --- plain decomp_cpx path ---
+            let mut h_plain = base.clone();
+            let mut p_plain = vec![0f64; cols];
+            let mut w_plain = vec![0f64; rows.max(3)];
+            hessenberg_lq(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
+            decomp_cpx(
+                &mut h_plain,
+                &mut p_plain,
+                &mut w_plain,
+                dim,
+                dim,
+                stride,
+                MAX_ITERS,
+                TOLERANCE,
+            );
+
+            // --- rotation-tracking decomp_cpx_with_rotation path ---
+            let mut h_rot = base.clone();
+            let mut r_rot = generate_identity_vector(rows, cols);
+            let mut p_rot = vec![0f64; cols];
+            let mut w_rot = vec![0f64; rows.max(3)];
+            hessenberg_lq_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
+            decomp_cpx_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
+
+            assert!(
+                approx_slice_eq(&h_plain, &h_rot, 1e-6),
+                "dim={dim}: decomp_cpx and decomp_cpx_with_rotation diverged\nplain: {h_plain:?}\nrot:   {h_rot:?}"
+            );
+        }
+    }
+}
+#[cfg(test)]
+mod test_verify_correspondance_symmetric {
+    use super::*;
+    use crate::reduction::matrix::francis::constants::{ABSOLUTE_CAP, MAX_ITERS, TOLERANCE};
+    use crate::reduction::matrix::francis::primitives::hessenberg_lq;
+    use crate::reduction::matrix::francis::symmetric::decomp_sym;
+    use crate::reduction::matrix::francis::verify::{
+        decomp_sym_with_rotation, hessenberg_lq_with_rotation,
+    };
+    use rand::SeedableRng;
+    use rand::prelude::*;
+    use rand::rngs::StdRng;
+    use rand_distr::StandardNormal;
+
+    fn generate_random_vector(n: usize) -> Vec<f64> {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut data = vec![0f64; n];
+        for d in data.iter_mut().take(n) {
+            *d = rng.sample(StandardNormal);
+        }
+        data
+    }
+
+    fn generate_identity_vector(m: usize, n: usize) -> Vec<f64> {
+        let mut vector = vec![0f64; m * n];
+        let mut idx = 0;
+        for _ in 0..m {
+            vector[idx] = 1f64;
+            idx += 1 + n;
+        }
+        vector
+    }
+
+    // A * A^T so it's symmetric (with float noise, like the other tests)
+    fn generate_approx_symmetric_vector(n: usize) -> Vec<f64> {
+        let a = generate_random_vector(n * n);
+        let mut result = vec![0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                let mut sum = 0f64;
+                for k in 0..n {
+                    sum += a[i * n + k] * a[j * n + k];
+                }
+                result[i * n + j] = sum;
+            }
+        }
+        result
+    }
+
+    fn approx_slice_eq(a: &[f64], b: &[f64], tolerance: f64) -> bool {
+        assert_eq!(a.len(), b.len());
+        a.iter().zip(b.iter()).all(|(x, y)| {
+            if x.is_nan() || y.is_nan() {
+                return false;
+            }
+            (x - y).abs() < tolerance
+        })
+    }
+    #[test]
+    fn test_decomp_sym_matches_decomp_sym_with_rotation() {
+        // 5 random shapes
+        for dim in [2, 3, 5, 6, 8] {
+            let (rows, cols) = (dim, dim);
+            let stride = dim;
+
+            let base = generate_approx_symmetric_vector(dim);
+
+            // --- plain decomp_sym path ---
+            let mut h_plain = base.clone();
+            let mut p_plain = vec![0f64; cols];
+            let mut w_plain = vec![0f64; rows];
+            hessenberg_lq(&mut h_plain, &mut p_plain, &mut w_plain, rows, cols, stride);
+            decomp_sym(
+                &mut h_plain,
+                dim,
+                dim,
+                stride,
+                MAX_ITERS,
+                TOLERANCE,
+                ABSOLUTE_CAP,
+            );
+            // --- rotation-tracking decomp_sym_with_rotation path ---
+            let mut h_rot = base.clone();
+            let mut r_rot = generate_identity_vector(rows, cols);
+            let mut p_rot = vec![0f64; cols];
+            let mut w_rot = vec![0f64; rows];
+            hessenberg_lq_with_rotation(
+                &mut h_rot, &mut p_rot, &mut r_rot, &mut w_rot, rows, cols, stride,
+            );
+            decomp_sym_with_rotation(&mut h_rot, &mut r_rot, dim, dim, stride);
+            assert!(
+                approx_slice_eq(&h_plain, &h_rot, 1e-6),
+                "dim={dim}: decomp_sym and decomp_sym_with_rotation diverged\nplain: {h_plain:?}\nrot:   {h_rot:?}"
+            );
+        }
     }
 }
