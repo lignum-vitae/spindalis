@@ -2,142 +2,181 @@ use crate::reduction::dimension::{DimensionError, ReductionError};
 use crate::utils::{StdDevType, arith_mean, std_dev};
 use jedvek::Matrix2D;
 
-// ┌─────────────┬────────┬────────┬────────┬────────┬──────────┐
-// │             │  USA   │ France │ Belgium│   UK   │ Czechia  │
-// ├─────────────┼────────┼────────┼────────┼────────┼──────────┤
-// │ Variable1   │   .    │   .    │   .    │   .    │   .      │
-// │ Variable2   │   .    │   .    │   .    │   .    │   .      │
-// │ Variable3   │   .    │   .    │   .    │   .    │   .      │
-// │ Variable4   │   .    │   .    │   .    │   .    │   .      │
-// └─────────────┴────────┴────────┴────────┴────────┴──────────┘
+// ┌─────────────┬────────┬────────┬────────┬────────┬────────┐
+// │             │ Feat 1 │ Feat 2 │ Feat 3 │ Feat 4 │ Feat 5 │
+// ├─────────────┼────────┼────────┼────────┼────────┼────────┤
+// │ Sample1     │   .    │   .    │   .    │   .    │    .   │
+// │ Sample2     │   .    │   .    │   .    │   .    │    .   │
+// │ Sample3     │   .    │   .    │   .    │   .    │    .   │
+// │ Sample4     │   .    │   .    │   .    │   .    │    .   │
+// └─────────────┴────────┴────────┴────────┴────────┴────────┘
 
-// Rows/data.height → variables
+// Rows/data.height → samples
 // Columns/data.width → features
+
+// Reference https://cs357.cs.illinois.edu/textbook/notes/pca.html
 
 pub fn pca() {}
 
-fn _center_data(
-    data: &Matrix2D<f64>,
+#[allow(dead_code)]
+pub(crate) fn center_data(
+    data: &mut Matrix2D<f64>,
     std_type: Option<StdDevType>,
-) -> Result<Matrix2D<f64>, ReductionError> {
-    let mut result = data.clone();
+) -> Result<&Matrix2D<f64>, ReductionError> {
+    if data.height == 0 || data.width == 0 {
+        return Err(ReductionError::ShapeError(DimensionError::EmptyVector));
+    }
     let mut std = 1_f64;
-    for row in &mut result {
-        let len = row.len();
-        if len == 0 {
-            return Err(ReductionError::ShapeError(DimensionError::EmptyVector));
+    let mut column_data_vec = vec![0.0; data.height];
+    for j in 0..data.width {
+        let column_data: &mut [f64] = &mut column_data_vec;
+        for i in 0..data.height {
+            column_data[i] = data[i][j];
         }
         if let Some(std_kind) = std_type {
-            std = std_dev(row, std_kind);
+            std = std_dev(column_data, std_kind);
         }
-
-        if std.is_nan() {
-            return Err(ReductionError::ZeroMean);
-        }
-
-        let mean = arith_mean(row);
-        for item in row {
+        let mean = arith_mean(column_data);
+        for item in &mut *column_data {
             *item = (*item - mean) / std;
         }
-    }
-    Ok(result)
-}
-
-fn _variance(data: &[f64]) -> Result<f64, DimensionError> {
-    let length = data.len();
-    if length == 0 {
-        return Err(DimensionError::EmptyVector);
-    }
-    let length = length as f64;
-    let mean: f64 = data.iter().sum::<f64>() / length;
-    let var_sum: f64 = data.iter().map(|x| (x - mean) * (x - mean)).sum();
-    Ok(var_sum / (length - 1.0))
-}
-
-fn _covariance(x_data: &[f64], y_data: &[f64]) -> Result<f64, DimensionError> {
-    let x_length = x_data.len();
-    let y_length = y_data.len();
-    if x_length == 0 || y_length == 0 {
-        return Err(DimensionError::EmptyVector);
-    }
-    if x_length != y_length {
-        return Err(DimensionError::DimensionMismatch {
-            len_x: x_length,
-            len_y: y_length,
-        });
-    }
-    let n = x_length as f64;
-    let x_mean: f64 = x_data.iter().sum::<f64>() / n;
-    let y_mean: f64 = y_data.iter().sum::<f64>() / n;
-    let cov_sum: f64 = x_data
-        .iter()
-        .zip(y_data.iter())
-        .map(|(x, y)| (x - x_mean) * (y - y_mean))
-        .sum();
-    Ok(cov_sum / (n - 1.0))
-}
-
-fn _cov_mat(data: &Matrix2D<f64>) -> Result<Matrix2D<f64>, ReductionError> {
-    let height = data.height;
-
-    let mut covariance_matrix = Matrix2D::full(0.0, height, height);
-
-    for (i, x) in data.into_iter().enumerate() {
-        for (j, y) in data.into_iter().enumerate() {
-            if i == j {
-                covariance_matrix[i][j] = _variance(x).map_err(ReductionError::ShapeError)?;
-            } else {
-                covariance_matrix[i][j] = _covariance(x, y).map_err(ReductionError::ShapeError)?;
-            }
+        for i in 0..data.height {
+            data[i][j] = column_data[i];
         }
     }
-    Ok(covariance_matrix)
+    Ok(data)
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_center_data() {
-        let data = Matrix2D::from(&[[1., 2., 3.], [4., 5., 6.]]);
-
-        let centered = _center_data(&data, None).unwrap();
-        let expected = Matrix2D::from(&[[-1., 0., 1.], [-1., 0., 1.]]);
-
-        assert_eq!(centered, expected);
+    fn testcenter_data_3x3_1() {
+        let mut data = Matrix2D::from(&[[1., 4., 10.],
+                                        [2., 5., 20.],
+                                        [3., 9., 30.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[-1., -2., -10.],
+                                        [ 0., -1.,   0.],
+                                        [ 1.,  3.,  10.]]);
+        assert_eq!(*centered, expected);
     }
 
     #[test]
-    fn test_variance() {
-        let data = vec![2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0];
-        let result = _variance(&data).unwrap();
-        let expected = 4.57;
-        assert!((result - expected).abs() < 1e-2);
+    fn testcenter_data_3x3_2() {
+        let mut data = Matrix2D::from(&[[5., 12., 3.],
+                                        [1., 8., 9.],
+                                        [0., 4., 0.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[ 3.,  4., -1.],
+                                        [-1.,  0.,  5.],
+                                        [-2., -4., -4.]]);
+        assert_eq!(*centered, expected);
     }
 
     #[test]
-    fn test_covariance() {
-        let x = vec![2.1, 2.5, 4.0, 3.6];
-        let y = vec![8.0, 12.0, 14.0, 10.0];
-
-        let result = _covariance(&x, &y).unwrap();
-        let expected = 1.53;
-        assert!((result - expected).abs() < 1e-2);
+    fn testcenter_data_4x4() {
+        let mut data = Matrix2D::from(&[[10., 20., 30., 40.],
+                                        [15., 25., 35., 45.],
+                                        [ 5., 10., 15., 20.],
+                                        [10., 25., 40., 55.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[ 0.,   0.,   0.,   0.],
+                                        [ 5.,   5.,   5.,   5.],
+                                        [-5., -10., -15., -20.],
+                                        [ 0.,   5.,  10.,  15.]]);
+        assert_eq!(*centered, expected);
     }
 
     #[test]
-    fn test_variance_empty() {
-        let data: Vec<f64> = vec![];
-        let result = _variance(&data);
-        assert!(result.is_err());
+    fn testcenter_data_5x5() {
+        let mut data = Matrix2D::from(&[[3., 10.,  2., 8.,  6.],
+                                        [4.,  4., 11., 3., 11.],
+                                        [5.,  7.,  7., 9.,  3.],
+                                        [6.,  3.,  8., 6.,  8.],
+                                        [7.,  6., 12., 9.,  2.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[-2.,  4., -6.,  1.,  0.],
+                                        [-1., -2.,  3., -4.,  5.],
+                                        [ 0.,  1., -1.,  2., -3.],
+                                        [ 1., -3.,  0., -1.,  2.],
+                                        [ 2.,  0.,  4.,  2., -4.]]);
+        assert_eq!(*centered, expected);
     }
 
     #[test]
-    fn test_covariance_length_mismatch() {
-        let x = vec![1.0, 2.0];
-        let y = vec![1.0];
-        let result = _covariance(&x, &y);
-        assert!(result.is_err());
+    fn testcenter_data_8x8() {
+        let mut data = Matrix2D::from(&[[11.,  8., 13.,  6., 12.,  7., 14.,  5.],
+                                        [12.,  7., 14.,  5., 11.,  8., 13.,  6.],
+                                        [13.,  6., 11.,  8., 14.,  5., 12.,  7.],
+                                        [14.,  5., 12.,  7., 13.,  6., 11.,  8.],
+                                        [ 6., 13.,  8., 11.,  7., 14.,  5., 12.],
+                                        [ 7., 14.,  5., 12.,  8., 13.,  6., 11.],
+                                        [ 8., 11.,  7., 14.,  5., 12.,  7., 14.],
+                                        [ 9., 16., 10., 17., 10., 15., 12., 17.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[ 1., -2.,  3., -4.,  2., -3.,  4., -5.],
+                                        [ 2., -3.,  4., -5.,  1., -2.,  3., -4.],
+                                        [ 3., -4.,  1., -2.,  4., -5.,  2., -3.],
+                                        [ 4., -5.,  2., -3.,  3., -4.,  1., -2.],
+                                        [-4.,  3., -2.,  1., -3.,  4., -5.,  2.],
+                                        [-3.,  4., -5.,  2., -2.,  3., -4.,  1.],
+                                        [-2.,  1., -3.,  4., -5.,  2., -3.,  4.],
+                                        [-1.,  6.,  0.,  7.,  0.,  5.,  2.,  7.]]);
+        assert_eq!(*centered, expected);
+    }
+
+    #[test]
+    fn testcenter_data_10x10_1() {
+        let mut data = Matrix2D::from(&[[ 1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.],
+                                        [ 2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.,  1.],
+                                        [ 3.,  4.,  5.,  6.,  7.,  8.,  9., 10.,  1.,  2.],
+                                        [ 4.,  5.,  6.,  7.,  8.,  9., 10.,  1.,  2.,  3.],
+                                        [ 5.,  6.,  7.,  8.,  9., 10.,  1.,  2.,  3.,  4.],
+                                        [ 6.,  7.,  8.,  9., 10.,  1.,  2.,  3.,  4.,  5.],
+                                        [ 7.,  8.,  9., 10.,  1.,  2.,  3.,  4.,  5.,  6.],
+                                        [ 8.,  9., 10.,  1.,  2.,  3.,  4.,  5.,  6.,  7.],
+                                        [ 9., 10.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.],
+                                        [ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[-3.5, -3.5, -2.5, -1.5, -0.5,  0.5,  1.5,  2.5,  3.5,  4.5],
+                                        [-2.5, -2.5, -1.5, -0.5,  0.5,  1.5,  2.5,  3.5,  4.5, -4.5],
+                                        [-1.5, -1.5, -0.5,  0.5,  1.5,  2.5,  3.5,  4.5, -4.5, -3.5],
+                                        [-0.5, -0.5,  0.5,  1.5,  2.5,  3.5,  4.5, -4.5, -3.5, -2.5],
+                                        [ 0.5,  0.5,  1.5,  2.5,  3.5,  4.5, -4.5, -3.5, -2.5, -1.5],
+                                        [ 1.5,  1.5,  2.5,  3.5,  4.5, -4.5, -3.5, -2.5, -1.5, -0.5],
+                                        [ 2.5,  2.5,  3.5,  4.5, -4.5, -3.5, -2.5, -1.5, -0.5,  0.5],
+                                        [ 3.5,  3.5,  4.5, -4.5, -3.5, -2.5, -1.5, -0.5,  0.5,  1.5],
+                                        [ 4.5,  4.5, -4.5, -3.5, -2.5, -1.5, -0.5,  0.5,  1.5,  2.5],
+                                        [-4.5, -4.5, -3.5, -2.5, -1.5, -0.5,  0.5,  1.5,  2.5,  3.5]]);
+        assert_eq!(*centered, expected);
+    }
+
+    #[test]
+    fn testcenter_data_10x10_2() {
+        let mut data = Matrix2D::from(&[[ -3.25,  -2.00,  -0.75,   0.25,   1.50,   2.75,   3.25,   4.50,   5.75,   6.25],
+                                        [ -2.25,  -1.00,   0.25,   1.25,   2.50,   3.75,   4.25,   5.50,   6.75,   7.25],
+                                        [ -1.25,   0.00,   1.25,   2.25,   3.50,   4.75,   5.25,   6.50,   7.75,   8.25],
+                                        [ -0.25,   1.00,   2.25,   3.25,   4.50,   5.75,   6.25,   7.50,   8.75,   9.25],
+                                        [  0.75,   2.00,   3.25,   4.25,   5.50,   6.75,   7.25,   8.50,   9.75,  10.25],
+                                        [  1.75,   3.00,   4.25,   5.25,   6.50,   7.75,   8.25,   9.50,  10.75,  11.25],
+                                        [  2.75,   4.00,   5.25,   6.25,   7.50,   8.75,   9.25,  10.50,  11.75,  12.25],
+                                        [  3.75,   5.00,   6.25,   7.25,   8.50,   9.75,  10.25,  11.50,  12.75,  13.25],
+                                        [  4.75,   6.00,   7.25,   8.25,   9.50,  10.75,  11.25,  12.50,  13.75,  14.25],
+                                        [  5.75,   7.00,   8.25,   9.25,  10.50,  11.75,  12.25,  13.50,  14.75,  15.25]]);
+        let centered = center_data(&mut data, None).unwrap();
+        let expected = Matrix2D::from(&[[-4.5, -4.5, -4.5, -4.5, -4.5, -4.5, -4.5, -4.5, -4.5, -4.5],
+                                        [-3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5, -3.5],
+                                        [-2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5],
+                                        [-1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5],
+                                        [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5],
+                                        [ 0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5],
+                                        [ 1.5,  1.5,  1.5,  1.5,  1.5,  1.5,  1.5,  1.5,  1.5,  1.5],
+                                        [ 2.5,  2.5,  2.5,  2.5,  2.5,  2.5,  2.5,  2.5,  2.5,  2.5],
+                                        [ 3.5,  3.5,  3.5,  3.5,  3.5,  3.5,  3.5,  3.5,  3.5,  3.5],
+                                        [ 4.5,  4.5,  4.5,  4.5,  4.5,  4.5,  4.5,  4.5,  4.5,  4.5]]);
+        assert_eq!(*centered, expected);
     }
 }
