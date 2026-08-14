@@ -23,6 +23,7 @@ pub enum DimensionError {
     EmptyVector,
     DimensionMismatch { len_x: usize, len_y: usize },
     Incompatible,
+    InvalidDivision,
 }
 
 impl From<DimensionError> for ReductionError {
