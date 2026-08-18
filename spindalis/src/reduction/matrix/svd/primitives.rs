@@ -1,5 +1,14 @@
 use crate::reduction::matrix::svd::constants::MAX_ITERS;
 
+pub fn identity_flat(rows: usize, cols: usize) -> Vec<f64> {
+    let mut data = vec![0f64; rows * cols];
+    let mut offset = 0;
+    for _ in 0..rows.min(cols) {
+        data[offset] = 1f64;
+        offset += 1 + cols;
+    }
+    data
+}
 pub fn singular(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
     let off_diag = m00 * m01 + m10 * m11;
     let m00 = m00 * m00 + m10 * m10;
@@ -8,7 +17,6 @@ pub fn singular(m00: f64, m01: f64, m10: f64, m11: f64) -> f64 {
     let discriminate = d * d + off_diag * off_diag;
     m11 + d - d.signum() * discriminate.max(0f64).sqrt()
 }
-
 pub fn deflate(
     amount: usize,
     stride: usize,

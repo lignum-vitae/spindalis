@@ -40,9 +40,6 @@ pub fn decomp_ugivens(
             ugivens_iteration(b, inter, stride, tl, bl);
         }
     }
-    if curriter == max_iters {
-        println!("budget-exceeded");
-    }
 }
 #[rustfmt::skip]
 pub fn decomp_lgivens(

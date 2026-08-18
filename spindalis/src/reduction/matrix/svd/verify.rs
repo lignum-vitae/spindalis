@@ -223,7 +223,6 @@ fn full_ugivens_iteration(
     let mut uoffset = 0;
     let mut voffset = 0;
     // push zero into col
-    // let (_, cos, sin) = implicit_givens_rotation(h[0], h[1]);
     let sing = singular(h[tl], h[tl + 1], h[bl], h[bl + 1]);
     let sq_0 = h[0] * h[0];
     let sq_1 = h[0] * h[1];
@@ -294,14 +293,11 @@ fn full_lgivens_iteration(
 #[cfg(test)]
 mod test_svd_reconstructions {
     use crate::reduction::matrix::svd::interface::full_svd_decomposition;
-
-    // src/random/generation.rs
     use rand::SeedableRng;
     use rand::prelude::*;
     use rand::rngs::StdRng;
     use rand_distr::StandardNormal;
     const ABSOLUTE: f64 = 1e-4;
-    // src/algebra/ndmethods.rs
     fn matrix_mult(
         a: &[f64],
         a_rows: usize,
@@ -461,8 +457,8 @@ mod test_svd_reconstructions {
         }
 
         println!("svd: {u_failures} U failures, {v_failures} V failures, {recon_failures} reconstruction failures / {trials}");
-        assert!(u_failures < 10, "too many U orthogonality failures: {u_failures}");
-        assert!(v_failures < 10, "too many V orthogonality failures: {v_failures}");
-        assert!(recon_failures < 10, "too many reconstruction failures: {recon_failures}");
+        assert!(u_failures == 0, "too many U orthogonality failures: {u_failures}");
+        assert!(v_failures == 0, "too many V orthogonality failures: {v_failures}");
+        assert!(recon_failures == 0, "too many reconstruction failures: {recon_failures}");
     }
 }

@@ -1,5 +1,6 @@
 use crate::reduction::matrix::svd::bidiagonalization::{lbidiagonal, ubidiagonal};
 use crate::reduction::matrix::svd::bulge_chasing::{decomp_lgivens, decomp_ugivens};
+use crate::reduction::matrix::svd::primitives::identity_flat;
 #[rustfmt::skip]
 use crate::reduction::matrix::svd::verify::{
     full_ubidiagonal,
@@ -7,7 +8,62 @@ use crate::reduction::matrix::svd::verify::{
     full_decomp_ugivens,
     full_decomp_lgivens
 };
+use crate::reduction::matrix::svd::constants::{
+    DEFAULT_ABSOLUTE, DEFAULT_MAX_ITERS, DEFAULT_TOLERANCE,
+};
+use crate::solvers::SolverError;
+use jedvek::Matrix2D;
 
+/// auto_svd
+///   full SVD, allocating: A ~= U * Sigma * V'
+///
+/// Returns (U, Sigma, V):
+///   - U is rows x rows, orthogonal.
+///   - V is cols x cols, orthogonal.
+///   - Sigma is rows x cols, same shape as A. Let card = min(rows, cols).
+///     Only the top-left card x card corner of Sigma is nonzero, and
+///     within that corner only the diagonal is nonzero (the singular
+///     values). Everything else in Sigma — off-diagonal in the corner,
+///     and all of it outside the corner — is zero.
+///
+///   Unlike francis_lq_sym/cpx, this does NOT require a square matrix —
+///   wide, tall, and square inputs are all valid.
+pub fn auto_svd(
+    matrix: &Matrix2D<f64>,
+) -> Result<(Matrix2D<f64>, Matrix2D<f64>, Matrix2D<f64>), SolverError> {
+    let rows = matrix.height;
+    let cols = matrix.width;
+    let card = rows.min(cols);
+    let stride = cols;
+    let maximum = rows.max(cols);
+
+    let mut b: Vec<f64> = matrix.rows().flatten().copied().collect();
+    let mut u = identity_flat(rows, rows);
+    let mut v = identity_flat(cols, cols);
+    let mut p = vec![0f64; maximum];
+    let mut w = vec![0f64; maximum];
+
+    full_svd_decomposition(
+        &mut b,
+        &mut u,
+        &mut v,
+        &mut p,
+        &mut w,
+        rows,
+        cols,
+        card,
+        stride,
+        DEFAULT_MAX_ITERS,
+        DEFAULT_TOLERANCE,
+        DEFAULT_ABSOLUTE,
+    );
+
+    let umat = Matrix2D::from_flat(u, 0.0, rows, rows).map_err(SolverError::InvalidVector)?;
+    let sigma = Matrix2D::from_flat(b, 0.0, rows, cols).map_err(SolverError::InvalidVector)?;
+    let vmat = Matrix2D::from_flat(v, 0.0, cols, cols).map_err(SolverError::InvalidVector)?;
+
+    Ok((umat, sigma, vmat))
+}
 pub fn full_svd_decomposition(
     b: &mut [f64],
     u: &mut [f64],
@@ -64,54 +120,17 @@ pub fn svd_decomposition(
 }
 
 #[cfg(test)]
-mod test_svd_diagonal_parity {
+mod test_auto_svd {
     use super::*;
-
-    const MAX_ITERS: usize = 40;
-    const TOLERANCE: f64 = 1e-10;
-    const ABSOLUTE: f64 = 1e-4;
-
-    use crate::reduction::matrix::svd::interface::full_svd_decomposition;
-
-    // src/random/generation.rs
+    use jedvek::Matrix2D;
     use rand::SeedableRng;
     use rand::prelude::*;
     use rand::rngs::StdRng;
     use rand_distr::StandardNormal;
-    // src/algebra/ndmethods.rs
-    fn matrix_mult(
-        a: &[f64],
-        a_rows: usize,
-        a_cols: usize,
-        b: &[f64],
-        b_rows: usize,
-        b_cols: usize,
-        out: &mut [f64],
-    ) {
-        assert_eq!(
-            a_cols, b_rows,
-            "matrix_mult: inner dims mismatch ({a_cols} vs {b_rows})"
-        );
-        assert_eq!(out.len(), a_rows * b_cols);
 
-        for i in 0..a_rows {
-            for k in 0..a_cols {
-                let a_ik = a[i * a_cols + k];
-                for j in 0..b_cols {
-                    out[i * b_cols + j] += a_ik * b[k * b_cols + j];
-                }
-            }
-        }
-    }
-    pub fn transpose(a: &[f64], rows: usize, cols: usize, out: &mut [f64]) {
-        assert_eq!(out.len(), rows * cols);
-        for i in 0..rows {
-            for j in 0..cols {
-                out[j * rows + i] = a[i * cols + j];
-            }
-        }
-    }
-    pub fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
+    const TOLERANCE: f64 = 1e-2;
+
+    fn approx_vector_eq(a: &[f64], b: &[f64]) -> bool {
         if a.len() != b.len() {
             return false;
         }
@@ -123,8 +142,104 @@ mod test_svd_diagonal_parity {
             }
             error += (a[i] - b[i]).abs();
         }
-        error / (n as f64).sqrt() < 1e-2
+        error / (n as f64).sqrt() < TOLERANCE
     }
+
+    fn flat(m: &Matrix2D<f64>) -> Vec<f64> {
+        m.rows().flatten().copied().collect()
+    }
+
+    fn generate_random_matrix(rows: usize, cols: usize) -> Matrix2D<f64> {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut data = vec![0f64; rows * cols];
+        for d in data.iter_mut() {
+            *d = rng.sample(StandardNormal);
+        }
+        Matrix2D::from_flat(data, 0.0, rows, cols).unwrap()
+    }
+
+    fn check_auto_svd_reconstruct(rows: usize, cols: usize) -> (bool, bool, bool) {
+        let original = generate_random_matrix(rows, cols);
+
+        let (u, sigma, v) = auto_svd(&original).expect("auto_svd should not error on any shape");
+
+        let identity_rows = Matrix2D::identity(rows);
+        let identity_cols = Matrix2D::identity(cols);
+
+        // U U' ~= I and U' U ~= I
+        let uut = u.dot(&u.transpose()).unwrap();
+        let utu = u.transpose().dot(&u).unwrap();
+        let u_ortho_ok = approx_vector_eq(&flat(&uut), &flat(&identity_rows))
+            && approx_vector_eq(&flat(&utu), &flat(&identity_rows));
+
+        // V V' ~= I and V' V ~= I
+        let vvt = v.dot(&v.transpose()).unwrap();
+        let vtv = v.transpose().dot(&v).unwrap();
+        let v_ortho_ok = approx_vector_eq(&flat(&vvt), &flat(&identity_cols))
+            && approx_vector_eq(&flat(&vtv), &flat(&identity_cols));
+
+        // U Sigma V' ~= original
+        let reconstruct = u.dot(&sigma).unwrap().dot(&v.transpose()).unwrap();
+        let recon_ok = approx_vector_eq(&flat(&reconstruct), &flat(&original));
+
+        (u_ortho_ok, v_ortho_ok, recon_ok)
+    }
+
+    #[test]
+    fn test_auto_svd_square() {
+        for dim in [2, 4, 7] {
+            let (u_ok, v_ok, r_ok) = check_auto_svd_reconstruct(dim, dim);
+            assert!(u_ok, "dim={dim}: U not orthogonal");
+            assert!(v_ok, "dim={dim}: V not orthogonal");
+            assert!(r_ok, "dim={dim}: reconstruction mismatch");
+        }
+    }
+
+    #[test]
+    fn test_auto_svd_wide() {
+        for (rows, cols) in [(1, 2), (2, 4), (4, 6), (4, 8)] {
+            let (u_ok, v_ok, r_ok) = check_auto_svd_reconstruct(rows, cols);
+            assert!(u_ok, "{rows}x{cols}: U not orthogonal");
+            assert!(v_ok, "{rows}x{cols}: V not orthogonal");
+            assert!(r_ok, "{rows}x{cols}: reconstruction mismatch");
+        }
+    }
+
+    #[test]
+    fn test_auto_svd_tall() {
+        for (rows, cols) in [(2, 1), (4, 2), (6, 4), (8, 4)] {
+            let (u_ok, v_ok, r_ok) = check_auto_svd_reconstruct(rows, cols);
+            assert!(u_ok, "{rows}x{cols}: U not orthogonal");
+            assert!(v_ok, "{rows}x{cols}: V not orthogonal");
+            assert!(r_ok, "{rows}x{cols}: reconstruction mismatch");
+        }
+    }
+
+    #[test]
+    fn test_auto_svd_dimensions() {
+        // shapes come back with the documented dimensions, not just
+        // numerically plausible ones
+        let (rows, cols) = (5, 3);
+        let original = generate_random_matrix(rows, cols);
+        let (u, sigma, v) = auto_svd(&original).unwrap();
+        assert_eq!((u.height, u.width), (rows, rows));
+        assert_eq!((sigma.height, sigma.width), (rows, cols));
+        assert_eq!((v.height, v.width), (cols, cols));
+    }
+}
+#[cfg(test)]
+mod test_svd_diagonal_parity {
+    use super::*;
+
+    const MAX_ITERS: usize = 40;
+    const TOLERANCE: f64 = 1e-10;
+    const ABSOLUTE: f64 = 1e-4;
+
+    use crate::reduction::matrix::svd::interface::full_svd_decomposition;
+    use rand::SeedableRng;
+    use rand::prelude::*;
+    use rand::rngs::StdRng;
+    use rand_distr::StandardNormal;
     pub fn generate_random_vector(n: usize) -> Vec<f64> {
         let mut rng = StdRng::seed_from_u64(42);
         let mut data = vec![0f64; n];
@@ -240,7 +355,6 @@ mod test_svd_diagonal_parity {
         assert!(failures == 0, "exact-path diagonals diverged {failures} times — codepaths are not identical");
     }
 }
-
 #[cfg(test)]
 mod test_svd_convergence_rate {
     use super::*;
@@ -328,7 +442,7 @@ mod test_svd_convergence_rate {
 
         for _ in 0..trials {
             let residual = run_convergence_trial(rows, cols, iterations, tol, absolute);
-            sum_residual += residual as f64;
+            sum_residual += residual;
             if residual > max_residual {
                 max_residual = residual;
             }
